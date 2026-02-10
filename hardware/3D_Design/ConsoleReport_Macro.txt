@@ -1,0 +1,139 @@
+import FreeCAD as App
+import math, time
+
+doc = App.ActiveDocument
+if not doc:
+    raise RuntimeError("No ActiveDocument. Open your .FCStd first.")
+
+# ========= Settings =========
+REF_NAME = "Housing_Front"      # relative reference (set "" to disable)
+INCLUDE = ["Pi5","AudioBoard","PowerBoard","PiCamEnv","LCD","Fan40","Housing_Front","Housing_Back","BatteryPack_Envelope","BatteryCells_2S2P"]
+BB_LIMIT = 1e6
+
+SKIP_TYPE_PREFIX = (
+    "App::Origin","App::Line","App::Plane",
+    "Part::Plane","Part::Line","Part::InfiniteLine",
+)
+SKIP_NAME_HINTS = ("Axis","Plane","Origin","Datum")
+
+# ========= Helpers =========
+def bb_is_insane(bb, limit=BB_LIMIT):
+    m = max(abs(bb.XMin), abs(bb.XMax), abs(bb.YMin), abs(bb.YMax), abs(bb.ZMin), abs(bb.ZMax))
+    return m > limit
+
+def get_obj(key):
+    o = doc.getObject(key)
+    if o: return o
+    try:
+        hits = doc.getObjectsByLabel(key)
+        if hits: return hits[0]
+    except:
+        pass
+    return None
+
+def safe_shape(o):
+    try:
+        sh = o.Shape
+        if sh.isNull():
+            return None
+        bb = sh.BoundBox
+        if bb_is_insane(bb):
+            return None
+        return sh
+    except:
+        return None
+
+def placement_of(o):
+    # try global placement on Links/Parts if present
+    try:
+        if hasattr(o, "getGlobalPlacement"):
+            return o.getGlobalPlacement()
+    except:
+        pass
+    return o.Placement
+
+def rot_pack(r):
+    ax = r.Axis
+    ang = math.degrees(r.Angle)
+    try:
+        q = tuple(r.Q)  # (x,y,z,w)
+    except:
+        q = None
+    try:
+        e = r.toEuler()
+        euler = (float(e[0]), float(e[1]), float(e[2]))
+    except:
+        euler = None
+    return ax, ang, q, euler
+
+def rel_placement(pl_ref, pl_obj):
+    try:
+        return pl_ref.inverse().multiply(pl_obj)
+    except:
+        rp = App.Placement()
+        rp.Base = pl_obj.Base.sub(pl_ref.Base)
+        rp.Rotation = pl_obj.Rotation
+        return rp
+
+# ========= Print =========
+print("\n=== Assembly Tracker (precise, no JSON) ===")
+print("Time:", time.strftime("%Y-%m-%d %H:%M:%S"))
+print("Doc :", doc.Name)
+try:
+    print("File:", doc.FileName)
+except:
+    pass
+
+ref = get_obj(REF_NAME) if REF_NAME else None
+ref_pl = placement_of(ref) if ref else None
+if ref:
+    print(f"Reference: {ref.Name} ({ref.Label})")
+else:
+    print("Reference: (none)")
+
+finite_bbs = []
+
+for o in doc.Objects:
+    if INCLUDE and (o.Name not in INCLUDE) and ((getattr(o,"Label","") or "") not in INCLUDE):
+        continue
+    if any(o.TypeId.startswith(p) for p in SKIP_TYPE_PREFIX):
+        continue
+    if any(h in o.Name for h in SKIP_NAME_HINTS) or any(h in (getattr(o,"Label","") or "") for h in SKIP_NAME_HINTS):
+        continue
+
+    sh = safe_shape(o)
+    if not sh:
+        continue
+
+    pl = placement_of(o)
+    base = pl.Base
+    ax, ang, q, euler = rot_pack(pl.Rotation)
+    bb = sh.BoundBox
+
+    print(f"\n- {o.Name} | {o.Label} | {o.TypeId}")
+    print(f"  Base: ({base.x:.6f}, {base.y:.6f}, {base.z:.6f})")
+    print(f"  Rot : Axis=({ax.x:.6f},{ax.y:.6f},{ax.z:.6f})  Angle(deg)={ang:.6f}")
+    if q:
+        print(f"  Q   : ({q[0]:.9f}, {q[1]:.9f}, {q[2]:.9f}, {q[3]:.9f})")
+    if euler:
+        print(f"  Euler(deg): (yaw={euler[0]:.6f}, pitch={euler[1]:.6f}, roll={euler[2]:.6f})")
+
+    print(f"  BBox: X[{bb.XMin:.3f},{bb.XMax:.3f}]  Y[{bb.YMin:.3f},{bb.YMax:.3f}]  Z[{bb.ZMin:.3f},{bb.ZMax:.3f}]")
+    print(f"  Size: W={bb.XLength:.3f}  T={bb.YLength:.3f}  H={bb.ZLength:.3f}")
+
+    if ref_pl:
+        rpl = rel_placement(ref_pl, pl)
+        rb = rpl.Base
+        rax, rang, rq, reu = rot_pack(rpl.Rotation)
+        print(f"  Rel-> {REF_NAME} Base: ({rb.x:.6f}, {rb.y:.6f}, {rb.z:.6f})")
+        print(f"  Rel-> {REF_NAME} Rot : Axis=({rax.x:.6f},{rax.y:.6f},{rax.z:.6f})  Angle(deg)={rang:.6f}")
+
+    finite_bbs.append(bb)
+
+if finite_bbs:
+    bb_all = finite_bbs[0]
+    for b in finite_bbs[1:]:
+        bb_all.add(b)
+    print("\n=== OVERALL ENVELOPE (finite only) ===")
+    print(f"W={bb_all.XLength:.3f}  T={bb_all.YLength:.3f}  H={bb_all.ZLength:.3f}  (mm)")
+    print(f"X[{bb_all.XMin:.3f},{bb_all.XMax:.3f}]  Y[{bb_all.YMin:.3f},{bb_all.YMax:.3f}]  Z[{bb_all.ZMin:.3f},{bb_all.ZMax:.3f}]")
