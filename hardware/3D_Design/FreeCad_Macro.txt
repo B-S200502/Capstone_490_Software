@@ -1,0 +1,306 @@
+import FreeCAD as App
+import Part, math
+
+doc = App.ActiveDocument
+if not doc:
+    raise RuntimeError("Open your .FCStd first (must have an ActiveDocument).")
+
+# =========================
+# USER TARGET (your sketch)
+# =========================
+OUTER_W = 250.0   # X  (mm)  ~25 cm
+OUTER_H = 120.0   # Z  (mm)  ~12 cm
+OUTER_T = 80.0    # Y  (mm)  ~8 cm thickness
+
+# Shell build
+WALL  = 2.6
+FLOOR = 3.0
+LID   = 2.6
+CORNER_R = 22.0
+
+# Split seam (keep same seam plane you already use)
+SPLIT_Y = 5.0
+MAKE_SPLIT = True
+
+# LCD cuts (kept because your sketch has display window)
+LCD_WINDOW_MARGIN = 0.8
+LCD_POCKET_CLEAR  = 0.25
+LCD_POCKET_EXTRA_DEPTH = 1.0
+
+# Mic + Cam holes
+MIC_HOLE_D = 2.2
+CAM_HOLE_D = 14.0
+
+# Fermat mic pattern offsets (your existing list)
+MICS = [
+("U1",0,0),("U2",-4.76,4.36),("U3",0.8,-9.09),("U4",6.81,8.87),
+("U5",-12.71,-2.24),("U6",12.17,-7.76),("U7",-4.09,15.27),
+("U8",-7.89,-15.15),("U9",17.16,6.24),("U10",-17.89,7.41),
+("U11",8.63,-18.5),("U12",6.44,20.42),("U13",-19.36,-11.18),
+("U14",22.72,-5.04),("U15",-13.85,19.78),("U16",-3.26,-24.79),
+]
+
+# =========================
+# OPTIONAL: Battery envelope
+# =========================
+MAKE_BATTERY = True
+BAT_NAME = "Battery_2S2P"
+BAT_ENVELOPE = (38.0, 38.0, 68.0)  # X,Y,Z envelope (mm) - tweak anytime
+CELL_D = 18.6
+CELL_L = 65.0
+CELL_CLEAR = 0.6
+
+# -------------------------
+# Helpers
+# -------------------------
+def get_obj(key):
+    o = doc.getObject(key)
+    if o: return o
+    try:
+        hits = doc.getObjectsByLabel(key)
+        if hits: return hits[0]
+    except: pass
+    k = key.lower()
+    for ob in doc.Objects:
+        if (ob.Name or "").lower() == k or (getattr(ob, "Label", "") or "").lower() == k:
+            return ob
+    return None
+
+def remove_splitters(shape):
+    try:
+        return shape.removeSplitter()
+    except:
+        return shape
+
+def rounded_rect_face_xz(xL, xR, zB, zT, r, y_at):
+    w = xR - xL
+    h = zT - zB
+    r = max(0.0, min(r, w/2.0, h/2.0))
+    if r < 1e-6:
+        p1 = App.Vector(xL, y_at, zB); p2 = App.Vector(xR, y_at, zB)
+        p3 = App.Vector(xR, y_at, zT); p4 = App.Vector(xL, y_at, zT)
+        wire = Part.Wire([Part.makeLine(p1,p2),Part.makeLine(p2,p3),Part.makeLine(p3,p4),Part.makeLine(p4,p1)])
+        return Part.Face(wire)
+
+    rt = r / math.sqrt(2.0)
+    topL = App.Vector(xL + r, y_at, zT); topR = App.Vector(xR - r, y_at, zT)
+    rightT = App.Vector(xR, y_at, zT - r); rightB = App.Vector(xR, y_at, zB + r)
+    botR = App.Vector(xR - r, y_at, zB); botL = App.Vector(xL + r, y_at, zB)
+    leftB = App.Vector(xL, y_at, zB + r); leftT = App.Vector(xL, y_at, zT - r)
+
+    tr_mid = App.Vector((xR - r) + rt, y_at, (zT - r) + rt)
+    br_mid = App.Vector((xR - r) + rt, y_at, (zB + r) - rt)
+    bl_mid = App.Vector((xL + r) - rt, y_at, (zB + r) - rt)
+    tl_mid = App.Vector((xL + r) - rt, y_at, (zT - r) + rt)
+
+    edges = [
+        Part.makeLine(topL, topR),
+        Part.Arc(topR, tr_mid, rightT).toShape(),
+        Part.makeLine(rightT, rightB),
+        Part.Arc(rightB, br_mid, botR).toShape(),
+        Part.makeLine(botR, botL),
+        Part.Arc(botL, bl_mid, leftB).toShape(),
+        Part.makeLine(leftB, leftT),
+        Part.Arc(leftT, tl_mid, topL).toShape(),
+    ]
+    return Part.Face(Part.Wire(edges))
+
+def ensure_part_feature(name):
+    o = doc.getObject(name)
+    if o is None:
+        o = doc.addObject("Part::Feature", name)
+        o.Label = name
+    return o
+
+def union_bb(objs):
+    bbs = []
+    for o in objs:
+        if o and hasattr(o, "Shape") and (not o.Shape.isNull()):
+            bbs.append(o.Shape.BoundBox)
+    if not bbs:
+        return None
+    bb = App.BoundBox(bbs[0].XMin,bbs[0].YMin,bbs[0].ZMin,bbs[0].XMax,bbs[0].YMax,bbs[0].ZMax)
+    for b in bbs[1:]:
+        bb.add(b)
+    return bb
+
+def clamp(v, lo, hi):
+    return max(lo, min(hi, v))
+
+def get_front_face_bbox(shape, tol=0.8):
+    # largest face near YMin with normal ~ -Y
+    bb = shape.BoundBox
+    y_front = bb.YMin
+    best = None
+    best_area = -1
+    y_axis = App.Vector(0,-1,0)
+    for f in shape.Faces:
+        fbb = f.BoundBox
+        if abs(fbb.YMin - y_front) > tol:
+            continue
+        try:
+            n = f.normalAt(0,0)
+            if n.Length < 1e-9: continue
+            n.normalize()
+            if abs(n.dot(y_axis)) < 0.85:
+                continue
+            if f.Area > best_area:
+                best_area = f.Area
+                best = f
+        except:
+            pass
+    return best.BoundBox if best else bb
+
+# -------------------------
+# Reference center: keep housing roughly where it already is
+# -------------------------
+housing_f = get_obj("Housing_Front")
+housing_b = get_obj("Housing_Back")
+bb_ref = union_bb([housing_f, housing_b])
+
+if bb_ref:
+    x0 = 0.5*(bb_ref.XMin + bb_ref.XMax)
+    z0 = 0.5*(bb_ref.ZMin + bb_ref.ZMax)
+else:
+    # fallback: center from main components if housing not found
+    bb_ref = union_bb([get_obj("Pi5"), get_obj("AudioBoard"), get_obj("PowerBoard"), get_obj("PiCamEnv"), get_obj("LCD")])
+    x0 = 0.0 if not bb_ref else 0.5*(bb_ref.XMin + bb_ref.XMax)
+    z0 = 0.0 if not bb_ref else 0.5*(bb_ref.ZMin + bb_ref.ZMax)
+
+LEFT_X   = x0 - OUTER_W/2.0
+RIGHT_X  = x0 + OUTER_W/2.0
+BOTTOM_Z = z0 - OUTER_H/2.0
+TOP_Z    = z0 + OUTER_H/2.0
+
+FRONT_Y = -OUTER_T/2.0
+BACK_Y  =  OUTER_T/2.0
+D_total = BACK_Y - FRONT_Y
+
+# Build outer and inner shells
+outer_face = rounded_rect_face_xz(LEFT_X, RIGHT_X, BOTTOM_Z, TOP_Z, CORNER_R, FRONT_Y)
+outer_solid = outer_face.extrude(App.Vector(0, D_total, 0))
+
+inner_xL = LEFT_X + WALL
+inner_xR = RIGHT_X - WALL
+inner_zB = BOTTOM_Z + FLOOR
+inner_zT = TOP_Z - LID
+inner_r  = max(0.0, CORNER_R - WALL)
+
+inner_face = rounded_rect_face_xz(inner_xL, inner_xR, inner_zB, inner_zT, inner_r, FRONT_Y + WALL)
+inner_solid = inner_face.extrude(App.Vector(0, D_total - 2*WALL, 0))
+
+shell = remove_splitters(outer_solid.cut(inner_solid))
+
+# -------------------------
+# LCD window + pocket (kept)
+# -------------------------
+lcd = get_obj("LCD")
+if lcd and hasattr(lcd, "Shape") and not lcd.Shape.isNull():
+    lcd_shape = lcd.Shape.copy()
+    lcd_bb = lcd_shape.BoundBox
+    front_bb = get_front_face_bbox(lcd_shape, tol=0.8)
+
+    # window (front face)
+    x1 = clamp(front_bb.XMin + LCD_WINDOW_MARGIN, LEFT_X + 10.0, RIGHT_X - 10.0)
+    x2 = clamp(front_bb.XMax - LCD_WINDOW_MARGIN, LEFT_X + 10.0, RIGHT_X - 10.0)
+    z1 = clamp(front_bb.ZMin + LCD_WINDOW_MARGIN, BOTTOM_Z + 10.0, TOP_Z - 10.0)
+    z2 = clamp(front_bb.ZMax - LCD_WINDOW_MARGIN, BOTTOM_Z + 10.0, TOP_Z - 10.0)
+
+    win = Part.makeBox(max(1.0, x2-x1), WALL + 18.0, max(1.0, z2-z1),
+                       App.Vector(x1, FRONT_Y - 8.0, z1))
+    shell = shell.cut(win)
+
+    # pocket (front interior)
+    px1 = clamp(lcd_bb.XMin - LCD_POCKET_CLEAR, LEFT_X + 10.0, RIGHT_X - 10.0)
+    px2 = clamp(lcd_bb.XMax + LCD_POCKET_CLEAR, LEFT_X + 10.0, RIGHT_X - 10.0)
+    pz1 = clamp(lcd_bb.ZMin - LCD_POCKET_CLEAR, BOTTOM_Z + 10.0, TOP_Z - 10.0)
+    pz2 = clamp(lcd_bb.ZMax + LCD_POCKET_CLEAR, BOTTOM_Z + 10.0, TOP_Z - 10.0)
+
+    pocket_depth = min((D_total - 2*WALL) - 1.0, max(2.0, lcd_bb.YLength + LCD_POCKET_EXTRA_DEPTH))
+    pocket = Part.makeBox(max(1.0, px2-px1), pocket_depth, max(1.0, pz2-pz1),
+                          App.Vector(px1, FRONT_Y + WALL, pz1))
+    shell = shell.cut(pocket)
+
+# -------------------------
+# Camera hole: KEEP camera where it currently is
+# -------------------------
+cam = get_obj("PiCamEnv")
+if cam and hasattr(cam, "Shape") and not cam.Shape.isNull():
+    cbb = cam.Shape.BoundBox
+    cam_cx = 0.5*(cbb.XMin + cbb.XMax)
+    cam_cz = 0.5*(cbb.ZMin + cbb.ZMax)
+
+    cam_hole = Part.makeCylinder(CAM_HOLE_D/2.0, WALL + 28.0,
+                                 App.Vector(cam_cx, BACK_Y + 1.0, cam_cz),
+                                 App.Vector(0,-1,0))
+    shell = shell.cut(cam_hole)
+
+# -------------------------
+# Mic holes: CENTER ONLY the mic pattern (camera stays as-is)
+# -------------------------
+mic_cx = 0.5*(LEFT_X + RIGHT_X)
+mic_cz = 0.5*(BOTTOM_Z + TOP_Z)
+
+for _, mx, mz in MICS:
+    start = App.Vector(mic_cx + mx, BACK_Y + 1.0, mic_cz + mz)
+    cyl = Part.makeCylinder(MIC_HOLE_D/2.0, WALL + 24.0, start, App.Vector(0,-1,0))
+    shell = shell.cut(cyl)
+
+# NOTE: Capture hole intentionally NOT cut (patched by rebuild)
+
+shell = remove_splitters(shell)
+
+# -------------------------
+# Split into halves (overwrite shapes)
+# -------------------------
+def make_keep(y0, y1):
+    return Part.makeBox(OUTER_W + 300.0, y1-y0, OUTER_H + 300.0,
+                        App.Vector(LEFT_X-150.0, y0, BOTTOM_Z-150.0))
+
+if MAKE_SPLIT:
+    front_keep = make_keep(FRONT_Y-1.0, SPLIT_Y)
+    back_keep  = make_keep(SPLIT_Y, BACK_Y+1.0)
+    front_shape = remove_splitters(shell.common(front_keep))
+    back_shape  = remove_splitters(shell.common(back_keep))
+
+    hf = ensure_part_feature("Housing_Front")
+    hb = ensure_part_feature("Housing_Back")
+    hf.Shape = front_shape
+    hb.Shape = back_shape
+else:
+    h = ensure_part_feature("Housing")
+    h.Shape = shell
+
+# -------------------------
+# Optional: Battery generator (envelope + 4 cells)
+# -------------------------
+if MAKE_BATTERY:
+    # Put the battery near the bottom-left interior by default (you can move it later)
+    bx, by, bz = BAT_ENVELOPE
+    base = App.Vector(LEFT_X + WALL + 5.0, 0.0 - by/2.0, BOTTOM_Z + FLOOR + 5.0)
+
+    env = Part.makeBox(bx, by, bz, base)
+    # 2x2 cells along Z, spaced in X
+    pitch = CELL_D + CELL_CLEAR
+    cx0 = base.x + (bx - (2*pitch - CELL_CLEAR))/2.0 + CELL_D/2.0
+    cz0 = base.z + (bz - (2*pitch - CELL_CLEAR))/2.0 + CELL_D/2.0
+    cy  = base.y + by/2.0
+
+    cells = []
+    for ix in [0,1]:
+        for iz in [0,1]:
+            c = Part.makeCylinder(CELL_D/2.0, CELL_L, App.Vector(cx0 + ix*pitch, cy - CELL_L/2.0, cz0 + iz*pitch), App.Vector(0,1,0))
+            cells.append(c)
+    cell_solid = cells[0]
+    for c in cells[1:]:
+        cell_solid = cell_solid.fuse(c)
+
+    batt_shape = remove_splitters(env.fuse(cell_solid))
+    bobj = ensure_part_feature(BAT_NAME)
+    bobj.Shape = batt_shape
+
+doc.recompute()
+
+print("\n=== Rebuild done ===")
+print(f"Target outer: W={OUTER_W}  T={OUTER_T}  H={OUTER_H} (mm)")
+print("Mic pattern centered to housing. Camera hole kept at PiCamEnv center. Capture hole removed by rebuild.")
