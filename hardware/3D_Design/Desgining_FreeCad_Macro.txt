@@ -1,41 +1,43 @@
 import FreeCAD as App
-import Part, math, re
+import Part, math
 
 doc = App.ActiveDocument
 if not doc:
-    raise RuntimeError("Open your .FCStd first (must have an ActiveDocument).")
+    raise RuntimeError("Open the .FCStd first (must have an ActiveDocument).")
 
 # ==========================================================
-# HOUSING DIMENSIONS (same as your current design)
+# EASY OBJECT GETTERS
 # ==========================================================
-OUTER_W = 250.0
-OUTER_T = 80.0
-OUTER_H = 140.0
-WALL  = 2.6
-FLOOR = 3.0
-LID   = 2.6
-CORNER_R = 22.0
-SPLIT_Y = 5.0
-EXTRA_CUT = 6.0
+def get_obj(name_or_label):
+    o = doc.getObject(name_or_label)
+    if o:
+        return o
+    try:
+        hits = doc.getObjectsByLabel(name_or_label)
+        if hits:
+            return hits[0]
+    except:
+        pass
+    key = name_or_label.lower()
+    for ob in doc.Objects:
+        if (ob.Name or "").lower() == key or (getattr(ob, "Label", "") or "").lower() == key:
+            return ob
+    return None
 
-# ==========================================================
-# LCD CUT BEHAVIOR (LCD placement is NOT changed)
-# ==========================================================
-# Window clearance around LCD glass
-LCD_OPEN_X_CLEAR = 0.70
-LCD_OPEN_Z_TOP_CLEAR = 0.70
-LCD_OPEN_Z_BOTTOM_CLEAR = 0.10
-
-# Internal pocket (fit-friendly)
-LCD_POCKET_CLEAR = 1.10
-LCD_WALL_SKIN = 1.20
-LCD_POCKET_EXTRA_DEPTH = 2.0
-
-# ==========================================================
-# Helpers
-# ==========================================================
-def clamp(v, lo, hi):
-    return max(lo, min(hi, v))
+def ensure_feature(name):
+    """
+    Finds by Name first, then by Label, otherwise creates.
+    This prevents duplicate 'HoldWall_L04001' surprises.
+    """
+    o = doc.getObject(name)
+    if o:
+        return o, False
+    o = get_obj(name)
+    if o:
+        return o, False
+    o = doc.addObject("Part::Feature", name)
+    o.Label = name
+    return o, True
 
 def remove_splitters(shape):
     try:
@@ -43,74 +45,23 @@ def remove_splitters(shape):
     except:
         return shape
 
-def get_obj(key):
-    o = doc.getObject(key)
-    if o:
-        return o
-    try:
-        hits = doc.getObjectsByLabel(key)
-        if hits:
-            return hits[0]
-    except:
-        pass
-    k = key.lower()
-    for ob in doc.Objects:
-        if (ob.Name or "").lower() == k or (getattr(ob, "Label", "") or "").lower() == k:
-            return ob
-    return None
-
-def ensure_feature(name):
-    o = doc.getObject(name)
-    if o is None:
-        o = doc.addObject("Part::Feature", name)
-        o.Label = name
-    return o
-
 def bb_center(bb):
     return (0.5*(bb.XMin+bb.XMax), 0.5*(bb.YMin+bb.YMax), 0.5*(bb.ZMin+bb.ZMax))
 
-def safe_normalized(v):
+def shape_world(obj):
+    sh = obj.Shape.copy()
     try:
-        vv = App.Vector(v.x, v.y, v.z)
-        if vv.Length < 1e-9:
-            return vv
-        vv.normalize()
-        return vv
+        sh.Placement = obj.Placement
     except:
-        return App.Vector(0,0,0)
+        pass
+    return sh
 
-def rounded_rect_face_xz(xL, xR, zB, zT, r, y_at):
-    w = xR - xL
-    h = zT - zB
-    r = max(0.0, min(r, w/2.0, h/2.0))
-    if r < 1e-6:
-        p1 = App.Vector(xL, y_at, zB); p2 = App.Vector(xR, y_at, zB)
-        p3 = App.Vector(xR, y_at, zT); p4 = App.Vector(xL, y_at, zT)
-        wire = Part.Wire([Part.makeLine(p1,p2),Part.makeLine(p2,p3),Part.makeLine(p3,p4),Part.makeLine(p4,p1)])
-        return Part.Face(wire)
-
-    rt = r / math.sqrt(2.0)
-    topL = App.Vector(xL + r, y_at, zT); topR = App.Vector(xR - r, y_at, zT)
-    rightT = App.Vector(xR, y_at, zT - r); rightB = App.Vector(xR, y_at, zB + r)
-    botR = App.Vector(xR - r, y_at, zB); botL = App.Vector(xL + r, y_at, zB)
-    leftB = App.Vector(xL, y_at, zB + r); leftT = App.Vector(xL, y_at, zT - r)
-
-    tr_mid = App.Vector((xR - r) + rt, y_at, (zT - r) + rt)
-    br_mid = App.Vector((xR - r) + rt, y_at, (zB + r) - rt)
-    bl_mid = App.Vector((xL + r) - rt, y_at, (zB + r) - rt)
-    tl_mid = App.Vector((xL + r) - rt, y_at, (zT - r) + rt)
-
-    edges = [
-        Part.makeLine(topL, topR),
-        Part.Arc(topR, tr_mid, rightT).toShape(),
-        Part.makeLine(rightT, rightB),
-        Part.Arc(rightB, br_mid, botR).toShape(),
-        Part.makeLine(botR, botL),
-        Part.Arc(botL, bl_mid, leftB).toShape(),
-        Part.makeLine(leftB, leftT),
-        Part.Arc(leftT, tl_mid, topL).toShape(),
-    ]
-    return Part.Face(Part.Wire(edges))
+def bbox_intersects(a, b):
+    return not (
+        a.XMax < b.XMin or a.XMin > b.XMax or
+        a.YMax < b.YMin or a.YMin > b.YMax or
+        a.ZMax < b.ZMin or a.ZMin > b.ZMax
+    )
 
 def find_front_glass_face_bbox(shape, tol=0.9):
     bb = shape.BoundBox
@@ -118,215 +69,272 @@ def find_front_glass_face_bbox(shape, tol=0.9):
     best = None
     best_area = -1.0
     y_axis = App.Vector(0,-1,0)
+
     for f in shape.Faces:
         fbb = f.BoundBox
         if abs(fbb.YMin - y_front) > tol:
             continue
         try:
-            n = safe_normalized(f.normalAt(0,0))
+            n = f.normalAt(0,0)
+            if n.Length < 1e-9:
+                continue
+            n.normalize()
             if abs(n.dot(y_axis)) < 0.85:
                 continue
-            area = f.Area
-            if area > best_area:
-                best_area = area
+            if f.Area > best_area:
+                best_area = f.Area
                 best = f
         except:
             continue
+
     if best:
         return best.BoundBox, True
     return bb, False
 
-def shape_world(obj):
-    sh = obj.Shape.copy()
-    sh.Placement = obj.Placement
-    return sh
+def apply_gui_placement(obj, placement_dict):
+    """
+    placement_dict = {
+        "angle": deg,
+        "axis": (ax,ay,az),
+        "pos":  (x,y,z)
+    }
+    """
+    ang = float(placement_dict.get("angle", 0.0))
+    ax, ay, az = placement_dict.get("axis", (0.0, 0.0, 1.0))
+    px, py, pz = placement_dict.get("pos",  (0.0, 0.0, 0.0))
 
-def keep_box(xL, xR, zB, zT, y0, y1):
-    return Part.makeBox((xR-xL)+300, (y1-y0), (zT-zB)+300,
-                        App.Vector(xL-150, y0, zB-150))
+    axis_v = App.Vector(float(ax), float(ay), float(az))
+    if axis_v.Length < 1e-9:
+        axis_v = App.Vector(0, 0, 1)
+    else:
+        axis_v.normalize()
 
-def find_best_helper(prefix):
-    matches = []
-    for ob in doc.Objects:
-        if (ob.Name or "").startswith(prefix) or (getattr(ob, "Label", "") or "").startswith(prefix):
-            matches.append(ob)
-    if not matches:
-        return None
-
-    def suffix_num(name):
-        m = re.search(r"(\d+)$", name)
-        return int(m.group(1)) if m else 0
-
-    # Prefer highest numeric suffix (MicPattern_Helper001 etc.)
-    matches.sort(key=lambda o: suffix_num(o.Name))
-    return matches[-1]
+    obj.Placement = App.Placement(
+        App.Vector(float(px), float(py), float(pz)),
+        App.Rotation(axis_v, ang)
+    )
 
 # ==========================================================
-# Grab objects
+# GRAB KEY OBJECTS
 # ==========================================================
-cam  = get_obj("PiCamEnv")
-lcd  = get_obj("LCD")
+hf = get_obj("Housing_Front")
+hb = get_obj("Housing_Back")
+lcd = get_obj("LCD")
 
-if not (cam and lcd):
-    raise RuntimeError("Missing PiCamEnv or LCD")
+if not (hf and hb and lcd):
+    raise RuntimeError("Missing one of: Housing_Front, Housing_Back, LCD")
 
-# Helpers you edited:
-raspi_cut = get_obj("RasPi_USB_A_Cutout")
-usb_c_cut = get_obj("Power_USB_C_Cutout")
-mic_helper = find_best_helper("MicPattern_Helper")
+hf_bb = hf.Shape.BoundBox
+hb_bb = hb.Shape.BoundBox
+lcd_glass_bb, _ = find_front_glass_face_bbox(lcd.Shape, tol=0.9)
 
-if not raspi_cut:
-    raise RuntimeError("Can't find RasPi_USB_A_Cutout")
-if not usb_c_cut:
-    raise RuntimeError("Can't find Power_USB_C_Cutout")
-if not mic_helper:
-    raise RuntimeError("Can't find MicPattern_Helper / MicPattern_Helper001")
-
-# Existing housings (used only for reference center)
-hf0 = get_obj("Housing_Front")
-hb0 = get_obj("Housing_Back")
+FRONT_Y = hf_bb.YMin
+LEFT_X  = hf_bb.XMin
+RIGHT_X = hf_bb.XMax
 
 # ==========================================================
-# Reference center (stable)
+# (1) BUTTON HOLES
 # ==========================================================
-bb_ref = None
-if hf0 and hasattr(hf0,"Shape") and not hf0.Shape.isNull():
-    bb_ref = hf0.Shape.BoundBox
-    if hb0 and hasattr(hb0,"Shape") and not hb0.Shape.isNull():
-        bb_ref.add(hb0.Shape.BoundBox)
+# ---- Right 5-hole cluster (keep) ----
+RIGHT_BTN_DIAM = 6.0
+RIGHT_BTN_SPACING = 10.0
 
-if bb_ref:
-    hx, _, hz = bb_center(bb_ref)
-else:
-    hx, hz = 0.0, 0.0
+# ---- Left 2-hole cluster (add) ----
+LEFT_BTN_DIAM = 6.0
+LEFT_BTN_SPACING = 12.0     # distance between the 2 holes (vertical)
+LEFT_BTN_Z_OFFSET = 0.0     # nudge whole left pair up/down
+LEFT_BTN_X_MODE = "BEZEL_MID"  # BEZEL_MID or ABSOLUTE
+LEFT_BTN_X_ABS = LEFT_X + 20.0 # used only if ABSOLUTE
 
-LEFT_X   = hx - OUTER_W/2.0
-RIGHT_X  = hx + OUTER_W/2.0
-BOTTOM_Z = hz - OUTER_H/2.0
-TOP_Z    = hz + OUTER_H/2.0
-FRONT_Y  = -OUTER_T/2.0
-BACK_Y   =  OUTER_T/2.0
+CUT_LEN = hf_bb.YLength + 20.0
 
-inner_front_y = FRONT_Y + WALL
-inner_back_y  = BACK_Y  - WALL
+lcd_zc = 0.5*(lcd_glass_bb.ZMin + lcd_glass_bb.ZMax)
+right_bezel_x = 0.5*(lcd_glass_bb.XMax + RIGHT_X)
+left_bezel_x  = 0.5*(lcd_glass_bb.XMin + LEFT_X) if LEFT_BTN_X_MODE == "BEZEL_MID" else LEFT_BTN_X_ABS
 
-# ==========================================================
-# Build CLEAN housing shell (this removes old holes)
-# ==========================================================
-outer_face = rounded_rect_face_xz(LEFT_X, RIGHT_X, BOTTOM_Z, TOP_Z, CORNER_R, FRONT_Y)
-outer_solid = outer_face.extrude(App.Vector(0, OUTER_T, 0))
+def make_cyl_at(x, z, diam):
+    r = diam/2.0
+    return Part.makeCylinder(r, CUT_LEN, App.Vector(x, FRONT_Y - 5.0, z), App.Vector(0, 1, 0))
 
-inner_face = rounded_rect_face_xz(
-    LEFT_X + WALL, RIGHT_X - WALL,
-    BOTTOM_Z + FLOOR, TOP_Z - LID,
-    max(0.0, CORNER_R - WALL),
-    inner_front_y
-)
-inner_solid = inner_face.extrude(App.Vector(0, OUTER_T - 2*WALL, 0))
+# Right cluster: cross + center
+rp = [
+    (0.0, 0.0),
+    (RIGHT_BTN_SPACING, 0.0),
+    (-RIGHT_BTN_SPACING, 0.0),
+    (0.0, RIGHT_BTN_SPACING),
+    (0.0, -RIGHT_BTN_SPACING),
+]
+right_cyls = [make_cyl_at(right_bezel_x + dx, lcd_zc + dz, RIGHT_BTN_DIAM) for dx, dz in rp]
 
-shell = remove_splitters(outer_solid.cut(inner_solid))
+# Left pair: two holes vertical
+left_zs = [
+    lcd_zc + LEFT_BTN_Z_OFFSET + (LEFT_BTN_SPACING/2.0),
+    lcd_zc + LEFT_BTN_Z_OFFSET - (LEFT_BTN_SPACING/2.0),
+]
+left_cyls = [make_cyl_at(left_bezel_x, z, LEFT_BTN_DIAM) for z in left_zs]
 
-# ==========================================================
-# LCD window + pocket (uses LCD CURRENT placement)
-# ==========================================================
-lcd_shape = lcd.Shape
-glass_bb, _ = find_front_glass_face_bbox(lcd_shape, tol=0.9)
-lcd_bb = lcd.Shape.BoundBox
-
-wx1 = glass_bb.XMin - LCD_OPEN_X_CLEAR
-wx2 = glass_bb.XMax + LCD_OPEN_X_CLEAR
-wz1 = glass_bb.ZMin - LCD_OPEN_Z_BOTTOM_CLEAR
-wz2 = glass_bb.ZMax + LCD_OPEN_Z_TOP_CLEAR
-
-# keep within outer bounds
-wx1 = clamp(wx1, LEFT_X + 1.0, RIGHT_X - 1.0)
-wx2 = clamp(wx2, LEFT_X + 1.0, RIGHT_X - 1.0)
-wz1 = clamp(wz1, BOTTOM_Z + 1.0, TOP_Z - 1.0)
-wz2 = clamp(wz2, BOTTOM_Z + 1.0, TOP_Z - 1.0)
-
-win_w = max(1.0, wx2 - wx1)
-win_h = max(1.0, wz2 - wz1)
-win_depth = WALL + EXTRA_CUT
-
-win = Part.makeBox(win_w, win_depth, win_h, App.Vector(wx1, FRONT_Y - 0.5, wz1))
-shell = shell.cut(win)
-
-# pocket
-px1 = lcd_bb.XMin - LCD_POCKET_CLEAR
-px2 = lcd_bb.XMax + LCD_POCKET_CLEAR
-pz1 = lcd_bb.ZMin - LCD_POCKET_CLEAR
-pz2 = lcd_bb.ZMax + LCD_POCKET_CLEAR
-
-px1 = clamp(px1, LEFT_X + 1.0, RIGHT_X - 1.0)
-px2 = clamp(px2, LEFT_X + 1.0, RIGHT_X - 1.0)
-pz1 = clamp(pz1, BOTTOM_Z + 1.0, TOP_Z - 1.0)
-pz2 = clamp(pz2, BOTTOM_Z + 1.0, TOP_Z - 1.0)
-
-pocket_start_y = FRONT_Y + LCD_WALL_SKIN
-pocket_depth = (lcd_bb.YMax - pocket_start_y) + LCD_POCKET_EXTRA_DEPTH
-pocket_depth = max(2.0, pocket_depth)
-pocket_depth = min((inner_back_y - pocket_start_y) - 1.0, pocket_depth)
-
-pocket = Part.makeBox(max(1.0, px2-px1), pocket_depth, max(1.0, pz2-pz1),
-                      App.Vector(px1, pocket_start_y, pz1))
-shell = shell.cut(pocket)
-shell = remove_splitters(shell)
+all_btn_cuts = Part.makeCompound(right_cyls + left_cyls)
+hf.Shape = remove_splitters(hf.Shape.cut(all_btn_cuts))
 
 # ==========================================================
-# Split into halves
+# (2) SD CARD CUT: use RasPi_SD_Card_Cutout001 then delete it
 # ==========================================================
-front_keep = keep_box(LEFT_X, RIGHT_X, BOTTOM_Z, TOP_Z, FRONT_Y-1.0, SPLIT_Y)
-back_keep  = keep_box(LEFT_X, RIGHT_X, BOTTOM_Z, TOP_Z, SPLIT_Y, BACK_Y+1.0)
+sd = get_obj("RasPi_SD_Card_Cutout001")
+if sd and hasattr(sd, "Shape") and not sd.Shape.isNull():
+    sd_world = shape_world(sd)
+    sd_bb = sd_world.BoundBox
 
-front_shape = remove_splitters(shell.common(front_keep))
-back_shape  = remove_splitters(shell.common(back_keep))
+    did_cut = False
+    for target in (hb, hf):
+        tbb = target.Shape.BoundBox
+        if bbox_intersects(sd_bb, tbb):
+            try:
+                target.Shape = remove_splitters(target.Shape.cut(sd_world))
+                did_cut = True
+                break
+            except Exception as e:
+                print("SD cut failed on", target.Name, "->", e)
 
-# ==========================================================
-# BACK: camera hole (keep)
-# ==========================================================
-CAM_HOLE_D = 14.0
-cam_bb = cam.Shape.BoundBox
-cam_cx, cam_cy, cam_cz = bb_center(cam_bb)
-cam_len = (BACK_Y - SPLIT_Y) + EXTRA_CUT
-cam_hole = Part.makeCylinder(CAM_HOLE_D/2.0, cam_len,
-                             App.Vector(cam_cx, BACK_Y + 0.5, cam_cz),
-                             App.Vector(0,-1,0))
-back_shape = back_shape.cut(cam_hole)
-
-# ==========================================================
-# Bake YOUR edited helpers (as-is) into the correct half ONLY
-# ==========================================================
-# Clip cutters to avoid bleeding into the other half
-raspi_world = shape_world(raspi_cut).common(back_keep)
-mic_world   = shape_world(mic_helper).common(back_keep)
-usb_c_world = shape_world(usb_c_cut).common(front_keep)
-
-back_shape  = remove_splitters(back_shape.cut(raspi_world))
-back_shape  = remove_splitters(back_shape.cut(mic_world))
-front_shape = remove_splitters(front_shape.cut(usb_c_world))
-
-# ==========================================================
-# Write back
-# ==========================================================
-hf = ensure_feature("Housing_Front")
-hb = ensure_feature("Housing_Back")
-hf.Shape = front_shape
-hb.Shape = back_shape
-
-# ==========================================================
-# Delete helpers (requested)
-# ==========================================================
-doc.recompute()
-
-to_delete = [raspi_cut, usb_c_cut, mic_helper]
-for ob in to_delete:
     try:
-        doc.removeObject(ob.Name)
+        doc.removeObject(sd.Name)
     except:
         pass
 
+    if did_cut:
+        print("SD slot baked using RasPi_SD_Card_Cutout001 and helper deleted.")
+    else:
+        print("WARNING: SD helper deleted, but it did not intersect Housing_Front/Back (no cut baked).")
+else:
+    print("NOTE: RasPi_SD_Card_Cutout001 not found (skipping SD bake).")
+
+# ==========================================================
+# (3) WALLS: 7 UNIQUE L-WALLS + 1 UNIQUE RECT WALL
+# ==========================================================
+# IMPORTANT FIX:
+# - If True: macro overwrites placement every run using your numbers below.
+# - If False: macro ONLY overwrites placement when object is newly created.
+ALWAYS_APPLY_PLACEMENT = True
+
+def make_L_wall(len_x, len_y, thk_xleg, thk_yleg, height):
+    """
+    L wall in LOCAL coords:
+      - Leg X: length=len_x along +X, thickness=thk_xleg along +Y
+      - Leg Y: length=len_y along +Y, thickness=thk_yleg along +X
+    So each leg thickness is independently controllable.
+    """
+    legX = Part.makeBox(float(len_x), float(thk_xleg), float(height), App.Vector(0, 0, 0))
+    legY = Part.makeBox(float(thk_yleg), float(len_y), float(height), App.Vector(0, 0, 0))
+    return remove_splitters(legX.fuse(legY))
+
+def make_rect_wall(len_x, thk_y, height):
+    return remove_splitters(Part.makeBox(float(len_x), float(thk_y), float(height), App.Vector(0,0,0)))
+
+def apply_wall_feature(name, shape, placement_dict):
+    obj, created = ensure_feature(name)
+    obj.Shape = shape
+
+    # Apply placement either always, or only on creation
+    if ALWAYS_APPLY_PLACEMENT or created:
+        apply_gui_placement(obj, placement_dict)
+
+    return obj
+
+# --------- EDIT THESE 7 L-WALLS ONE BY ONE ----------
+# Each wall:
+# - length along X leg
+# - length along Y leg
+# - thickness of X leg (controls that side)
+# - thickness of Y leg (controls that side)
+# - height
+# - placement: angle/axis/pos (same structure as Properties panel)
+L_WALLS = [
+    {
+        "name": "HoldWall_L01",
+        "len_x": 10.0,
+        "len_y": 10.0,
+        "thk_legX": 2.6,
+        "thk_legY": 2.6,
+        "height": 8.0,
+        "placement": {"angle": 240.0, "axis": (-0.58,-0.58,0.58), "pos": (51.48,  39.00, 78.93)},
+    },
+    {
+        "name": "HoldWall_L02",
+        "len_x": 10.0,
+        "len_y": 10.0,
+        "thk_legX": 2.6,
+        "thk_legY": 2.6,
+        "height": 5.0,
+        "placement": {"angle": 270.0, "axis": (-1,0,0), "pos": (51.48,  39.00, -18.07)},
+    },
+    {
+        "name": "HoldWall_L03",
+        "len_x": 10.0,
+        "len_y": 10.0,
+        "thk_legX": 2.6,
+        "thk_legY": 2.6,
+        "height": 8.0,
+        "placement": {"angle": 120.0, "axis": (0.58, 0.58, -0.58), "pos": (-88.00,  39.00, 72.50)},
+    },
+    {
+        "name": "HoldWall_L04",
+        "len_x": 10.0,
+        "len_y": 10.0,
+        "thk_legX": 2.6,
+        "thk_legY": 2.6,
+        "height": 8.0,
+        "placement": {"angle": 120.0, "axis": (0.58, -0.58, 0.58), "pos": (49.00,  39.00, -44.50)},
+    },
+    {
+        "name": "HoldWall_L05",
+        "len_x": 10.0,
+        "len_y": 10.0,
+        "thk_legX": 2.6,
+        "thk_legY": 2.6,
+        "height": 5.0,
+        "placement": {"angle": 120.0, "axis": (0.58, 0.58, -0.58), "pos": (-115.50,  39.00, 63.00)},
+    },
+    {
+        "name": "HoldWall_L06",
+        "len_x": 10.0,
+        "len_y": 10.0,
+        "thk_legX": 1.5,
+        "thk_legY": 2.6,
+        "height": 5.0,
+        "placement": {"angle": 120.0, "axis": (0.58, -0.58, 0.58), "pos": (-85.50,  39.00, 33.00)},
+    },
+    {
+        "name": "HoldWall_L07",
+        "len_x": 10.0,
+        "len_y": 10.0,
+        "thk_legX": 1.5,
+        "thk_legY": 2.6,
+        "height": 5.0,
+        "placement": {"angle": 120.0, "axis": (-0.58, 0.58, 0.58), "pos": (-84.80,  34.00, 31.50)},
+    },
+]
+
+# --------- EDIT THE RECT WALL ----------
+RECT_WALL = {
+    "name": "HoldWall_Rect01",
+    "len_x": 25.0,
+    "thk_y": 3,
+    "height": 5.0,
+    "placement": {"angle": 270.0, "axis": (-1,0,0), "pos": (-119.00, 38.00, -43.00)},
+}
+
+# Create/update the 7 L-walls
+for w in L_WALLS:
+    sh = make_L_wall(w["len_x"], w["len_y"], w["thk_legX"], w["thk_legY"], w["height"])
+    apply_wall_feature(w["name"], sh, w["placement"])
+
+# Create/update the rectangle wall
+rsh = make_rect_wall(RECT_WALL["len_x"], RECT_WALL["thk_y"], RECT_WALL["height"])
+apply_wall_feature(RECT_WALL["name"], rsh, RECT_WALL["placement"])
+
 doc.recompute()
 
-print("\n=== FINALIZED: holes baked into housing + helpers removed ===")
-print("Baked: RasPi USB-A cutout (back), Mic pattern (back), Power USB-C cutout (front).")
-print("Deleted helper objects: RasPi_USB_A_Cutout, Power_USB_C_Cutout, MicPattern_Helper*")
+print("=== Done ===")
+print("Baked: +2 left button holes (and kept right 5-hole cluster).")
+print("Baked: SD cut from RasPi_SD_Card_Cutout001 (then deleted it).")
+print("Created/updated: HoldWall_L01..HoldWall_L07 + HoldWall_Rect01 (each with unique params).")
+print(f"Placement mode: {'ALWAYS overwrite from macro' if ALWAYS_APPLY_PLACEMENT else 'Only set placement when created'}")
