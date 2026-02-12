@@ -1,12 +1,12 @@
 import FreeCAD as App
-import Part, math
+import Part, math, re
 
 doc = App.ActiveDocument
 if not doc:
     raise RuntimeError("Open your .FCStd first (must have an ActiveDocument).")
 
 # ==========================================================
-# USER TUNABLES
+# HOUSING DIMENSIONS (same as your current design)
 # ==========================================================
 OUTER_W = 250.0
 OUTER_T = 80.0
@@ -16,49 +16,20 @@ FLOOR = 3.0
 LID   = 2.6
 CORNER_R = 22.0
 SPLIT_Y = 5.0
-
 EXTRA_CUT = 6.0
 
-# ---- LCD placement ----
-MOVE_LCD_CENTER_XZ = True
-MOVE_LCD_FLUSH_Y   = True
-LCD_FLUSH_RECESS_Y = 1.4      # more recess = less chance bezel hits outer wall
-
-# ---- LCD opening + pocket (fit-friendly) ----
+# ==========================================================
+# LCD CUT BEHAVIOR (LCD placement is NOT changed)
+# ==========================================================
+# Window clearance around LCD glass
 LCD_OPEN_X_CLEAR = 0.70
 LCD_OPEN_Z_TOP_CLEAR = 0.70
-LCD_OPEN_Z_BOTTOM_CLEAR = 0.10   # keep small so you don't expose PCB strip
+LCD_OPEN_Z_BOTTOM_CLEAR = 0.10
+
+# Internal pocket (fit-friendly)
 LCD_POCKET_CLEAR = 1.10
-LCD_WALL_SKIN = 1.20             # keep this much "front wall" thickness; pocket starts behind it
+LCD_WALL_SKIN = 1.20
 LCD_POCKET_EXTRA_DEPTH = 2.0
-
-# ---- USB-A (RasPi) "REAL hole" via editable cutter object (Housing_Back only) ----
-USB_A_ONE_W = 20.5
-USB_A_H     = 8.5 *2
-USB_A_W2    = USB_A_ONE_W * 2.0 + 1.0  # 2 USB-A side-by-side + tiny gap
-USB_A_DEPTH = 4.5                      # real cut depth (NOT infinite tunnel)
-
-# ---- USB-C (PowerBoard) via editable cutter object (Housing_Front) ----
-USB_C_W = 10.4
-USB_C_H = 4.6
-USB_C_DEPTH = 7.0
-
-# allow USB-C to go lower: very small bottom safety now
-USB_C_SAFE_EDGE_X = 18.0
-USB_C_SAFE_EDGE_Z = 0.6   # <-- lower this if you want even lower
-
-# ---- Mic holes via editable helper (Housing_Back only) ----
-MIC_HOLE_D = 2.2
-MIC_LEN_EXTRA = 8.0
-MIC_ROT_DEG_INIT = 180.0
-
-MICS = [
-    ("U1",0,0),("U2",-4.76,4.36),("U3",0.8,-9.09),("U4",6.81,8.87),
-    ("U5",-12.71,-2.24),("U6",12.17,-7.76),("U7",-4.09,15.27),
-    ("U8",-7.89,-15.15),("U9",17.16,6.24),("U10",-17.89,7.41),
-    ("U11",8.63,-18.5),("U12",6.44,20.42),("U13",-19.36,-11.18),
-    ("U14",22.72,-5.04),("U15",-13.85,19.78),("U16",-3.26,-24.79),
-]
 
 # ==========================================================
 # Helpers
@@ -89,14 +60,11 @@ def get_obj(key):
     return None
 
 def ensure_feature(name):
-    """Return (obj, created_bool)."""
     o = doc.getObject(name)
-    created = False
     if o is None:
         o = doc.addObject("Part::Feature", name)
         o.Label = name
-        created = True
-    return o, created
+    return o
 
 def bb_center(bb):
     return (0.5*(bb.XMin+bb.XMax), 0.5*(bb.YMin+bb.YMax), 0.5*(bb.ZMin+bb.ZMax))
@@ -170,29 +138,56 @@ def find_front_glass_face_bbox(shape, tol=0.9):
 
 def shape_world(obj):
     sh = obj.Shape.copy()
-    try:
-        sh.Placement = obj.Placement
-    except:
-        pass
+    sh.Placement = obj.Placement
     return sh
 
+def keep_box(xL, xR, zB, zT, y0, y1):
+    return Part.makeBox((xR-xL)+300, (y1-y0), (zT-zB)+300,
+                        App.Vector(xL-150, y0, zB-150))
+
+def find_best_helper(prefix):
+    matches = []
+    for ob in doc.Objects:
+        if (ob.Name or "").startswith(prefix) or (getattr(ob, "Label", "") or "").startswith(prefix):
+            matches.append(ob)
+    if not matches:
+        return None
+
+    def suffix_num(name):
+        m = re.search(r"(\d+)$", name)
+        return int(m.group(1)) if m else 0
+
+    # Prefer highest numeric suffix (MicPattern_Helper001 etc.)
+    matches.sort(key=lambda o: suffix_num(o.Name))
+    return matches[-1]
+
 # ==========================================================
-# Grab key objects
+# Grab objects
 # ==========================================================
-pi   = get_obj("Pi5")
-aud  = get_obj("AudioBoard")
-pwr  = get_obj("PowerBoard")
 cam  = get_obj("PiCamEnv")
 lcd  = get_obj("LCD")
 
-if not (pi and aud and pwr and cam and lcd):
-    raise RuntimeError("Missing one of: Pi5, AudioBoard, PowerBoard, PiCamEnv, LCD")
+if not (cam and lcd):
+    raise RuntimeError("Missing PiCamEnv or LCD")
 
+# Helpers you edited:
+raspi_cut = get_obj("RasPi_USB_A_Cutout")
+usb_c_cut = get_obj("Power_USB_C_Cutout")
+mic_helper = find_best_helper("MicPattern_Helper")
+
+if not raspi_cut:
+    raise RuntimeError("Can't find RasPi_USB_A_Cutout")
+if not usb_c_cut:
+    raise RuntimeError("Can't find Power_USB_C_Cutout")
+if not mic_helper:
+    raise RuntimeError("Can't find MicPattern_Helper / MicPattern_Helper001")
+
+# Existing housings (used only for reference center)
 hf0 = get_obj("Housing_Front")
 hb0 = get_obj("Housing_Back")
 
 # ==========================================================
-# Reference center from existing housing
+# Reference center (stable)
 # ==========================================================
 bb_ref = None
 if hf0 and hasattr(hf0,"Shape") and not hf0.Shape.isNull():
@@ -216,29 +211,7 @@ inner_front_y = FRONT_Y + WALL
 inner_back_y  = BACK_Y  - WALL
 
 # ==========================================================
-# LCD: center + flush
-# ==========================================================
-lcd_shape = lcd.Shape
-lcd_glass_bb, used_glass = find_front_glass_face_bbox(lcd_shape, tol=0.9)
-lcgx, lcgy, lcgz = bb_center(lcd_glass_bb)
-
-if MOVE_LCD_CENTER_XZ:
-    dx = hx - lcgx
-    dz = hz - lcgz
-    lcd.Placement.Base = lcd.Placement.Base.add(App.Vector(dx, 0, dz))
-    lcd_shape = lcd.Shape
-    lcd_glass_bb, used_glass = find_front_glass_face_bbox(lcd_shape, tol=0.9)
-    lcgx, lcgy, lcgz = bb_center(lcd_glass_bb)
-
-if MOVE_LCD_FLUSH_Y:
-    desired = FRONT_Y + LCD_FLUSH_RECESS_Y
-    dy = desired - lcd_glass_bb.YMin
-    lcd.Placement.Base = lcd.Placement.Base.add(App.Vector(0, dy, 0))
-    lcd_shape = lcd.Shape
-    lcd_glass_bb, used_glass = find_front_glass_face_bbox(lcd_shape, tol=0.9)
-
-# ==========================================================
-# Build housing shell
+# Build CLEAN housing shell (this removes old holes)
 # ==========================================================
 outer_face = rounded_rect_face_xz(LEFT_X, RIGHT_X, BOTTOM_Z, TOP_Z, CORNER_R, FRONT_Y)
 outer_solid = outer_face.extrude(App.Vector(0, OUTER_T, 0))
@@ -254,16 +227,18 @@ inner_solid = inner_face.extrude(App.Vector(0, OUTER_T - 2*WALL, 0))
 shell = remove_splitters(outer_solid.cut(inner_solid))
 
 # ==========================================================
-# LCD opening + pocket (fit-friendly)
+# LCD window + pocket (uses LCD CURRENT placement)
 # ==========================================================
+lcd_shape = lcd.Shape
+glass_bb, _ = find_front_glass_face_bbox(lcd_shape, tol=0.9)
 lcd_bb = lcd.Shape.BoundBox
-glass = lcd_glass_bb
 
-wx1 = glass.XMin - LCD_OPEN_X_CLEAR
-wx2 = glass.XMax + LCD_OPEN_X_CLEAR
-wz1 = glass.ZMin - LCD_OPEN_Z_BOTTOM_CLEAR
-wz2 = glass.ZMax + LCD_OPEN_Z_TOP_CLEAR
+wx1 = glass_bb.XMin - LCD_OPEN_X_CLEAR
+wx2 = glass_bb.XMax + LCD_OPEN_X_CLEAR
+wz1 = glass_bb.ZMin - LCD_OPEN_Z_BOTTOM_CLEAR
+wz2 = glass_bb.ZMax + LCD_OPEN_Z_TOP_CLEAR
 
+# keep within outer bounds
 wx1 = clamp(wx1, LEFT_X + 1.0, RIGHT_X - 1.0)
 wx2 = clamp(wx2, LEFT_X + 1.0, RIGHT_X - 1.0)
 wz1 = clamp(wz1, BOTTOM_Z + 1.0, TOP_Z - 1.0)
@@ -271,11 +246,12 @@ wz2 = clamp(wz2, BOTTOM_Z + 1.0, TOP_Z - 1.0)
 
 win_w = max(1.0, wx2 - wx1)
 win_h = max(1.0, wz2 - wz1)
-
 win_depth = WALL + EXTRA_CUT
+
 win = Part.makeBox(win_w, win_depth, win_h, App.Vector(wx1, FRONT_Y - 0.5, wz1))
 shell = shell.cut(win)
 
+# pocket
 px1 = lcd_bb.XMin - LCD_POCKET_CLEAR
 px2 = lcd_bb.XMax + LCD_POCKET_CLEAR
 pz1 = lcd_bb.ZMin - LCD_POCKET_CLEAR
@@ -299,18 +275,14 @@ shell = remove_splitters(shell)
 # ==========================================================
 # Split into halves
 # ==========================================================
-def make_keep(y0, y1):
-    return Part.makeBox(OUTER_W + 300, y1-y0, OUTER_H + 300,
-                        App.Vector(LEFT_X-150, y0, BOTTOM_Z-150))
-
-front_keep = make_keep(FRONT_Y-1.0, SPLIT_Y)
-back_keep  = make_keep(SPLIT_Y, BACK_Y+1.0)
+front_keep = keep_box(LEFT_X, RIGHT_X, BOTTOM_Z, TOP_Z, FRONT_Y-1.0, SPLIT_Y)
+back_keep  = keep_box(LEFT_X, RIGHT_X, BOTTOM_Z, TOP_Z, SPLIT_Y, BACK_Y+1.0)
 
 front_shape = remove_splitters(shell.common(front_keep))
 back_shape  = remove_splitters(shell.common(back_keep))
 
 # ==========================================================
-# BACK HALF: camera hole
+# BACK: camera hole (keep)
 # ==========================================================
 CAM_HOLE_D = 14.0
 cam_bb = cam.Shape.BoundBox
@@ -322,100 +294,39 @@ cam_hole = Part.makeCylinder(CAM_HOLE_D/2.0, cam_len,
 back_shape = back_shape.cut(cam_hole)
 
 # ==========================================================
-# BACK HALF: MicPattern_Helper (editable) — NO centering anymore
+# Bake YOUR edited helpers (as-is) into the correct half ONLY
 # ==========================================================
-mic_helper, mic_created = ensure_feature("MicPattern_Helper")
+# Clip cutters to avoid bleeding into the other half
+raspi_world = shape_world(raspi_cut).common(back_keep)
+mic_world   = shape_world(mic_helper).common(back_keep)
+usb_c_world = shape_world(usb_c_cut).common(front_keep)
 
-mic_y0 = SPLIT_Y - 2.0
-mic_len = (BACK_Y - mic_y0) + MIC_LEN_EXTRA
-cyls = []
-for _, mx, mz in MICS:
-    cyls.append(
-        Part.makeCylinder(MIC_HOLE_D/2.0, mic_len,
-                          App.Vector(mx, mic_y0, mz),
-                          App.Vector(0,1,0))
-    )
-mic_helper.Shape = remove_splitters(Part.makeCompound(cyls))
-
-# only set initial placement when created (never overwrite your manual moves)
-if mic_created:
-    ab_bb = aud.Shape.BoundBox
-    ab_cx, ab_cy, ab_cz = bb_center(ab_bb)
-    mic_helper.Placement = App.Placement(
-        App.Vector(ab_cx, 0.0, ab_cz),
-        App.Rotation(App.Vector(0,1,0), MIC_ROT_DEG_INIT)
-    )
-
-back_shape = back_shape.cut(shape_world(mic_helper))
-
-# ==========================================================
-# BACK HALF: USB-A cutter helper (editable, REAL hole)
-# ==========================================================
-raspi_cut, raspi_created = ensure_feature("RasPi_USB_A_Cutout")
-
-# Make the cutter in local coords:
-# X = width, Y = depth, Z = height  (depth goes through the wall)
-raspi_cut.Shape = Part.makeBox(
-    USB_A_W2, USB_A_DEPTH, USB_A_H,
-    App.Vector(-USB_A_W2/2.0, -USB_A_DEPTH, -USB_A_H/2.0)
-)
-
-# initial placement only when created (preserve your current "perfect" position otherwise)
-if raspi_created:
-    pi_bb = pi.Shape.BoundBox
-    px, py, pz = bb_center(pi_bb)
-    y_center = clamp(py, SPLIT_Y + 8.0, BACK_Y - 8.0)
-    # start it on the BACK outside face by default (you can move it)
-    raspi_cut.Placement = App.Placement(App.Vector(px, BACK_Y, pz), App.Rotation())
-
-# keep cutter inside Housing_Back region (so it never reaches Housing_Front)
-b = raspi_cut.Placement.Base
-raspi_cut.Placement.Base = App.Vector(b.x, clamp(b.y, SPLIT_Y + 6.0, BACK_Y), b.z)
-
-back_shape = back_shape.cut(shape_world(raspi_cut))
-back_shape = remove_splitters(back_shape)
-
-# ==========================================================
-# FRONT HALF: USB-C cutter helper (editable, can go lower)
-# ==========================================================
-usb_c_cut, usb_c_created = ensure_feature("Power_USB_C_Cutout")
-
-usb_c_cut.Shape = Part.makeBox(
-    USB_C_W, USB_C_DEPTH, USB_C_H,
-    App.Vector(-USB_C_W/2.0, 0.0, -USB_C_H/2.0)
-)
-
-if usb_c_created:
-    pbb = pwr.Shape.BoundBox
-    pcx, pcy, pcz = bb_center(pbb)
-    x0 = clamp(pcx, LEFT_X + USB_C_SAFE_EDGE_X, RIGHT_X - USB_C_SAFE_EDGE_X)
-    z0 = clamp(pcz, BOTTOM_Z + USB_C_SAFE_EDGE_Z, TOP_Z - USB_C_SAFE_EDGE_Z)
-    usb_c_cut.Placement = App.Placement(App.Vector(x0, FRONT_Y, z0), App.Rotation())
-
-# Allow lower movement: only clamp Z lightly now; never force X
-bb = usb_c_cut.Placement.Base
-usb_c_cut.Placement.Base = App.Vector(
-    bb.x,
-    FRONT_Y,
-    clamp(bb.z, BOTTOM_Z + USB_C_SAFE_EDGE_Z, TOP_Z - USB_C_SAFE_EDGE_Z)
-)
-
-front_shape = front_shape.cut(shape_world(usb_c_cut))
-front_shape = remove_splitters(front_shape)
+back_shape  = remove_splitters(back_shape.cut(raspi_world))
+back_shape  = remove_splitters(back_shape.cut(mic_world))
+front_shape = remove_splitters(front_shape.cut(usb_c_world))
 
 # ==========================================================
 # Write back
 # ==========================================================
-hf, _ = ensure_feature("Housing_Front")
-hb, _ = ensure_feature("Housing_Back")
+hf = ensure_feature("Housing_Front")
+hb = ensure_feature("Housing_Back")
 hf.Shape = front_shape
 hb.Shape = back_shape
 
+# ==========================================================
+# Delete helpers (requested)
+# ==========================================================
 doc.recompute()
 
-print("\n=== Rebuild done (no fan edits) ===")
-print("Helpers you can edit in GUI:")
-print(" - RasPi_USB_A_Cutout (real hole in Housing_Back only)")
-print(" - Power_USB_C_Cutout (move lower in Z if needed)")
-print(" - MicPattern_Helper (move/rotate until it overlaps PCB mic holes)")
-print(f"USB-C Z clamp: bottom edge = {USB_C_SAFE_EDGE_Z}mm (lower this if you still need lower)")
+to_delete = [raspi_cut, usb_c_cut, mic_helper]
+for ob in to_delete:
+    try:
+        doc.removeObject(ob.Name)
+    except:
+        pass
+
+doc.recompute()
+
+print("\n=== FINALIZED: holes baked into housing + helpers removed ===")
+print("Baked: RasPi USB-A cutout (back), Mic pattern (back), Power USB-C cutout (front).")
+print("Deleted helper objects: RasPi_USB_A_Cutout, Power_USB_C_Cutout, MicPattern_Helper*")
