@@ -1,13 +1,41 @@
 import FreeCAD as App
-import Part, math
+import Part
+import math
 
 doc = App.ActiveDocument
 if not doc:
     raise RuntimeError("Open the .FCStd first (must have an ActiveDocument).")
 
-# ==========================================================
-# EASY OBJECT GETTERS
-# ==========================================================
+# =========================
+# USER PARAMETERS (edit these)
+# =========================
+BASE_X = 115.0      # mm (in-plane)
+BASE_Z = 135.0      # mm (in-plane)
+
+# Base thickness behavior:
+# - If BASE_THICKNESS is None: it auto-fills from Housing_Back inner face up to AudioBoard mic-face (minus clearance)
+# - Or set a fixed mm value.
+BASE_THICKNESS = None
+BASE_CLEARANCE_TO_PCB = 0.30  # mm (keeps block from touching PCB)
+
+# Hole detection (Housing_Back face)
+HOLE_R_MIN = 0.6    # mm
+HOLE_R_MAX = 3.0    # mm
+CLUSTER_EPS = 0.35  # mm (merge circles with nearly same center)
+
+# Guide ring
+GUIDE_CLEARANCE = 0.80  # mm added beyond (enclosing circle + max hole radius)
+GUIDE_THICKNESS = 0.60  # mm (purely visual helper)
+
+# Acoustic design frequency target:
+# - Use 26600 if you design up to spatial aliasing (~26.6 kHz from report)
+# - Or 36000 if you truly want full 36 kHz cleanliness
+F_DESIGN_HZ = 26600.0
+C_SOUND_MM_S = 343000.0
+
+# =========================
+# Helpers
+# =========================
 def get_obj(name_or_label):
     o = doc.getObject(name_or_label)
     if o:
@@ -18,323 +46,328 @@ def get_obj(name_or_label):
             return hits[0]
     except:
         pass
-    key = name_or_label.lower()
+    key = (name_or_label or "").lower()
     for ob in doc.Objects:
         if (ob.Name or "").lower() == key or (getattr(ob, "Label", "") or "").lower() == key:
             return ob
     return None
 
-def ensure_feature(name):
-    """
-    Finds by Name first, then by Label, otherwise creates.
-    This prevents duplicate 'HoldWall_L04001' surprises.
-    """
+def ensure_obj(type_name, name):
     o = doc.getObject(name)
-    if o:
-        return o, False
-    o = get_obj(name)
-    if o:
-        return o, False
-    o = doc.addObject("Part::Feature", name)
-    o.Label = name
-    return o, True
+    if o is None:
+        o = doc.addObject(type_name, name)
+        o.Label = name
+    return o
 
-def remove_splitters(shape):
+def is_planar_face(face):
     try:
-        return shape.removeSplitter()
+        return isinstance(face.Surface, Part.Plane)
     except:
-        return shape
+        return False
 
-def bb_center(bb):
-    return (0.5*(bb.XMin+bb.XMax), 0.5*(bb.YMin+bb.YMax), 0.5*(bb.ZMin+bb.ZMax))
+def face_plane_point_normal(face):
+    """Strictly planar faces only."""
+    if not is_planar_face(face):
+        raise ValueError("Not a planar face.")
+    surf = face.Surface  # Part.Plane
+    n = App.Vector(surf.Axis)
+    if n.Length < 1e-9:
+        # fallback: use face normalAt mid-params
+        u0,u1,v0,v1 = face.ParameterRange
+        n = App.Vector(face.normalAt((u0+u1)/2.0, (v0+v1)/2.0))
+    n.normalize()
 
-def shape_world(obj):
-    sh = obj.Shape.copy()
+    # Plane position attribute varies; be defensive
+    if hasattr(surf, "Position"):
+        p = App.Vector(surf.Position)
+    elif hasattr(surf, "Location"):
+        p = App.Vector(surf.Location)
+    else:
+        p = App.Vector(face.CenterOfMass)
+    return p, n
+
+def orthonormal_basis_from_normal(n):
+    n = App.Vector(n); n.normalize()
+    # pick a helper axis not parallel to n
+    a = App.Vector(1,0,0) if abs(n.x) < 0.9 else App.Vector(0,1,0)
+    u = n.cross(a)
+    if u.Length < 1e-9:
+        a = App.Vector(0,0,1)
+        u = n.cross(a)
+    u.normalize()
+    v = n.cross(u); v.normalize()
+    return u, v, n
+
+def project_point_to_plane(p, p0, n):
+    # project p onto plane defined by point p0 and normal n
+    n = App.Vector(n); n.normalize()
+    return p - n * ((p - p0).dot(n))
+
+def edge_circle_center_radius(edge):
     try:
-        sh.Placement = obj.Placement
+        c = edge.Curve
+        if isinstance(c, Part.Circle):
+            return App.Vector(c.Center), float(c.Radius)
     except:
         pass
-    return sh
+    return None, None
 
-def bbox_intersects(a, b):
-    return not (
-        a.XMax < b.XMin or a.XMin > b.XMax or
-        a.YMax < b.YMin or a.YMin > b.YMax or
-        a.ZMax < b.ZMin or a.ZMin > b.ZMax
-    )
-
-def find_front_glass_face_bbox(shape, tol=0.9):
-    bb = shape.BoundBox
-    y_front = bb.YMin
-    best = None
-    best_area = -1.0
-    y_axis = App.Vector(0,-1,0)
-
-    for f in shape.Faces:
-        fbb = f.BoundBox
-        if abs(fbb.YMin - y_front) > tol:
-            continue
-        try:
-            n = f.normalAt(0,0)
-            if n.Length < 1e-9:
-                continue
-            n.normalize()
-            if abs(n.dot(y_axis)) < 0.85:
-                continue
-            if f.Area > best_area:
-                best_area = f.Area
-                best = f
-        except:
-            continue
-
-    if best:
-        return best.BoundBox, True
-    return bb, False
-
-def apply_gui_placement(obj, placement_dict):
+def cluster_centers(circles, eps):
     """
-    placement_dict = {
-        "angle": deg,
-        "axis": (ax,ay,az),
-        "pos":  (x,y,z)
-    }
+    circles: list of (center_vec, radius)
+    returns list of clusters: each cluster is dict(center, radii[])
     """
-    ang = float(placement_dict.get("angle", 0.0))
-    ax, ay, az = placement_dict.get("axis", (0.0, 0.0, 1.0))
-    px, py, pz = placement_dict.get("pos",  (0.0, 0.0, 0.0))
-
-    axis_v = App.Vector(float(ax), float(ay), float(az))
-    if axis_v.Length < 1e-9:
-        axis_v = App.Vector(0, 0, 1)
-    else:
-        axis_v.normalize()
-
-    obj.Placement = App.Placement(
-        App.Vector(float(px), float(py), float(pz)),
-        App.Rotation(axis_v, ang)
-    )
-
-# ==========================================================
-# GRAB KEY OBJECTS
-# ==========================================================
-hf = get_obj("Housing_Front")
-hb = get_obj("Housing_Back")
-lcd = get_obj("LCD")
-
-if not (hf and hb and lcd):
-    raise RuntimeError("Missing one of: Housing_Front, Housing_Back, LCD")
-
-hf_bb = hf.Shape.BoundBox
-hb_bb = hb.Shape.BoundBox
-lcd_glass_bb, _ = find_front_glass_face_bbox(lcd.Shape, tol=0.9)
-
-FRONT_Y = hf_bb.YMin
-LEFT_X  = hf_bb.XMin
-RIGHT_X = hf_bb.XMax
-
-# ==========================================================
-# (1) BUTTON HOLES
-# ==========================================================
-# ---- Right 5-hole cluster (keep) ----
-RIGHT_BTN_DIAM = 6.0
-RIGHT_BTN_SPACING = 10.0
-
-# ---- Left 2-hole cluster (add) ----
-LEFT_BTN_DIAM = 6.0
-LEFT_BTN_SPACING = 12.0     # distance between the 2 holes (vertical)
-LEFT_BTN_Z_OFFSET = 0.0     # nudge whole left pair up/down
-LEFT_BTN_X_MODE = "BEZEL_MID"  # BEZEL_MID or ABSOLUTE
-LEFT_BTN_X_ABS = LEFT_X + 20.0 # used only if ABSOLUTE
-
-CUT_LEN = hf_bb.YLength + 20.0
-
-lcd_zc = 0.5*(lcd_glass_bb.ZMin + lcd_glass_bb.ZMax)
-right_bezel_x = 0.5*(lcd_glass_bb.XMax + RIGHT_X)
-left_bezel_x  = 0.5*(lcd_glass_bb.XMin + LEFT_X) if LEFT_BTN_X_MODE == "BEZEL_MID" else LEFT_BTN_X_ABS
-
-def make_cyl_at(x, z, diam):
-    r = diam/2.0
-    return Part.makeCylinder(r, CUT_LEN, App.Vector(x, FRONT_Y - 5.0, z), App.Vector(0, 1, 0))
-
-# Right cluster: cross + center
-rp = [
-    (0.0, 0.0),
-    (RIGHT_BTN_SPACING, 0.0),
-    (-RIGHT_BTN_SPACING, 0.0),
-    (0.0, RIGHT_BTN_SPACING),
-    (0.0, -RIGHT_BTN_SPACING),
-]
-right_cyls = [make_cyl_at(right_bezel_x + dx, lcd_zc + dz, RIGHT_BTN_DIAM) for dx, dz in rp]
-
-# Left pair: two holes vertical
-left_zs = [
-    lcd_zc + LEFT_BTN_Z_OFFSET + (LEFT_BTN_SPACING/2.0),
-    lcd_zc + LEFT_BTN_Z_OFFSET - (LEFT_BTN_SPACING/2.0),
-]
-left_cyls = [make_cyl_at(left_bezel_x, z, LEFT_BTN_DIAM) for z in left_zs]
-
-all_btn_cuts = Part.makeCompound(right_cyls + left_cyls)
-hf.Shape = remove_splitters(hf.Shape.cut(all_btn_cuts))
-
-# ==========================================================
-# (2) SD CARD CUT: use RasPi_SD_Card_Cutout001 then delete it
-# ==========================================================
-sd = get_obj("RasPi_SD_Card_Cutout001")
-if sd and hasattr(sd, "Shape") and not sd.Shape.isNull():
-    sd_world = shape_world(sd)
-    sd_bb = sd_world.BoundBox
-
-    did_cut = False
-    for target in (hb, hf):
-        tbb = target.Shape.BoundBox
-        if bbox_intersects(sd_bb, tbb):
-            try:
-                target.Shape = remove_splitters(target.Shape.cut(sd_world))
-                did_cut = True
+    clusters = []
+    for (c, r) in circles:
+        placed = False
+        for cl in clusters:
+            if (c - cl["center"]).Length <= eps:
+                # update center as running average (simple)
+                k = cl["count"] + 1
+                cl["center"] = (cl["center"] * cl["count"] + c) * (1.0 / k)
+                cl["count"] = k
+                cl["radii"].append(r)
+                placed = True
                 break
-            except Exception as e:
-                print("SD cut failed on", target.Name, "->", e)
+        if not placed:
+            clusters.append({"center": App.Vector(c), "count": 1, "radii": [r]})
+    return clusters
 
-    try:
-        doc.removeObject(sd.Name)
-    except:
-        pass
+# --- Minimal enclosing circle (brute force; N~16 so fine) ---
+def dist2(a,b):
+    dx=a[0]-b[0]; dy=a[1]-b[1]
+    return dx*dx+dy*dy
 
-    if did_cut:
-        print("SD slot baked using RasPi_SD_Card_Cutout001 and helper deleted.")
-    else:
-        print("WARNING: SD helper deleted, but it did not intersect Housing_Front/Back (no cut baked).")
+def circle_from_2(p,q):
+    cx=(p[0]+q[0])/2.0; cy=(p[1]+q[1])/2.0
+    r=math.sqrt(dist2((cx,cy),p))
+    return (cx,cy,r)
+
+def circle_from_3(a,b,c):
+    ax,ay=a; bx,by=b; cx,cy=c
+    d = 2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by))
+    if abs(d) < 1e-12:
+        return None
+    ux = ((ax*ax+ay*ay)*(by-cy) + (bx*bx+by*by)*(cy-ay) + (cx*cx+cy*cy)*(ay-by)) / d
+    uy = ((ax*ax+ay*ay)*(cx-bx) + (bx*bx+by*by)*(ax-cx) + (cx*cx+cy*cy)*(bx-ax)) / d
+    r = math.sqrt(dist2((ux,uy), a))
+    return (ux,uy,r)
+
+def contains_all(circle, pts, tol=1e-6):
+    cx,cy,r=circle
+    r2=(r+tol)*(r+tol)
+    for p in pts:
+        if dist2((cx,cy),p) > r2:
+            return False
+    return True
+
+def minimal_enclosing_circle(pts):
+    if not pts:
+        return (0.0,0.0,0.0)
+    best = (pts[0][0], pts[0][1], 0.0)
+
+    # 1-point circles
+    for p in pts:
+        c=(p[0],p[1],0.0)
+        if contains_all(c, pts) and c[2] < best[2]:
+            best=c
+
+    # 2-point circles
+    n=len(pts)
+    for i in range(n):
+        for j in range(i+1,n):
+            c = circle_from_2(pts[i], pts[j])
+            if contains_all(c, pts) and c[2] < best[2]:
+                best = c
+
+    # 3-point circles
+    for i in range(n):
+        for j in range(i+1,n):
+            for k in range(j+1,n):
+                c = circle_from_3(pts[i], pts[j], pts[k])
+                if c and contains_all(c, pts) and c[2] < best[2]:
+                    best = c
+
+    return best
+
+# =========================
+# Grab objects
+# =========================
+hb = get_obj("Housing_Back")
+ab = get_obj("AudioBoard")
+if not hb or not ab:
+    raise RuntimeError("Missing required objects: Housing_Back and/or AudioBoard")
+
+# =========================
+# 1) Find AudioBoard 'mic-side' plane (largest planar face)
+# =========================
+ab_shape = ab.Shape
+ab_planar_faces = [f for f in ab_shape.Faces if is_planar_face(f)]
+if not ab_planar_faces:
+    raise RuntimeError("AudioBoard has no planar faces (unexpected).")
+
+ab_face = max(ab_planar_faces, key=lambda f: f.Area)
+p_ab, n_ab_raw = face_plane_point_normal(ab_face)
+
+# Orient n_ab so it points from AudioBoard toward Housing_Back
+p_ab_bb = ab_shape.BoundBox.Center
+p_hb_bb = hb.Shape.BoundBox.Center
+to_hb = App.Vector(p_hb_bb) - App.Vector(p_ab_bb)
+n_ab = App.Vector(n_ab_raw)
+if to_hb.dot(n_ab) < 0:
+    n_ab = -n_ab
+n_ab.normalize()
+
+u_ab, v_ab, n_ab = orthonormal_basis_from_normal(n_ab)
+
+# =========================
+# 2) Find the Housing_Back INNER planar face that contains the mic holes
+# =========================
+best_face = None
+best_score = -1
+best_data = None
+
+for f in hb.Shape.Faces:
+    if not is_planar_face(f):
+        continue
+
+    p_f, n_f = face_plane_point_normal(f)
+    # parallel to AudioBoard mic normal?
+    if abs(n_f.dot(n_ab)) < 0.995:
+        continue
+
+    # collect circular edges on this face
+    circles = []
+    for e in f.Edges:
+        c, r = edge_circle_center_radius(e)
+        if c is None:
+            continue
+        if HOLE_R_MIN <= r <= HOLE_R_MAX:
+            circles.append((c, r))
+
+    if not circles:
+        continue
+
+    clusters = cluster_centers(circles, CLUSTER_EPS)
+    # score: number of unique hole centers (prefer more)
+    score = len(clusters)
+
+    if score > best_score:
+        best_score = score
+        best_face = f
+        best_data = (p_f, n_f, circles, clusters)
+
+if not best_face:
+    raise RuntimeError("Couldn't find a planar Housing_Back face with circular mic holes in the radius range.")
+
+p_hb_face, n_hb_face, circles_raw, clusters = best_data
+
+# Ensure we treat the HB face normal consistently (pointing toward AudioBoard)
+if n_hb_face.dot(-n_ab) < 0:
+    n_hb_face = -n_hb_face
+n_hb_face.normalize()
+
+u_hb, v_hb, n_hb_face = orthonormal_basis_from_normal(n_hb_face)
+
+# =========================
+# 3) Compute guide diameter automatically from Housing_Back hole centers
+# =========================
+hole_centers = [cl["center"] for cl in clusters]
+# representative hole radius per center: use the MIN radius in that cluster (usually the through-hole)
+hole_radii = [min(cl["radii"]) for cl in clusters]
+r_mean = sum(hole_radii)/max(1,len(hole_radii))
+r_max = max(hole_radii) if hole_radii else 0.0
+
+# convert centers to 2D coords in HB face plane
+pts2 = []
+for c in hole_centers:
+    d = c - p_hb_face
+    pts2.append((d.dot(u_hb), d.dot(v_hb)))
+
+cx, cy, cr = minimal_enclosing_circle(pts2)
+
+# World center on HB plane
+center_hb_world = p_hb_face + u_hb*cx + v_hb*cy
+
+# Project that center to the AudioBoard mic plane (along n_ab)
+# distance from HB-center to AB plane along n_ab:
+d_to_ab = (center_hb_world - p_ab).dot(n_ab)
+center_ab_world = center_hb_world - n_ab * d_to_ab
+
+guide_radius = cr + r_max + GUIDE_CLEARANCE
+guide_diameter = 2.0 * guide_radius
+
+# =========================
+# 4) Compute current PCB->HB gap along n_ab (positive means HB is in direction +n_ab from AB)
+# =========================
+# plane distance: take HB face point projected to AB normal
+gap = (p_hb_face - p_ab).dot(n_ab)  # mm
+
+# =========================
+# 5) Acoustic “max straight tube length” guideline (quarter-wave, with end correction)
+# =========================
+# quarter-wave length:
+L_eff_max = C_SOUND_MM_S / (4.0 * F_DESIGN_HZ)
+# open-end correction ~0.85*r (per hole, use mean radius)
+end_corr = 0.85 * max(0.1, r_mean)
+L_straight_max = max(0.0, L_eff_max - end_corr)
+
+# =========================
+# 6) Create/update the two helper objects
+# =========================
+# (A) MicCS_MicCircleGuide (thin cylinder)
+guide_shape = Part.makeCylinder(guide_radius, GUIDE_THICKNESS)
+guide_obj = ensure_obj("Part::Feature", "MicCS_MicCircleGuide")
+guide_obj.Shape = guide_shape
+# orient cylinder axis to n_ab
+rot_guide = App.Rotation(App.Vector(0,0,1), n_ab)
+# place so its mid-thickness sits on AB plane
+guide_obj.Placement = App.Placement(center_ab_world - n_ab*(GUIDE_THICKNESS*0.5), rot_guide)
+
+# (B) MicCS_BaseBlock (ONE box)
+# thickness auto: fill from HB face up toward AB plane, but stop short by clearance
+if BASE_THICKNESS is None:
+    t = gap - BASE_CLEARANCE_TO_PCB
+    if t < 1.0:
+        t = 5.0
+        App.Console.PrintWarning("BASE_THICKNESS auto was too small; using 5mm fallback.\n")
+    BASE_T = t
 else:
-    print("NOTE: RasPi_SD_Card_Cutout001 not found (skipping SD bake).")
+    BASE_T = float(BASE_THICKNESS)
 
-# ==========================================================
-# (3) WALLS: 7 UNIQUE L-WALLS + 1 UNIQUE RECT WALL
-# ==========================================================
-# IMPORTANT FIX:
-# - If True: macro overwrites placement every run using your numbers below.
-# - If False: macro ONLY overwrites placement when object is newly created.
-ALWAYS_APPLY_PLACEMENT = True
+# build an oriented box whose thickness axis is (-n_ab) (HB -> AB direction)
+w = -n_ab  # from HB toward AB
+# local axes: x=u_hb, y=v_hb, z=w
+# create axis-aligned box then place with a rotation matrix
+box_shape = Part.makeBox(BASE_X, BASE_Z, BASE_T)
 
-def make_L_wall(len_x, len_y, thk_xleg, thk_yleg, height):
-    """
-    L wall in LOCAL coords:
-      - Leg X: length=len_x along +X, thickness=thk_xleg along +Y
-      - Leg Y: length=len_y along +Y, thickness=thk_yleg along +X
-    So each leg thickness is independently controllable.
-    """
-    legX = Part.makeBox(float(len_x), float(thk_xleg), float(height), App.Vector(0, 0, 0))
-    legY = Part.makeBox(float(thk_yleg), float(len_y), float(height), App.Vector(0, 0, 0))
-    return remove_splitters(legX.fuse(legY))
+# rotation matrix that maps local XYZ to world (u_hb, v_hb, w)
+m = App.Matrix()
+m.A11, m.A21, m.A31 = u_hb.x, u_hb.y, u_hb.z
+m.A12, m.A22, m.A32 = v_hb.x, v_hb.y, v_hb.z
+m.A13, m.A23, m.A33 = w.x,    w.y,    w.z
+rot_box = App.Rotation(m)
 
-def make_rect_wall(len_x, thk_y, height):
-    return remove_splitters(Part.makeBox(float(len_x), float(thk_y), float(height), App.Vector(0,0,0)))
-
-def apply_wall_feature(name, shape, placement_dict):
-    obj, created = ensure_feature(name)
-    obj.Shape = shape
-
-    # Apply placement either always, or only on creation
-    if ALWAYS_APPLY_PLACEMENT or created:
-        apply_gui_placement(obj, placement_dict)
-
-    return obj
-
-# --------- EDIT THESE 7 L-WALLS ONE BY ONE ----------
-# Each wall:
-# - length along X leg
-# - length along Y leg
-# - thickness of X leg (controls that side)
-# - thickness of Y leg (controls that side)
-# - height
-# - placement: angle/axis/pos (same structure as Properties panel)
-L_WALLS = [
-    {
-        "name": "HoldWall_L01",
-        "len_x": 10.0,
-        "len_y": 10.0,
-        "thk_legX": 2.6,
-        "thk_legY": 2.6,
-        "height": 8.0,
-        "placement": {"angle": 240.0, "axis": (-0.58,-0.58,0.58), "pos": (51.48,  39.00, 78.93)},
-    },
-    {
-        "name": "HoldWall_L02",
-        "len_x": 10.0,
-        "len_y": 10.0,
-        "thk_legX": 2.6,
-        "thk_legY": 2.6,
-        "height": 5.0,
-        "placement": {"angle": 270.0, "axis": (-1,0,0), "pos": (51.48,  39.00, -18.07)},
-    },
-    {
-        "name": "HoldWall_L03",
-        "len_x": 10.0,
-        "len_y": 10.0,
-        "thk_legX": 2.6,
-        "thk_legY": 2.6,
-        "height": 8.0,
-        "placement": {"angle": 120.0, "axis": (0.58, 0.58, -0.58), "pos": (-88.00,  39.00, 72.50)},
-    },
-    {
-        "name": "HoldWall_L04",
-        "len_x": 10.0,
-        "len_y": 10.0,
-        "thk_legX": 2.6,
-        "thk_legY": 2.6,
-        "height": 8.0,
-        "placement": {"angle": 120.0, "axis": (0.58, -0.58, 0.58), "pos": (49.00,  39.00, -44.50)},
-    },
-    {
-        "name": "HoldWall_L05",
-        "len_x": 10.0,
-        "len_y": 10.0,
-        "thk_legX": 2.6,
-        "thk_legY": 2.6,
-        "height": 5.0,
-        "placement": {"angle": 120.0, "axis": (0.58, 0.58, -0.58), "pos": (-115.50,  39.00, 63.00)},
-    },
-    {
-        "name": "HoldWall_L06",
-        "len_x": 10.0,
-        "len_y": 10.0,
-        "thk_legX": 1.5,
-        "thk_legY": 2.6,
-        "height": 5.0,
-        "placement": {"angle": 120.0, "axis": (0.58, -0.58, 0.58), "pos": (-85.50,  39.00, 33.00)},
-    },
-    {
-        "name": "HoldWall_L07",
-        "len_x": 10.0,
-        "len_y": 10.0,
-        "thk_legX": 1.5,
-        "thk_legY": 2.6,
-        "height": 5.0,
-        "placement": {"angle": 120.0, "axis": (-0.58, 0.58, 0.58), "pos": (-84.80,  34.00, 31.50)},
-    },
-]
-
-# --------- EDIT THE RECT WALL ----------
-RECT_WALL = {
-    "name": "HoldWall_Rect01",
-    "len_x": 25.0,
-    "thk_y": 3,
-    "height": 5.0,
-    "placement": {"angle": 270.0, "axis": (-1,0,0), "pos": (-119.00, 38.00, -43.00)},
-}
-
-# Create/update the 7 L-walls
-for w in L_WALLS:
-    sh = make_L_wall(w["len_x"], w["len_y"], w["thk_legX"], w["thk_legY"], w["height"])
-    apply_wall_feature(w["name"], sh, w["placement"])
-
-# Create/update the rectangle wall
-rsh = make_rect_wall(RECT_WALL["len_x"], RECT_WALL["thk_y"], RECT_WALL["height"])
-apply_wall_feature(RECT_WALL["name"], rsh, RECT_WALL["placement"])
+# place box so its bottom face lies on HB face plane and it’s centered at the hole cluster center
+# local box origin is its minimum corner (0,0,0)
+origin = center_hb_world - u_hb*(BASE_X*0.5) - v_hb*(BASE_Z*0.5)  # on HB plane
+base_obj = ensure_obj("Part::Feature", "MicCS_BaseBlock")
+base_obj.Shape = box_shape
+base_obj.Placement = App.Placement(origin, rot_box)
 
 doc.recompute()
 
-print("=== Done ===")
-print("Baked: +2 left button holes (and kept right 5-hole cluster).")
-print("Baked: SD cut from RasPi_SD_Card_Cutout001 (then deleted it).")
-print("Created/updated: HoldWall_L01..HoldWall_L07 + HoldWall_Rect01 (each with unique params).")
-print(f"Placement mode: {'ALWAYS overwrite from macro' if ALWAYS_APPLY_PLACEMENT else 'Only set placement when created'}")
+# =========================
+# Report
+# =========================
+print("\n=== MIC COUNTERSINK SETUP (HB-HOLES) ===")
+print(f"HB face holes: {len(clusters)} clusters | mean hole r={r_mean:.3f} mm | max hole r={r_max:.3f} mm")
+print(f"Computed enclosing circle (centers only): radius={cr:.3f} mm")
+print(f"Guide radius = cr + r_max + clearance = {cr:.3f} + {r_max:.3f} + {GUIDE_CLEARANCE:.3f} = {guide_radius:.3f} mm")
+print(f"--> GUIDE_DIAMETER (auto) = {guide_diameter:.3f} mm")
+print(f"Current AB->HB gap along mic normal: {gap:.3f} mm")
+print("\n=== ACOUSTIC GUIDELINE (per-hole tube) ===")
+print(f"F_DESIGN={F_DESIGN_HZ:.0f} Hz | quarter-wave L_eff_max={L_eff_max:.3f} mm")
+print(f"End correction ~0.85*r_mean = {end_corr:.3f} mm")
+print(f"Recommended straight (cylindrical) length <= {L_straight_max:.3f} mm")
+print("\nCreated/updated: MicCS_BaseBlock (single box), MicCS_MicCircleGuide (auto diameter)")
