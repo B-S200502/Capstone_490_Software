@@ -130,6 +130,20 @@ for o in doc.Objects:
 
     finite_bbs.append(bb)
 
+# ---- print PartDesign Body feature tree (history) ----
+for o in doc.Objects:
+    if o.TypeId == "PartDesign::Body":
+        print(f"\n=== BODY: {o.Name} ({o.Label}) ===")
+        try:
+            feats = list(o.Group)
+        except:
+            feats = []
+        for f in feats:
+            # Skip origins/datum spam if you want
+            if f.TypeId.startswith("App::Origin") or "Origin" in f.Name:
+                continue
+            print(f" - {f.Name:20s} | {getattr(f,'Label','')} | {f.TypeId}")
+
 if finite_bbs:
     bb_all = finite_bbs[0]
     for b in finite_bbs[1:]:
