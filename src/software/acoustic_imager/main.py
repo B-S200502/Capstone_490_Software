@@ -95,6 +95,7 @@ from acoustic_imager.ui.handlers import (
     handle_email_modal_click,
 )
 from acoustic_imager.ui.wifi_modal import draw_wifi_modal, handle_wifi_modal_click
+from acoustic_imager.io.magnetometer import MagnetometerReader
 from acoustic_imager.ui.settings_modal import (
     draw_settings_modal,
     handle_settings_modal_click,
@@ -789,6 +790,17 @@ def main() -> None:
     button_state.debug_enabled = False
     init_buttons(left_width, state.CAMERA_AVAILABLE)
     init_menu_buttons(left_width, config.HEIGHT)
+
+    # ---- Magnetometer (compass) reader ----
+    mag_reader = MagnetometerReader(
+        config.MAG_UART_DEVICE,
+        config.MAG_UART_BAUD,
+        demo=getattr(config, "MAG_COMPASS_DEMO", False),
+        use_i2c=getattr(config, "MAG_USE_I2C", True),
+        i2c_bus=getattr(config, "MAG_I2C_BUS", 1),
+        i2c_addr=getattr(config, "MAG_I2C_ADDR", 0x1E),
+    )
+    mag_reader.start()
 
     # ---- Loop state ----
     frame_count = 0

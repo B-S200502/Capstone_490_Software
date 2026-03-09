@@ -81,6 +81,14 @@ BG_GRADIENT_BOT = (10, 10, 10)
 FREQ_BAR_WIDTH = 150
 DB_BAR_WIDTH = 80
 
+# Magnetometer (BN-880) for compass
+MAG_UART_DEVICE = "/dev/ttyAMA0"
+MAG_UART_BAUD = 9600
+MAG_COMPASS_DEMO = False  # If True, drive heading from time when no device (for testing)
+MAG_USE_I2C = True        # If True, try I2C (HMC5883L) first; fall back to UART NMEA
+MAG_I2C_BUS = 1
+MAG_I2C_ADDR = 0x1e
+
 # FPS defaults (MENU controls 30/60/MAX at runtime)
 FPS_TARGET = 60
 FPS_MODE_TO_TARGET = {"30": 30, "60": 60}

@@ -48,6 +48,9 @@ class HudState:
     settings_modal_last_drag_t: float = 0.0
     settings_modal_last_drag_y: int = 0
     settings_modal_inertia_active: bool = False
+    # Compass (BN-880 magnetometer)
+    compass_heading_deg: float = 0.0   # 0 = North, clockwise positive
+    compass_heading_valid: bool = False  # True when reader has received at least one valid heading
 
 HUD = HudState()
 
