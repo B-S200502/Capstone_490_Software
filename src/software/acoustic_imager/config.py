@@ -88,6 +88,36 @@ MAG_COMPASS_DEMO = False  # If True, drive heading from time when no device (for
 MAG_USE_I2C = True        # If True, try I2C (HMC5883L) first; fall back to UART NMEA
 MAG_I2C_BUS = 1
 MAG_I2C_ADDR = 0x1e
+# HMC5883L gain register (0x20=default, 0xA0=lower sensitivity / less saturation)
+MAG_I2C_GAIN_REG = 0xA0
+# Enable hard-iron offset calibration from running X/Y extrema.
+MAG_APPLY_HARD_IRON_CAL = True
+# Minimum observed span on both axes before using calibrated heading.
+MAG_CAL_MIN_SPAN = 100
+
+# GPS (BN-880) over UART
+GPS_USE_UART = True
+GPS_UART_DEVICE = "/dev/ttyAMA0"
+GPS_UART_BAUD = 9600
+
+# Radar mini-map (under Mb/s pill)
+RADAR_MAP_ENABLED = True
+RADAR_MAP_DIAMETER_PX = 200
+RADAR_MAP_GAP_PX = 8
+RADAR_HISTORY_SEC = 6.0
+RADAR_MAX_POINTS = 180
+RADAR_MIN_DB = -45.0
+RADAR_MAP_ZOOM = 17
+RADAR_MAP_TILE_SIZE = 256
+RADAR_MAP_CACHE_DIR = "data/map_tiles"
+RADAR_MAP_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+RADAR_MAP_USER_AGENT = "acoustic-imager-radar/1.0"
+RADAR_MAP_FETCH_TIMEOUT_SEC = 1.5
+RADAR_MAP_RETRY_SEC = 3.0
+RADAR_MAP_UPDATE_HZ = 15.0
+RADAR_MAP_POS_BIN_PX = 3
+RADAR_MAP_PATCH_CACHE_SIZE = 12
+RADAR_MAP_FETCH_WORKERS = 2
 
 # FPS defaults (MENU controls 30/60/MAX at runtime)
 FPS_TARGET = 60

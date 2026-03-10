@@ -20,6 +20,7 @@ try:
 except ImportError:
     SMBus = None
 
+from .. import config
 from ..state import HUD
 
 
@@ -78,6 +79,7 @@ class MagnetometerReader:
         use_i2c: bool = True,
         i2c_bus: int = 1,
         i2c_addr: int = 0x1E,
+        i2c_gain_reg: int = 0xA0,
     ) -> None:
         self.device = device
         self.baud = baud
@@ -85,6 +87,7 @@ class MagnetometerReader:
         self.use_i2c = use_i2c
         self.i2c_bus = i2c_bus
         self.i2c_addr = i2c_addr
+        self.i2c_gain_reg = i2c_gain_reg
         self._thr: Optional[threading.Thread] = None
         self._stop = threading.Event()
 
@@ -164,7 +167,7 @@ class MagnetometerReader:
                 continue
             try:
                 bus.write_byte_data(self.i2c_addr, 0x00, 0x70)  # config A
-                bus.write_byte_data(self.i2c_addr, 0x01, 0x20)  # config B (gain)
+                bus.write_byte_data(self.i2c_addr, 0x01, int(self.i2c_gain_reg) & 0xFF)  # config B (gain)
                 bus.write_byte_data(self.i2c_addr, 0x02, 0x00)  # continuous mode
             except Exception:
                 HUD.compass_heading_valid = False
@@ -191,7 +194,70 @@ class MagnetometerReader:
                     heading_deg = math.degrees(math.atan2(y, x))
                     if heading_deg < 0:
                         heading_deg += 360.0
-                    HUD.compass_heading_deg = heading_deg
+                    # Track extrema for quick hard-iron bias diagnostics.
+                    if HUD.mag_x_min is None or x < HUD.mag_x_min:
+                        HUD.mag_x_min = int(x)
+                    if HUD.mag_x_max is None or x > HUD.mag_x_max:
+                        HUD.mag_x_max = int(x)
+                    if HUD.mag_y_min is None or y < HUD.mag_y_min:
+                        HUD.mag_y_min = int(y)
+                    if HUD.mag_y_max is None or y > HUD.mag_y_max:
+                        HUD.mag_y_max = int(y)
+                    if HUD.mag_z_min is None or z < HUD.mag_z_min:
+                        HUD.mag_z_min = int(z)
+                    if HUD.mag_z_max is None or z > HUD.mag_z_max:
+                        HUD.mag_z_max = int(z)
+
+                    x_span = int(HUD.mag_x_max - HUD.mag_x_min) if (HUD.mag_x_max is not None and HUD.mag_x_min is not None) else 0
+                    y_span = int(HUD.mag_y_max - HUD.mag_y_min) if (HUD.mag_y_max is not None and HUD.mag_y_min is not None) else 0
+                    z_span = int(HUD.mag_z_max - HUD.mag_z_min) if (HUD.mag_z_max is not None and HUD.mag_z_min is not None) else 0
+
+                    # Centered heading debug (hard-iron offset only, no soft-iron scale).
+                    x_off = 0.5 * (HUD.mag_x_min + HUD.mag_x_max) if (HUD.mag_x_min is not None and HUD.mag_x_max is not None) else 0.0
+                    y_off = 0.5 * (HUD.mag_y_min + HUD.mag_y_max) if (HUD.mag_y_min is not None and HUD.mag_y_max is not None) else 0.0
+                    z_off = 0.5 * (HUD.mag_z_min + HUD.mag_z_max) if (HUD.mag_z_min is not None and HUD.mag_z_max is not None) else 0.0
+                    x_cal = float(x) - x_off
+                    y_cal = float(y) - y_off
+                    z_cal = float(z) - z_off
+
+                    def heading_from(a: float, b: float) -> float:
+                        h = math.degrees(math.atan2(b, a))
+                        if h < 0:
+                            h += 360.0
+                        return h
+
+                    pair_scores = {
+                        "XY": x_span + y_span,
+                        "XZ": x_span + z_span,
+                        "YZ": y_span + z_span,
+                    }
+                    best_pair = max(pair_scores, key=pair_scores.get)
+                    if best_pair == "XZ":
+                        heading_cal_deg = heading_from(x_cal, z_cal)
+                    elif best_pair == "YZ":
+                        heading_cal_deg = heading_from(y_cal, z_cal)
+                    else:
+                        heading_cal_deg = heading_from(x_cal, y_cal)
+
+                    min_span = int(getattr(config, "MAG_CAL_MIN_SPAN", 100))
+                    if best_pair == "XZ":
+                        cal_ready = x_span >= min_span and z_span >= min_span
+                    elif best_pair == "YZ":
+                        cal_ready = y_span >= min_span and z_span >= min_span
+                    else:
+                        cal_ready = x_span >= min_span and y_span >= min_span
+                    use_cal = bool(getattr(config, "MAG_APPLY_HARD_IRON_CAL", True)) and cal_ready
+                    HUD.mag_x_raw = int(x)
+                    HUD.mag_y_raw = int(y)
+                    HUD.mag_z_raw = int(z)
+                    HUD.mag_span_x = int(x_span)
+                    HUD.mag_span_y = int(y_span)
+                    HUD.mag_span_z = int(z_span)
+                    HUD.mag_pair_dbg = best_pair
+                    HUD.mag_heading_dbg = float(heading_deg)
+                    HUD.mag_heading_cal_dbg = float(heading_cal_deg)
+                    HUD.mag_cal_active = bool(use_cal)
+                    HUD.compass_heading_deg = heading_cal_deg if use_cal else heading_deg
                     HUD.compass_heading_valid = True
                 except Exception:
                     HUD.compass_heading_valid = False

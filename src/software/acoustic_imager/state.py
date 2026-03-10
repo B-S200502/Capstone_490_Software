@@ -18,6 +18,14 @@ from .config import USE_CAMERA, F_MIN_HZ_DEFAULT, F_MAX_HZ_DEFAULT, SOURCE_DEFAU
 # HUD state
 # ===============================================================
 @dataclass
+class RadarDetection:
+    t: float
+    rel_angle_deg: float
+    world_bearing_deg: float
+    db_value: float
+
+
+@dataclass
 class HudState:
     details_level: str = "MIN"   # "OFF" | "MIN" | "MAX"
     open_panel: str = ""         # "" | "time" | "fps" | "net" | "battery"
@@ -51,6 +59,31 @@ class HudState:
     # Compass (BN-880 magnetometer)
     compass_heading_deg: float = 0.0   # 0 = North, clockwise positive
     compass_heading_valid: bool = False  # True when reader has received at least one valid heading
+    mag_x_raw: int = 0
+    mag_y_raw: int = 0
+    mag_z_raw: int = 0
+    mag_heading_dbg: float = 0.0
+    mag_heading_cal_dbg: float = 0.0
+    mag_cal_active: bool = False
+    mag_pair_dbg: str = "XY"
+    mag_span_x: int = 0
+    mag_span_y: int = 0
+    mag_span_z: int = 0
+    mag_x_min: Optional[int] = None
+    mag_x_max: Optional[int] = None
+    mag_y_min: Optional[int] = None
+    mag_y_max: Optional[int] = None
+    mag_z_min: Optional[int] = None
+    mag_z_max: Optional[int] = None
+    # GPS (BN-880 UART)
+    gps_lat: Optional[float] = None
+    gps_lon: Optional[float] = None
+    gps_fix_valid: bool = False
+    gps_sat_count: int = 0
+    gps_last_update_s: float = 0.0
+    gps_course_deg: Optional[float] = None
+    # Acoustic radar history
+    radar_detections: List[RadarDetection] = field(default_factory=list)
 
 HUD = HudState()
 

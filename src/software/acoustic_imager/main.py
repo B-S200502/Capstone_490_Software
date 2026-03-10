@@ -96,12 +96,14 @@ from acoustic_imager.ui.handlers import (
 )
 from acoustic_imager.ui.wifi_modal import draw_wifi_modal, handle_wifi_modal_click
 from acoustic_imager.io.magnetometer import MagnetometerReader
+from acoustic_imager.io.gps_reader import GPSReader
 from acoustic_imager.ui.settings_modal import (
     draw_settings_modal,
     handle_settings_modal_click,
     handle_settings_modal_mouse,
     handle_settings_modal_scroll,
 )
+from acoustic_imager.ui.acoustic_radar_map import draw_radar_map_widget, update_detection_history
 from acoustic_imager.ui.video_recorder import VideoRecorder
 from acoustic_imager.ui.battery_icon import draw_battery_icon_for_view
 
@@ -799,8 +801,17 @@ def main() -> None:
         use_i2c=getattr(config, "MAG_USE_I2C", True),
         i2c_bus=getattr(config, "MAG_I2C_BUS", 1),
         i2c_addr=getattr(config, "MAG_I2C_ADDR", 0x1E),
+        i2c_gain_reg=getattr(config, "MAG_I2C_GAIN_REG", 0xA0),
     )
     mag_reader.start()
+
+    # ---- GPS (BN-880) reader ----
+    gps_reader = GPSReader(
+        getattr(config, "GPS_UART_DEVICE", "/dev/ttyAMA0"),
+        getattr(config, "GPS_UART_BAUD", 9600),
+        enabled=getattr(config, "GPS_USE_UART", True),
+    )
+    gps_reader.start()
 
     # ---- Loop state ----
     frame_count = 0
@@ -972,6 +983,29 @@ def main() -> None:
                     )
 
             prof.mark("beamform+heatmap")
+
+            # ---- Append one acoustic detection sample for radar history ----
+            if spec_matrix is not None and spec_matrix.size > 0:
+                try:
+                    _ri, _ci = np.unravel_index(int(np.argmax(spec_matrix)), spec_matrix.shape)
+                    n_ang = spec_matrix.shape[1]
+                    if len(config.ANGLES) == n_ang:
+                        rel_angle = float(config.ANGLES[_ci])
+                    else:
+                        rel_angle = float(-90.0 + (180.0 * _ci / max(1, n_ang - 1)))
+                    peak_u8 = int(np.max(heatmap_left))
+                    peak_db = float(
+                        config.REL_DB_MIN + (peak_u8 / 255.0) * (config.REL_DB_MAX - config.REL_DB_MIN)
+                    )
+                    if peak_db >= float(getattr(config, "RADAR_MIN_DB", -45.0)):
+                        update_detection_history(
+                            rel_angle_deg=rel_angle,
+                            db_value=peak_db,
+                            heading_deg=HUD.compass_heading_deg,
+                            now_s=time.time(),
+                        )
+                except Exception:
+                    pass
 
             # ---- Background (camera or static) ----
             if button_state.camera_enabled and state.CAMERA_AVAILABLE:
@@ -1229,6 +1263,16 @@ def main() -> None:
 
             state.HUD_RECTS = hud_rects
 
+            # Radar mini-map under Mb/s pill (main view only, before modal overlays).
+            if not button_state.gallery_open:
+                draw_radar_map_widget(
+                    output_frame,
+                    hud_rects.net,
+                    heading_deg=HUD.compass_heading_deg,
+                    colormap_mode=button_state.colormap_mode,
+                    now_s=time.time(),
+                )
+
             # WiFi modal drawn after top HUD
             if HUD.wifi_modal_open:
                 draw_wifi_modal(output_frame)
@@ -1304,6 +1348,14 @@ def main() -> None:
                 button_state.email_modal_provider = ""
                 button_state.email_test_status = ""
                 button_state.email_test_message = ""
+            elif key == ord("c"):
+                # Reset magnetometer calibration extrema (use during heading tests)
+                HUD.mag_x_min = HUD.mag_x_max = None
+                HUD.mag_y_min = HUD.mag_y_max = None
+                HUD.mag_z_min = HUD.mag_z_max = None
+                HUD.mag_span_x = HUD.mag_span_y = HUD.mag_span_z = 0
+                HUD.mag_cal_active = False
+                print("[compass] calibration extrema reset")
             elif key == ord("q") or key == 27:  # 'q' or ESC
                 break
 
@@ -1317,6 +1369,15 @@ def main() -> None:
         # Stop and cleanup resources
         if video_recorder:
             video_recorder.cleanup()
+
+        try:
+            mag_reader.stop()
+        except Exception:
+            pass
+        try:
+            gps_reader.stop()
+        except Exception:
+            pass
 
         spi_loopback.stop()
         spi_hw.stop()
