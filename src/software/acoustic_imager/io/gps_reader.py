@@ -15,6 +15,7 @@ try:
 except ImportError:
     serial = None
 
+from .. import config
 from ..state import HUD
 
 
@@ -65,10 +66,10 @@ def _parse_rmc(parts: list[str]) -> Tuple[Optional[float], Optional[float], Opti
     return lat, lon, course, status == "A"
 
 
-def _parse_gga(parts: list[str]) -> Tuple[Optional[float], Optional[float], int, bool]:
+def _parse_gga(parts: list[str]) -> Tuple[Optional[float], Optional[float], int, bool, Optional[float]]:
     # $GPGGA,time,lat,N,lon,E,fix,sats,...
     if len(parts) < 8:
-        return None, None, 0, False
+        return None, None, 0, False, None
     lat = _parse_deg_min(parts[2], parts[3].strip().upper(), is_lon=False)
     lon = _parse_deg_min(parts[4], parts[5].strip().upper(), is_lon=True)
     try:
@@ -79,7 +80,13 @@ def _parse_gga(parts: list[str]) -> Tuple[Optional[float], Optional[float], int,
         sats = int(parts[7]) if parts[7] else 0
     except ValueError:
         sats = 0
-    return lat, lon, sats, fix_q > 0
+    hdop = None
+    if len(parts) > 8 and parts[8]:
+        try:
+            hdop = float(parts[8])
+        except ValueError:
+            hdop = None
+    return lat, lon, sats, fix_q > 0, hdop
 
 
 class GPSReader:
@@ -148,13 +155,20 @@ class GPSReader:
                         if course is not None:
                             HUD.gps_course_deg = course
                         HUD.gps_fix_valid = bool(ok)
+                        if ok and HUD.gps_accuracy_m is None:
+                            HUD.gps_accuracy_m = float(getattr(config, "GPS_DEFAULT_ACCURACY_M", 30.0))
                     elif talker.endswith("GGA"):
-                        lat, lon, sats, ok = _parse_gga(parts)
+                        lat, lon, sats, ok, hdop = _parse_gga(parts)
                         if lat is not None and lon is not None:
                             HUD.gps_lat = lat
                             HUD.gps_lon = lon
                             HUD.gps_last_update_s = now_s
                         HUD.gps_sat_count = sats
+                        if hdop is not None:
+                            # Simple HDOP->meters estimate (rule-of-thumb)
+                            HUD.gps_accuracy_m = max(3.0, float(hdop) * 5.0)
+                        elif ok and HUD.gps_accuracy_m is None:
+                            HUD.gps_accuracy_m = float(getattr(config, "GPS_DEFAULT_ACCURACY_M", 30.0))
                         HUD.gps_fix_valid = bool(ok)
             try:
                 ser.close()

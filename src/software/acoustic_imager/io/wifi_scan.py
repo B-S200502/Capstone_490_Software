@@ -18,7 +18,8 @@ def _scan_nmcli() -> List[Dict[str, str]]:
             [
                 "nmcli",
                 "-t",
-                "-f", "SSID,SIGNAL,SECURITY",
+                "--separator", "|",
+                "-f", "BSSID,SSID,SIGNAL,SECURITY,FREQ,CHAN",
                 "device", "wifi", "list",
                 "--rescan", "yes",
             ],
@@ -31,19 +32,32 @@ def _scan_nmcli() -> List[Dict[str, str]]:
 
         seen = set()
         for line in out.stdout.strip().splitlines():
-            parts = line.split(":")
-            if len(parts) < 3:
+            parts = line.split("|")
+            if len(parts) < 6:
                 continue
-            security = (parts[-1] or "").strip()
-            signal = (parts[-2] or "").strip()
-            ssid = ":".join(parts[:-2]).strip()
+            bssid = (parts[0] or "").strip()
+            ssid = (parts[1] or "").strip()
+            signal = (parts[2] or "").strip()
+            security = (parts[3] or "").strip()
+            freq = (parts[4] or "").strip()
+            channel = (parts[5] or "").strip()
             if not ssid or ssid in seen:
                 continue
             seen.add(ssid)
+            # Convert signal % (0..100) to rough dBm estimate for geolocation APIs.
+            try:
+                sig_pct = float(signal)
+                rssi = int(round(-100.0 + (sig_pct / 100.0) * 70.0))
+            except Exception:
+                rssi = 0
             result.append({
                 "ssid": ssid,
                 "signal": signal,
                 "security": security if security and security != "--" else "Open",
+                "bssid": bssid,
+                "rssi_dbm": str(rssi),
+                "frequency": freq,
+                "channel": channel,
             })
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
         pass
@@ -54,33 +68,50 @@ def _parse_iw(text: str) -> List[Dict[str, str]]:
     """Parse 'iw dev wlan0 scan' output into list of {ssid, signal, security}."""
     result: List[Dict[str, str]] = []
     seen: set[str] = set()
-    # Split by BSS blocks; format: "BSS aa:bb:cc:dd:ee:ff" or "BSS aa:bb:cc:dd:ee:ff(on wlan0)"
-    blocks = re.split(
-        r"BSS [0-9a-f]{2}(?::[0-9a-f]{2}){5}(?:\([^)]*\))?\s*\n?",
-        text,
-        flags=re.IGNORECASE,
-    )
-    for block in blocks[1:]:
-        ssid = ""
-        signal = ""
-        security = "Open"
-        for line in block.splitlines():
-            line = line.strip()
-            if line.startswith("SSID:"):
-                ssid = line[5:].strip()
-            elif line.startswith("signal:"):
-                m = re.search(r"(-?\d+(?:\.\d+)?)\s*dBm", line)
-                if m:
-                    dbm = float(m.group(1))
-                    pct = min(100, max(0, int(100 + (dbm + 30) * (100 / 60))))
-                    signal = str(pct)
-            elif "RSN:" in line or "WPA" in line or "WPA2" in line:
-                security = "WPA2"
-            elif "WEP" in line:
-                security = "WEP"
-        if ssid and ssid not in seen:
-            seen.add(ssid)
-            result.append({"ssid": ssid, "signal": signal, "security": security})
+    current: Dict[str, str] = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("BSS "):
+            if current.get("ssid") and current["ssid"] not in seen:
+                seen.add(current["ssid"])
+                result.append(current)
+            m = re.match(r"BSS\s+([0-9a-f:]{17})", line, flags=re.IGNORECASE)
+            current = {
+                "ssid": "",
+                "signal": "",
+                "security": "Open",
+                "bssid": m.group(1).lower() if m else "",
+                "rssi_dbm": "0",
+                "frequency": "",
+                "channel": "",
+            }
+            continue
+        if not current:
+            continue
+        if line.startswith("SSID:"):
+            current["ssid"] = line[5:].strip()
+        elif line.startswith("freq:"):
+            m = re.search(r"(\d+)", line)
+            if m:
+                current["frequency"] = m.group(1)
+        elif line.startswith("DS Parameter set: channel"):
+            m = re.search(r"channel\s+(\d+)", line)
+            if m:
+                current["channel"] = m.group(1)
+        elif line.startswith("signal:"):
+            m = re.search(r"(-?\d+(?:\.\d+)?)\s*dBm", line)
+            if m:
+                dbm = float(m.group(1))
+                current["rssi_dbm"] = str(int(round(dbm)))
+                pct = min(100, max(0, int(100 + (dbm + 30) * (100 / 60))))
+                current["signal"] = str(pct)
+        elif "RSN:" in line or "WPA" in line or "WPA2" in line:
+            current["security"] = "WPA2"
+        elif "WEP" in line:
+            current["security"] = "WEP"
+    if current.get("ssid") and current["ssid"] not in seen:
+        seen.add(current["ssid"])
+        result.append(current)
     return result
 
 
@@ -134,20 +165,36 @@ def _parse_iwlist(text: str) -> List[Dict[str, str]]:
     for cell in cells[1:]:
         ssid = ""
         signal = ""
+        rssi = ""
         security = "Open"
+        bssid = ""
         essid_match = re.search(r'ESSID:"([^"]*)"', cell)
         if essid_match:
             ssid = essid_match.group(1).strip()
+        addr_match = re.search(r"Address:\s*([0-9A-Fa-f:]{17})", cell)
+        if addr_match:
+            bssid = addr_match.group(1).lower()
         quality_match = re.search(r"Quality=(\d+)/(\d+)", cell)
         if quality_match:
             num, den = int(quality_match.group(1)), int(quality_match.group(2))
             signal = str(int(100 * num / den)) if den else ""
+        dbm_match = re.search(r"Signal level=(-?\d+)\s*dBm", cell)
+        if dbm_match:
+            rssi = dbm_match.group(1)
         if "Encryption key:on" in cell or "IE: WPA" in cell or "IE: IEEE 802.11i/WPA2" in cell:
             security = "WPA2"
         elif "Encryption key:on" in cell:
             security = "WEP"
         if ssid:
-            result.append({"ssid": ssid, "signal": signal, "security": security})
+            result.append(
+                {
+                    "ssid": ssid,
+                    "signal": signal,
+                    "security": security,
+                    "bssid": bssid,
+                    "rssi_dbm": rssi or "0",
+                }
+            )
     return result
 
 
@@ -177,7 +224,7 @@ def _scan_nmcli_iface() -> List[Dict[str, str]]:
     try:
         out = subprocess.run(
             [
-                "nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY",
+                "nmcli", "-t", "--separator", "|", "-f", "BSSID,SSID,SIGNAL,SECURITY,FREQ,CHAN",
                 "device", "wifi", "list", "ifname", "wlan0", "--rescan", "yes",
             ],
             capture_output=True,
@@ -189,16 +236,34 @@ def _scan_nmcli_iface() -> List[Dict[str, str]]:
         result = []
         seen = set()
         for line in (out.stdout or "").strip().splitlines():
-            parts = line.split(":")
-            if len(parts) < 3:
+            parts = line.split("|")
+            if len(parts) < 6:
                 continue
-            security = (parts[-1] or "").strip()
-            signal = (parts[-2] or "").strip()
-            ssid = ":".join(parts[:-2]).strip()
+            bssid = (parts[0] or "").strip()
+            ssid = (parts[1] or "").strip()
+            signal = (parts[2] or "").strip()
+            security = (parts[3] or "").strip()
+            freq = (parts[4] or "").strip()
+            channel = (parts[5] or "").strip()
             if not ssid or ssid in seen:
                 continue
             seen.add(ssid)
-            result.append({"ssid": ssid, "signal": signal, "security": security if security and security != "--" else "Open"})
+            try:
+                sig_pct = float(signal)
+                rssi = int(round(-100.0 + (sig_pct / 100.0) * 70.0))
+            except Exception:
+                rssi = 0
+            result.append(
+                {
+                    "ssid": ssid,
+                    "signal": signal,
+                    "security": security if security and security != "--" else "Open",
+                    "bssid": bssid,
+                    "rssi_dbm": str(rssi),
+                    "frequency": freq,
+                    "channel": channel,
+                }
+            )
         return result
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
         return []

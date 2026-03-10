@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -97,6 +98,8 @@ from acoustic_imager.ui.handlers import (
 from acoustic_imager.ui.wifi_modal import draw_wifi_modal, handle_wifi_modal_click
 from acoustic_imager.io.magnetometer import MagnetometerReader
 from acoustic_imager.io.gps_reader import GPSReader
+from acoustic_imager.io.position_manager import PositionManager
+from acoustic_imager.io.directional_history_store import DirectionalHistoryStore
 from acoustic_imager.ui.settings_modal import (
     draw_settings_modal,
     handle_settings_modal_click,
@@ -106,6 +109,34 @@ from acoustic_imager.ui.settings_modal import (
 from acoustic_imager.ui.acoustic_radar_map import draw_radar_map_widget, update_detection_history
 from acoustic_imager.ui.video_recorder import VideoRecorder
 from acoustic_imager.ui.battery_icon import draw_battery_icon_for_view
+
+# region agent log
+_AGENT_DEBUG_LOG_PATH = "/home/acousticlord/Capstone_490_Software/.cursor/debug-a9e491.log"
+_AGENT_DEBUG_SESSION = "a9e491"
+
+
+def _agent_debug_log(
+    run_id: str,
+    hypothesis_id: str,
+    location: str,
+    message: str,
+    data: dict,
+) -> None:
+    try:
+        payload = {
+            "sessionId": _AGENT_DEBUG_SESSION,
+            "runId": run_id,
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        with open(_AGENT_DEBUG_LOG_PATH, "a", encoding="utf-8") as _f:
+            _f.write(json.dumps(payload, separators=(",", ":")) + "\n")
+    except Exception:
+        pass
+# endregion
 
 # ===============================================================
 # External dependencies (from parent directories)
@@ -172,6 +203,11 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
 
     left_width, h = param
     mx, my = x, y
+
+    def _bottom_hide_target() -> float:
+        base = float(getattr(config, "UI_BOTTOM_HUD_HIDE_OFFSET", 60))
+        extra = float(getattr(config, "UI_BOTTOM_HUD_DEBUG_EXTRA_HIDE_OFFSET", 20)) if button_state.debug_enabled else 0.0
+        return base + extra
 
     # Update hover states
     state.CURSOR_POS = (mx, my)
@@ -511,12 +547,41 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                             else:
                                 state.ui_top_hud_offset_target = float(config.UI_TOP_HUD_HIDE_OFFSET)
                         else:
-                            state.ui_bottom_hud_offset_target = float(config.UI_BOTTOM_HUD_HIDE_OFFSET)
+                            state.ui_bottom_hud_offset_target = _bottom_hide_target()
                             state.ui_menu_offset_y_target = float(getattr(config, "UI_MENU_HIDE_OFFSET_Y", 80))
+                            # region agent log
+                            _agent_debug_log(
+                                "run1",
+                                "H3",
+                                "main.py:swipe_down",
+                                "swipe_down_hide_bottom_targets",
+                                {
+                                    "bottom_target": float(state.ui_bottom_hud_offset_target),
+                                    "menu_y_target": float(state.ui_menu_offset_y_target),
+                                    "hide_offset_cfg": float(config.UI_BOTTOM_HUD_HIDE_OFFSET),
+                                    "hide_offset_extra_cfg": float(
+                                        getattr(config, "UI_BOTTOM_HUD_DEBUG_EXTRA_HIDE_OFFSET", 20)
+                                    ),
+                                    "debug_enabled": bool(button_state.debug_enabled),
+                                },
+                            )
+                            # endregion
                     else:  # swipe up
                         if state.ui_bottom_hud_offset_target > 0 or state.ui_menu_offset_y_target > 0:
                             state.ui_bottom_hud_offset_target = 0.0
                             state.ui_menu_offset_y_target = 0.0
+                            # region agent log
+                            _agent_debug_log(
+                                "run1",
+                                "H3",
+                                "main.py:swipe_up",
+                                "swipe_up_show_bottom_targets",
+                                {
+                                    "bottom_target": float(state.ui_bottom_hud_offset_target),
+                                    "menu_y_target": float(state.ui_menu_offset_y_target),
+                                },
+                            )
+                            # endregion
                         elif (
                             not button_state.menu_open
                             and state.ui_bottom_hud_offset_target <= 1
@@ -548,7 +613,7 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                     )
                     all_hidden = (
                         state.ui_top_hud_offset_target <= config.UI_TOP_HUD_HIDE_OFFSET * 0.5
-                        and state.ui_bottom_hud_offset_target >= config.UI_BOTTOM_HUD_HIDE_OFFSET * 0.5
+                        and state.ui_bottom_hud_offset_target >= _bottom_hide_target() * 0.5
                         and menu_hidden
                     )
                     if all_hidden:
@@ -556,12 +621,41 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                         state.ui_bottom_hud_offset_target = 0.0
                         state.ui_menu_offset_target = 0.0
                         state.ui_menu_offset_y_target = 0.0
+                        # region agent log
+                        _agent_debug_log(
+                            "run1",
+                            "H2",
+                            "main.py:double_tap",
+                            "double_tap_show_hud_targets",
+                            {
+                                "top_target": state.ui_top_hud_offset_target,
+                                "bottom_target": state.ui_bottom_hud_offset_target,
+                                "menu_target": state.ui_menu_offset_target,
+                                "menu_y_target": state.ui_menu_offset_y_target,
+                            },
+                        )
+                        # endregion
                     else:
                         state.ui_top_hud_offset_target = float(config.UI_TOP_HUD_HIDE_OFFSET)
-                        state.ui_bottom_hud_offset_target = float(config.UI_BOTTOM_HUD_HIDE_OFFSET)
+                        state.ui_bottom_hud_offset_target = _bottom_hide_target()
                         state.ui_menu_offset_target = float(config.UI_MENU_HIDE_OFFSET)
                         state.ui_menu_offset_y_target = float(menu_hide_y)
                         button_state.menu_open = False
+                        # region agent log
+                        _agent_debug_log(
+                            "run1",
+                            "H2",
+                            "main.py:double_tap",
+                            "double_tap_hide_hud_targets",
+                            {
+                                "top_target": state.ui_top_hud_offset_target,
+                                "bottom_target": state.ui_bottom_hud_offset_target,
+                                "menu_target": state.ui_menu_offset_target,
+                                "menu_y_target": state.ui_menu_offset_y_target,
+                                "hide_offset_cfg": float(config.UI_BOTTOM_HUD_HIDE_OFFSET),
+                            },
+                        )
+                        # endregion
                     state.ui_last_tap_time = 0.0
                     return
                 # Single tap: crosshair toggle in heatmap (if crosshairs enabled)
@@ -811,7 +905,27 @@ def main() -> None:
         getattr(config, "GPS_UART_BAUD", 9600),
         enabled=getattr(config, "GPS_USE_UART", True),
     )
-    gps_reader.start()
+    position_manager = PositionManager()
+    gps_running = False
+    pos_running = False
+    if button_state.position_services_enabled:
+        gps_reader.start()
+        position_manager.start()
+        gps_running = True
+        pos_running = True
+
+    directional_store = DirectionalHistoryStore(
+        base_dir=str(
+            (
+                Path(getattr(config, "DIRECTIONAL_HISTORY_DIR", "data/directional_history"))
+                if Path(getattr(config, "DIRECTIONAL_HISTORY_DIR", "data/directional_history")).is_absolute()
+                else (repo_root / Path(getattr(config, "DIRECTIONAL_HISTORY_DIR", "data/directional_history")))
+            )
+        ),
+        retention_days=int(getattr(config, "DIRECTIONAL_HISTORY_RETENTION_DAYS", 7)),
+        flush_interval_s=float(getattr(config, "DIRECTIONAL_HISTORY_FLUSH_SEC", 1.0)),
+        enabled=bool(getattr(config, "DIRECTIONAL_HISTORY_ENABLED", True)),
+    )
 
     # ---- Loop state ----
     frame_count = 0
@@ -851,6 +965,20 @@ def main() -> None:
                 next_tick = time.perf_counter()
             prof.mark("throttle")
 
+            # ---- Position services runtime toggle ----
+            if button_state.position_services_enabled and not gps_running:
+                gps_reader.start()
+                gps_running = True
+            elif (not button_state.position_services_enabled) and gps_running:
+                gps_reader.stop()
+                gps_running = False
+            if button_state.position_services_enabled and not pos_running:
+                position_manager.start()
+                pos_running = True
+            elif (not button_state.position_services_enabled) and pos_running:
+                position_manager.stop()
+                pos_running = False
+
             mode = button_state.source_mode
             if mode != prev_mode:
                 # stop both (safe)
@@ -877,6 +1005,9 @@ def main() -> None:
             if mode == "SIM":
                 latest_frame = sim_source.read_frame()
                 source_label = "SIM"
+            elif mode == "SIM_2":
+                latest_frame = sim_source.read_frame_sim2()
+                source_label = "SIM_2"
             elif mode == "REF":
                 # 0 dB reference: flat FFT so all spectrum bars sit at peak (baseline test)
                 ref_fft = np.ones((config.N_MICS, config.N_BINS), dtype=np.complex64)
@@ -912,10 +1043,14 @@ def main() -> None:
             if source_label == "REF":
                 # 0 dB reference: uniform heatmap (spread across whole view), no MUSIC blobs
                 heatmap_left = np.full((config.HEIGHT, left_width), 255, dtype=np.uint8)
-            elif source_label == "SIM":
+            elif source_label in ("SIM", "SIM_2"):
+                if source_label == "SIM_2":
+                    sim_freqs = list(getattr(sim_source, "last_sim2_freqs", []))
+                else:
+                    sim_freqs = list(config.SIM_SOURCE_FREQS)
                 # Filter sources by bandpass
                 selected_indices = [
-                    i for i, f in enumerate(config.SIM_SOURCE_FREQS)
+                    i for i, f in enumerate(sim_freqs)
                     if f_min <= f <= f_max
                 ]
 
@@ -924,12 +1059,12 @@ def main() -> None:
                 else:
                     n_sel = len(selected_indices)
                     spec_matrix = np.zeros((n_sel, len(config.ANGLES)), dtype=np.float32)
-                    band_freqs = np.array([float(config.SIM_SOURCE_FREQS[i]) for i in selected_indices], dtype=np.float64)
+                    band_freqs = np.array([float(sim_freqs[i]) for i in selected_indices], dtype=np.float64)
                     power = np.zeros(n_sel, dtype=np.float32)
 
                     running_max_power = 1e-12
                     for row_idx, src_idx in enumerate(selected_indices):
-                        f_sig = float(config.SIM_SOURCE_FREQS[src_idx])
+                        f_sig = float(sim_freqs[src_idx])
                         f_idx = int(np.argmin(np.abs(config.f_axis - f_sig)))
                         Xf = fft_data[:, f_idx][:, np.newaxis]
                         R = Xf @ Xf.conj().T
@@ -987,25 +1122,75 @@ def main() -> None:
             # ---- Append one acoustic detection sample for radar history ----
             if spec_matrix is not None and spec_matrix.size > 0:
                 try:
-                    _ri, _ci = np.unravel_index(int(np.argmax(spec_matrix)), spec_matrix.shape)
-                    n_ang = spec_matrix.shape[1]
-                    if len(config.ANGLES) == n_ang:
-                        rel_angle = float(config.ANGLES[_ci])
+                    t_now = time.time()
+                    _n_rows, n_ang = spec_matrix.shape
+                    detections: list[tuple[float, float]] = []  # (rel_angle_deg, db_value)
+                    row_max = np.max(spec_matrix, axis=1).astype(np.float64)
+                    row_ref = float(np.max(row_max)) if row_max.size > 0 else 0.0
+                    if row_ref <= 1e-12:
+                        row_ref = 1e-12
+
+                    if str(source_label) == "SIM_2":
+                        min_rel = float(getattr(config, "SIM2_RADAR_MIN_ROW_REL", 0.30))
+                        sep_min = float(getattr(config, "SIM2_RADAR_MIN_SEPARATION_DEG", 12.0))
+                        order = np.argsort(-row_max)  # descending by row strength
+                        for ri in order.tolist():
+                            rel_strength = float(row_max[ri]) / row_ref
+                            if rel_strength < min_rel:
+                                continue
+                            ci = int(np.argmax(spec_matrix[ri, :]))
+                            if len(config.ANGLES) == n_ang:
+                                rel_angle = float(config.ANGLES[ci])
+                            else:
+                                rel_angle = float(-90.0 + (180.0 * ci / max(1, n_ang - 1)))
+                            # Skip near-duplicate detections in same frame.
+                            if any(abs(rel_angle - det[0]) < sep_min for det in detections):
+                                continue
+                            db_row = float(config.REL_DB_MIN + rel_strength * (config.REL_DB_MAX - config.REL_DB_MIN))
+                            detections.append((rel_angle, db_row))
                     else:
-                        rel_angle = float(-90.0 + (180.0 * _ci / max(1, n_ang - 1)))
-                    peak_u8 = int(np.max(heatmap_left))
-                    peak_db = float(
-                        config.REL_DB_MIN + (peak_u8 / 255.0) * (config.REL_DB_MAX - config.REL_DB_MIN)
-                    )
-                    if peak_db >= float(getattr(config, "RADAR_MIN_DB", -45.0)):
-                        update_detection_history(
-                            rel_angle_deg=rel_angle,
-                            db_value=peak_db,
-                            heading_deg=HUD.compass_heading_deg,
-                            now_s=time.time(),
+                        _ri, _ci = np.unravel_index(int(np.argmax(spec_matrix)), spec_matrix.shape)
+                        if len(config.ANGLES) == n_ang:
+                            rel_angle = float(config.ANGLES[_ci])
+                        else:
+                            rel_angle = float(-90.0 + (180.0 * _ci / max(1, n_ang - 1)))
+                        peak_u8 = int(np.max(heatmap_left))
+                        peak_db = float(
+                            config.REL_DB_MIN + (peak_u8 / 255.0) * (config.REL_DB_MAX - config.REL_DB_MIN)
                         )
-                except Exception:
-                    pass
+                        detections.append((rel_angle, peak_db))
+
+                    for rel_angle, peak_db in detections:
+                        world_bearing = (float(HUD.compass_heading_deg) + float(rel_angle)) % 360.0
+                        if bool(getattr(button_state, "record_compass_history", False)):
+                            directional_store.add_event(
+                                {
+                                    "timestamp": t_now,
+                                    "source_mode": str(button_state.source_mode),
+                                    "bearing_world_deg": float(world_bearing),
+                                    "bearing_rel_deg": float(rel_angle),
+                                    "db_value": float(peak_db),
+                                    "heading_deg": float(HUD.compass_heading_deg),
+                                    "position_source": str(HUD.position.source),
+                                    "lat": HUD.position.lat,
+                                    "lon": HUD.position.lon,
+                                    "accuracy_m": HUD.position.accuracy_m,
+                                }
+                            )
+                            HUD.directional_log_error = ""
+                            HUD.directional_log_last_write_s = t_now
+                            HUD.directional_log_date = str(getattr(directional_store, "_current_date", ""))
+                            _cur_file = getattr(directional_store, "_current_file", None)
+                            HUD.directional_log_file = str(_cur_file) if _cur_file else ""
+                        if peak_db >= float(getattr(config, "RADAR_MIN_DB", -45.0)):
+                            update_detection_history(
+                                rel_angle_deg=rel_angle,
+                                db_value=peak_db,
+                                heading_deg=HUD.compass_heading_deg,
+                                now_s=t_now,
+                            )
+                except Exception as exc:
+                    HUD.directional_log_error = str(exc)
 
             # ---- Background (camera or static) ----
             if button_state.camera_enabled and state.CAMERA_AVAILABLE:
@@ -1209,7 +1394,52 @@ def main() -> None:
                 # Position above bottom HUD pills with clear gap (no overlap)
                 box_x = config.DB_BAR_WIDTH + 10
                 debug_above_bottom_gap = 18  # space between debug box bottom and top of bottom HUD pills
-                box_y = config.HEIGHT - box_h - BOTTOM_HUD_HEIGHT - debug_above_bottom_gap
+                box_y = (
+                    config.HEIGHT
+                    - box_h
+                    - BOTTOM_HUD_HEIGHT
+                    - debug_above_bottom_gap
+                    + int(state.ui_bottom_hud_offset)
+                )
+                # If bottom HUD is in hide mode, add proportional extra shift so
+                # the full debug panel exits the frame at full hide progress.
+                if state.ui_bottom_hud_offset_target > 0:
+                    base_hide = float(getattr(config, "UI_BOTTOM_HUD_HIDE_OFFSET", 60))
+                    needed_hide = float(box_h + BOTTOM_HUD_HEIGHT + debug_above_bottom_gap)
+                    extra_hide = max(0.0, needed_hide - base_hide)
+                    progress = float(state.ui_bottom_hud_offset) / max(1e-6, float(state.ui_bottom_hud_offset_target))
+                    progress = float(np.clip(progress, 0.0, 1.0))
+                    box_y += int(round(extra_hide * progress))
+                # region agent log
+                if (frame_count % 20) == 0:
+                    _agent_debug_log(
+                        "run1",
+                        "H1",
+                        "main.py:debug_box",
+                        "debug_box_position_sample",
+                        {
+                            "frame": int(frame_count),
+                            "debug_enabled": bool(button_state.debug_enabled),
+                            "box_y": int(box_y),
+                            "box_h": int(box_h),
+                            "box_bottom": int(box_y + box_h),
+                            "screen_h": int(config.HEIGHT),
+                            "bottom_offset": float(state.ui_bottom_hud_offset),
+                            "bottom_target": float(state.ui_bottom_hud_offset_target),
+                            "hide_offset_cfg": float(config.UI_BOTTOM_HUD_HIDE_OFFSET),
+                            "hide_progress": float(
+                                np.clip(
+                                    float(state.ui_bottom_hud_offset)
+                                    / max(1e-6, float(state.ui_bottom_hud_offset_target))
+                                    if state.ui_bottom_hud_offset_target > 0
+                                    else 0.0,
+                                    0.0,
+                                    1.0,
+                                )
+                            ),
+                        },
+                    )
+                # endregion
 
                 # Draw semi-transparent grey background box
                 overlay = output_frame.copy()
@@ -1264,12 +1494,15 @@ def main() -> None:
             state.HUD_RECTS = hud_rects
 
             # Radar mini-map under Mb/s pill (main view only, before modal overlays).
-            if not button_state.gallery_open:
+            if not button_state.gallery_open and button_state.radar_ui_enabled:
                 draw_radar_map_widget(
                     output_frame,
                     hud_rects.net,
                     heading_deg=HUD.compass_heading_deg,
                     colormap_mode=button_state.colormap_mode,
+                    tile_style=button_state.map_tile_style,
+                    show_debug=button_state.show_radar_debug,
+                    hud_offset_y=state.ui_bottom_hud_offset,
                     now_s=time.time(),
                 )
 
@@ -1376,6 +1609,14 @@ def main() -> None:
             pass
         try:
             gps_reader.stop()
+        except Exception:
+            pass
+        try:
+            position_manager.stop()
+        except Exception:
+            pass
+        try:
+            directional_store.close()
         except Exception:
             pass
 

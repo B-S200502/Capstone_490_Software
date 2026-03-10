@@ -12,7 +12,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Tuple, Any, List
 
-from .config import USE_CAMERA, F_MIN_HZ_DEFAULT, F_MAX_HZ_DEFAULT, SOURCE_DEFAULT
+from .config import (
+    USE_CAMERA,
+    F_MIN_HZ_DEFAULT,
+    F_MAX_HZ_DEFAULT,
+    SOURCE_DEFAULT,
+    RADAR_UI_DEFAULT,
+    POSITION_SERVICES_DEFAULT,
+    RADAR_MAP_TILE_STYLE_DEFAULT,
+    DIRECTIONAL_HISTORY_RECORD_DEFAULT,
+    RADAR_DEBUG_OVERLAY_DEFAULT,
+)
 
 # ===============================================================
 # HUD state
@@ -23,6 +33,15 @@ class RadarDetection:
     rel_angle_deg: float
     world_bearing_deg: float
     db_value: float
+
+
+@dataclass
+class UnifiedPosition:
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    accuracy_m: Optional[float] = None
+    source: str = "none"   # "none" | "wifi" | "gps"
+    timestamp_s: float = 0.0
 
 
 @dataclass
@@ -82,6 +101,18 @@ class HudState:
     gps_sat_count: int = 0
     gps_last_update_s: float = 0.0
     gps_course_deg: Optional[float] = None
+    gps_accuracy_m: Optional[float] = None
+    # Wi-Fi geolocation estimate
+    wifi_lat: Optional[float] = None
+    wifi_lon: Optional[float] = None
+    wifi_accuracy_m: Optional[float] = None
+    wifi_last_update_s: float = 0.0
+    # Unified position used by radar/map rendering
+    position: UnifiedPosition = field(default_factory=UnifiedPosition)
+    directional_log_last_write_s: float = 0.0
+    directional_log_file: str = ""
+    directional_log_date: str = ""
+    directional_log_error: str = ""
     # Acoustic radar history
     radar_detections: List[RadarDetection] = field(default_factory=list)
 
@@ -96,7 +127,7 @@ class ButtonState:
     is_recording: bool = False
     is_paused: bool = False
     camera_enabled: bool = USE_CAMERA
-    source_mode: str = SOURCE_DEFAULT  # "SIM" | "LOOP" | "HW" | "REF"
+    source_mode: str = SOURCE_DEFAULT  # "SIM" | "SIM_2" | "LOOP" | "HW" | "REF"
 
     # MENU states
     menu_open: bool = False
@@ -119,6 +150,11 @@ class ButtonState:
     email_test_message: str = ""         # short message for UI (e.g. "Sent!" or error)
     gain_mode: str = "LOW"     # placeholder toggle
     debug_enabled: bool = True
+    radar_ui_enabled: bool = RADAR_UI_DEFAULT
+    position_services_enabled: bool = POSITION_SERVICES_DEFAULT
+    record_compass_history: bool = DIRECTIONAL_HISTORY_RECORD_DEFAULT
+    show_radar_debug: bool = RADAR_DEBUG_OVERLAY_DEFAULT
+    map_tile_style: str = RADAR_MAP_TILE_STYLE_DEFAULT  # "dark" | "light"
     colormap_mode: str = "MAGMA"  # "MAGMA" | "JET" | "TURBO" | "INFERNO"
     spectrum_analyzer_mode: str = "dB"  # "dB" | "NORM" | "dBA"
     crosshairs_enabled: bool = True     # heatmap crosshairs with freq/dB tooltip (menu: ON/OFF)

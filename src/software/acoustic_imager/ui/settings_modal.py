@@ -62,8 +62,8 @@ def _compute_content_height() -> int:
     """Total height of scrollable content (must match actual drawn layout)."""
     # Display: label + gap + 3 toggles + gap + heatmap label + gap + color row + section_gap
     display_h = 20 + ITEM_GAP + 3 * (ROW_H + ITEM_GAP) + 6 + ROW_H + ITEM_GAP + (ROW_H - 4) + SECTION_GAP  # 6 = reduced gap before heatmap
-    # Divider + Advanced: section_gap + label + gap + Debug + section_gap
-    advanced_h = SECTION_GAP + 20 + ITEM_GAP + ROW_H + SECTION_GAP
+    # Divider + Advanced: section_gap + label + gap + Debug + Radar + Map Tiles + Position Services + Record History + Show Radar Debug + section_gap
+    advanced_h = SECTION_GAP + 20 + ITEM_GAP + 6 * (ROW_H + ITEM_GAP) + SECTION_GAP
     # Divider + Share: section_gap + label + gap + email button + bottom padding
     share_h = SECTION_GAP + 20 + ITEM_GAP + 44 + CONTENT_BOTTOM_PAD
     return display_h + advanced_h + share_h
@@ -86,7 +86,7 @@ def _update_settings_button_positions(
     color_btn_w = (row_w - 3 * ITEM_GAP) // 4
     email_h = 44
     # Content y positions (must match _build_settings_content layout)
-    y_cam, y_cross, y_color, y_debug, y_email = 34, 90, 208, 314, 432
+    y_cam, y_cross, y_color, y_debug, y_radar, y_mapstyle, y_possvc, y_record, y_radar_dbg, y_email = 34, 90, 208, 314, 370, 426, 482, 538, 594, 712
     if "settings_cam" in menu_buttons:
         b = menu_buttons["settings_cam"]
         b.x, b.y, b.w, b.h = hit_x, content_top + y_cam - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
@@ -103,6 +103,21 @@ def _update_settings_button_positions(
     if "settings_debug" in menu_buttons:
         b = menu_buttons["settings_debug"]
         b.x, b.y, b.w, b.h = hit_x, content_top + y_debug - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
+    if "settings_radar_ui" in menu_buttons:
+        b = menu_buttons["settings_radar_ui"]
+        b.x, b.y, b.w, b.h = hit_x, content_top + y_radar - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
+    if "settings_position_services" in menu_buttons:
+        b = menu_buttons["settings_position_services"]
+        b.x, b.y, b.w, b.h = hit_x, content_top + y_possvc - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
+    if "settings_map_style" in menu_buttons:
+        b = menu_buttons["settings_map_style"]
+        b.x, b.y, b.w, b.h = hit_x, content_top + y_mapstyle - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
+    if "settings_record_compass_history" in menu_buttons:
+        b = menu_buttons["settings_record_compass_history"]
+        b.x, b.y, b.w, b.h = hit_x, content_top + y_record - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
+    if "settings_show_radar_debug" in menu_buttons:
+        b = menu_buttons["settings_show_radar_debug"]
+        b.x, b.y, b.w, b.h = hit_x, content_top + y_radar_dbg - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
     if "settings_email" in menu_buttons:
         b = menu_buttons["settings_email"]
         b.x = row_x - EMAIL_BTN_HIT_PAD_X
@@ -162,6 +177,29 @@ def _build_settings_content(
     cv2.putText(content_canvas, "Advanced", (0, y + 16), font, 0.56, section_color, 1, cv2.LINE_AA)
     y += 20 + ITEM_GAP
     y = _toggle_row(content_canvas, "Debug", button_state.debug_enabled, "settings_debug", y)
+    y = _toggle_row(content_canvas, "Radar UI", button_state.radar_ui_enabled, "settings_radar_ui", y)
+    y = _toggle_row(
+        content_canvas,
+        "Map Tiles (Dark/Light)",
+        button_state.map_tile_style == "dark",
+        "settings_map_style",
+        y,
+    )
+    y = _toggle_row(content_canvas, "Position Services", button_state.position_services_enabled, "settings_position_services", y)
+    y = _toggle_row(
+        content_canvas,
+        "Record Compass History",
+        button_state.record_compass_history,
+        "settings_record_compass_history",
+        y,
+    )
+    y = _toggle_row(
+        content_canvas,
+        "Show Radar Debug",
+        button_state.show_radar_debug,
+        "settings_show_radar_debug",
+        y,
+    )
     y += SECTION_GAP
     cv2.line(content_canvas, (0, y), (row_w, y), section_color, 1, cv2.LINE_AA)
     y += SECTION_GAP
@@ -257,6 +295,11 @@ def draw_settings_modal(frame: np.ndarray) -> None:
         button_state.crosshairs_enabled,
         button_state.colormap_mode,
         button_state.debug_enabled,
+        button_state.radar_ui_enabled,
+        button_state.map_tile_style,
+        button_state.position_services_enabled,
+        button_state.record_compass_history,
+        button_state.show_radar_debug,
     )
     global _settings_content_cache, _settings_content_cache_key, _settings_content_buffer
     cache_hit = _settings_content_cache_key == state_key and _settings_content_cache is not None
@@ -418,6 +461,8 @@ def _hit_any_settings_button(x: int, y: int) -> bool:
     for k in (
         "settings_close", "settings_scroll_up", "settings_scroll_down", "settings_scrollbar",
         "settings_email", "settings_cam", "settings_theme", "settings_crosshairs", "settings_debug",
+        "settings_radar_ui", "settings_map_style", "settings_position_services", "settings_record_compass_history",
+        "settings_show_radar_debug",
     ):
         if k in menu_buttons:
             b = menu_buttons[k]
@@ -485,6 +530,21 @@ def handle_settings_modal_click(x: int, y: int) -> bool:
         return True
     if "settings_debug" in menu_buttons and menu_buttons["settings_debug"].contains(x, y):
         button_state.debug_enabled = not button_state.debug_enabled
+        return True
+    if "settings_radar_ui" in menu_buttons and menu_buttons["settings_radar_ui"].contains(x, y):
+        button_state.radar_ui_enabled = not button_state.radar_ui_enabled
+        return True
+    if "settings_map_style" in menu_buttons and menu_buttons["settings_map_style"].contains(x, y):
+        button_state.map_tile_style = "light" if button_state.map_tile_style == "dark" else "dark"
+        return True
+    if "settings_position_services" in menu_buttons and menu_buttons["settings_position_services"].contains(x, y):
+        button_state.position_services_enabled = not button_state.position_services_enabled
+        return True
+    if "settings_record_compass_history" in menu_buttons and menu_buttons["settings_record_compass_history"].contains(x, y):
+        button_state.record_compass_history = not button_state.record_compass_history
+        return True
+    if "settings_show_radar_debug" in menu_buttons and menu_buttons["settings_show_radar_debug"].contains(x, y):
+        button_state.show_radar_debug = not button_state.show_radar_debug
         return True
 
     # Heatmap color selector

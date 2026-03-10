@@ -24,16 +24,16 @@ from .. import config
 from ..dsp.bars import COLORMAP_DICT
 from ..state import HUD, RadarDetection
 
-_TILE_MEM_CACHE: Dict[Tuple[int, int, int], np.ndarray] = {}
-_TILE_LAST_ATTEMPT: Dict[Tuple[int, int, int], float] = {}
-_TILE_INFLIGHT: set[Tuple[int, int, int]] = set()
+_TILE_MEM_CACHE: Dict[Tuple[str, int, int, int], np.ndarray] = {}
+_TILE_LAST_ATTEMPT: Dict[Tuple[str, int, int, int], float] = {}
+_TILE_INFLIGHT: set[Tuple[str, int, int, int]] = set()
 _TILE_LOCK = threading.Lock()
-_TILE_FETCH_QUEUE: "queue.Queue[Tuple[int, int, int]]" = queue.Queue(maxsize=256)
+_TILE_FETCH_QUEUE: "queue.Queue[Tuple[str, int, int, int]]" = queue.Queue(maxsize=256)
 _TILE_WORKERS_STARTED = False
 _COLORMAP_LUT_CACHE: Dict[str, np.ndarray] = {}
 _MAP_PATCH_CACHE: "OrderedDict[Tuple[Any, ...], np.ndarray]" = OrderedDict()
 _CIRCLE_MASK_CACHE: Dict[int, Tuple[np.ndarray, np.ndarray]] = {}
-_WIDGET_CACHE: Dict[str, Any] = {"img": None, "updated_s": 0.0, "d": 0, "colormap": ""}
+_WIDGET_CACHE: Dict[str, Any] = {"img": None, "updated_s": 0.0, "d": 0, "colormap": "", "tile_style": "dark"}
 _LAST_HISTORY_PRUNE_S = 0.0
 _MAP_LAST_STATUS = "INIT"
 
@@ -48,17 +48,17 @@ def _latlon_to_world_px(lat: float, lon: float, zoom: int, tile_size: int) -> Tu
     return x, y
 
 
-def _tile_cache_path(z: int, x: int, y: int) -> Path:
+def _tile_cache_path(style: str, z: int, x: int, y: int) -> Path:
     cache_dir = Path(getattr(config, "RADAR_MAP_CACHE_DIR", "data/map_tiles"))
-    return cache_dir / str(z) / str(x) / f"{y}.png"
+    return cache_dir / style / str(z) / str(x) / f"{y}.png"
 
 
 def _tile_worker_loop() -> None:
     while True:
         key = _TILE_FETCH_QUEUE.get()
         try:
-            z, x, y = key
-            _fetch_tile_worker(z, x, y)
+            style, z, x, y = key
+            _fetch_tile_worker(style, z, x, y)
         finally:
             _TILE_FETCH_QUEUE.task_done()
 
@@ -77,10 +77,14 @@ def _ensure_tile_workers() -> None:
         _TILE_WORKERS_STARTED = True
 
 
-def _fetch_tile_worker(z: int, x: int, y: int) -> None:
-    key = (z, x, y)
+def _fetch_tile_worker(style: str, z: int, x: int, y: int) -> None:
+    key = (style, z, x, y)
     try:
-        url = getattr(config, "RADAR_MAP_TILE_URL", "https://tile.openstreetmap.org/{z}/{x}/{y}.png").format(
+        if style == "light":
+            tile_url = getattr(config, "RADAR_MAP_TILE_URL_LIGHT", "https://tile.openstreetmap.org/{z}/{x}/{y}.png")
+        else:
+            tile_url = getattr(config, "RADAR_MAP_TILE_URL_DARK", "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png")
+        url = tile_url.format(
             z=z, x=x, y=y
         )
         req = urllib.request.Request(
@@ -93,7 +97,7 @@ def _fetch_tile_worker(z: int, x: int, y: int) -> None:
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None or img.size == 0:
             return
-        p = _tile_cache_path(z, x, y)
+        p = _tile_cache_path(style, z, x, y)
         p.parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(p), img)
         with _TILE_LOCK:
@@ -106,14 +110,14 @@ def _fetch_tile_worker(z: int, x: int, y: int) -> None:
             _TILE_LAST_ATTEMPT[key] = time.time()
 
 
-def _get_tile(z: int, x: int, y: int) -> Optional[np.ndarray]:
+def _get_tile(style: str, z: int, x: int, y: int) -> Optional[np.ndarray]:
     _ensure_tile_workers()
-    key = (z, x, y)
+    key = (style, z, x, y)
     with _TILE_LOCK:
         img = _TILE_MEM_CACHE.get(key)
         if img is not None:
             return img
-    p = _tile_cache_path(z, x, y)
+    p = _tile_cache_path(style, z, x, y)
     if p.exists():
         img = cv2.imread(str(p), cv2.IMREAD_COLOR)
         if img is not None and img.size > 0:
@@ -142,38 +146,58 @@ def _draw_fallback_map(canvas: np.ndarray) -> None:
         cv2.line(canvas, (0, y), (w - 1, y), (60, 68, 72), 1, cv2.LINE_AA)
     for x in range(0, w, 18):
         cv2.line(canvas, (x, 0), (x, h - 1), (60, 68, 72), 1, cv2.LINE_AA)
-    cv2.line(canvas, (10, h // 3), (w - 12, h // 3 + 10), (90, 95, 100), 2, cv2.LINE_AA)
-    cv2.line(canvas, (6, h // 2), (w - 20, h // 2 - 8), (90, 95, 100), 2, cv2.LINE_AA)
-    cv2.line(canvas, (22, h - 14), (w - 16, 20), (90, 95, 100), 2, cv2.LINE_AA)
 
 
-def _render_map_patch(diameter_px: int) -> np.ndarray:
+def _apply_tile_brightness(img: np.ndarray, gain: float) -> np.ndarray:
+    g = float(gain)
+    if abs(g - 1.0) < 1e-3:
+        return img
+    out = np.clip(img.astype(np.float32) * g, 0.0, 255.0)
+    return out.astype(np.uint8)
+
+
+def _render_map_patch(diameter_px: int, tile_style: str) -> np.ndarray:
     global _MAP_LAST_STATUS
     d = int(max(32, diameter_px))
     bin_px = max(1, int(getattr(config, "RADAR_MAP_POS_BIN_PX", 3)))
-    if HUD.gps_fix_valid and HUD.gps_lat is not None and HUD.gps_lon is not None:
+    fallback_brightness = float(getattr(config, "RADAR_MAP_FALLBACK_BRIGHTNESS", 0.65))
+    fallback_brightness_q = int(round(fallback_brightness * 100.0))
+    style = str(tile_style).lower()
+    if style not in ("dark", "light"):
+        style = "dark"
+    if style == "light":
+        brightness = float(getattr(config, "RADAR_MAP_BRIGHTNESS_LIGHT", 1.0))
+    else:
+        brightness = float(getattr(config, "RADAR_MAP_BRIGHTNESS_DARK", 1.0))
+    brightness_q = int(round(brightness * 100.0))
+    pos_lat = HUD.position.lat
+    pos_lon = HUD.position.lon
+    if pos_lat is not None and pos_lon is not None and HUD.position.source != "none":
         tile_size = int(getattr(config, "RADAR_MAP_TILE_SIZE", 256))
         zoom = int(getattr(config, "RADAR_MAP_ZOOM", 17))
-        world_x, world_y = _latlon_to_world_px(HUD.gps_lat, HUD.gps_lon, zoom, tile_size)
+        world_x, world_y = _latlon_to_world_px(pos_lat, pos_lon, zoom, tile_size)
         cache_key: Tuple[Any, ...] = (
             "map",
             d,
             zoom,
             tile_size,
+            style,
+            brightness_q,
             int(world_x // bin_px),
             int(world_y // bin_px),
         )
     else:
-        cache_key = ("fallback", d)
+        cache_key = ("fallback", d, style, fallback_brightness_q)
     cached = _MAP_PATCH_CACHE.get(cache_key)
     if cached is not None:
         _MAP_PATCH_CACHE.move_to_end(cache_key)
         return cached.copy()
 
     out = np.zeros((d, d, 3), dtype=np.uint8)
-    if not HUD.gps_fix_valid or HUD.gps_lat is None or HUD.gps_lon is None:
+    if pos_lat is None or pos_lon is None or HUD.position.source == "none":
         _draw_fallback_map(out)
-        _MAP_LAST_STATUS = "NO_GPS"
+        out = _apply_tile_brightness(out, fallback_brightness)
+        _MAP_LAST_STATUS = "NO_POS"
         _MAP_PATCH_CACHE[cache_key] = out.copy()
         max_n = max(1, int(getattr(config, "RADAR_MAP_PATCH_CACHE_SIZE", 12)))
         while len(_MAP_PATCH_CACHE) > max_n:
@@ -182,7 +206,7 @@ def _render_map_patch(diameter_px: int) -> np.ndarray:
 
     tile_size = int(getattr(config, "RADAR_MAP_TILE_SIZE", 256))
     zoom = int(getattr(config, "RADAR_MAP_ZOOM", 17))
-    world_x, world_y = _latlon_to_world_px(HUD.gps_lat, HUD.gps_lon, zoom, tile_size)
+    world_x, world_y = _latlon_to_world_px(pos_lat, pos_lon, zoom, tile_size)
     cx_tile = int(world_x // tile_size)
     cy_tile = int(world_y // tile_size)
     ox = int(world_x - cx_tile * tile_size)
@@ -197,7 +221,7 @@ def _render_map_patch(diameter_px: int) -> np.ndarray:
             ty = cy_tile + dy
             if ty < 0 or ty >= n_tiles:
                 continue
-            tile = _get_tile(zoom, tx, ty)
+            tile = _get_tile(style, zoom, tx, ty)
             if tile is None:
                 continue
             got_any = True
@@ -207,6 +231,7 @@ def _render_map_patch(diameter_px: int) -> np.ndarray:
 
     if not got_any:
         _draw_fallback_map(out)
+        out = _apply_tile_brightness(out, fallback_brightness)
         _MAP_LAST_STATUS = "NO_TILES"
         _MAP_PATCH_CACHE[cache_key] = out.copy()
         max_n = max(1, int(getattr(config, "RADAR_MAP_PATCH_CACHE_SIZE", 12)))
@@ -227,6 +252,7 @@ def _render_map_patch(diameter_px: int) -> np.ndarray:
     y1c = min(mosaic.shape[0], y1)
     if x1c <= x0c or y1c <= y0c:
         _draw_fallback_map(out)
+        out = _apply_tile_brightness(out, fallback_brightness)
         _MAP_LAST_STATUS = "CLIP_FALLBACK"
         _MAP_PATCH_CACHE[cache_key] = out.copy()
         max_n = max(1, int(getattr(config, "RADAR_MAP_PATCH_CACHE_SIZE", 12)))
@@ -237,6 +263,7 @@ def _render_map_patch(diameter_px: int) -> np.ndarray:
     dx0 = x0c - x0
     dy0 = y0c - y0
     crop[dy0:dy0 + (y1c - y0c), dx0:dx0 + (x1c - x0c)] = mosaic[y0c:y1c, x0c:x1c]
+    crop = _apply_tile_brightness(crop, brightness)
     _MAP_LAST_STATUS = "TILES_OK"
     _MAP_PATCH_CACHE[cache_key] = crop.copy()
     max_n = max(1, int(getattr(config, "RADAR_MAP_PATCH_CACHE_SIZE", 12)))
@@ -308,9 +335,9 @@ def _get_circle_masks(d: int) -> Tuple[np.ndarray, np.ndarray]:
     return mask, inv
 
 
-def _render_widget_image(d: int, heading_deg: float, colormap_mode: str, now_s: float) -> np.ndarray:
+def _render_widget_image(d: int, heading_deg: float, colormap_mode: str, now_s: float, tile_style: str) -> np.ndarray:
     r = d // 2
-    widget = _render_map_patch(d)
+    widget = _render_map_patch(d, tile_style)
 
     # Radar/grid accents.
     cv2.circle(widget, (r, r), int(r * 0.66), (120, 160, 120), 1, cv2.LINE_AA)
@@ -341,6 +368,14 @@ def _render_widget_image(d: int, heading_deg: float, colormap_mode: str, now_s: 
         dot_r = 1 if age_alpha < 0.35 else 2
         cv2.circle(widget, (px, py), dot_r, color, -1, cv2.LINE_AA)
 
+    # Position accuracy circle (meters -> pixels at current zoom and latitude).
+    if HUD.position.accuracy_m is not None and HUD.position.lat is not None and HUD.position.source != "none":
+        zoom = int(getattr(config, "RADAR_MAP_ZOOM", 17))
+        mpp = 156543.03392 * math.cos(math.radians(HUD.position.lat)) / (2 ** zoom)
+        if mpp > 1e-6:
+            acc_px = int(max(2, min(inner_r, HUD.position.accuracy_m / mpp)))
+            cv2.circle(widget, (r, r), acc_px, (180, 220, 240), 1, cv2.LINE_AA)
+
     # Heading arrow (device orientation over north-up map).
     ang_h = math.radians(float(heading_deg))
     tip = (int(r + math.sin(ang_h) * (inner_r - 2)), int(r - math.cos(ang_h) * (inner_r - 2)))
@@ -363,6 +398,9 @@ def draw_radar_map_widget(
     anchor_rect: Tuple[int, int, int, int],
     heading_deg: float,
     colormap_mode: str,
+    tile_style: str = "dark",
+    show_debug: bool = False,
+    hud_offset_y: float = 0.0,
     now_s: Optional[float] = None,
 ) -> None:
     if not bool(getattr(config, "RADAR_MAP_ENABLED", True)):
@@ -391,13 +429,15 @@ def draw_radar_map_widget(
         _WIDGET_CACHE.get("img") is None
         or int(_WIDGET_CACHE.get("d", 0)) != d
         or str(_WIDGET_CACHE.get("colormap", "")) != str(colormap_mode)
+        or str(_WIDGET_CACHE.get("tile_style", "dark")) != str(tile_style)
         or (float(now_s) - float(_WIDGET_CACHE.get("updated_s", 0.0))) >= refresh_dt
     )
     if needs_refresh:
-        _WIDGET_CACHE["img"] = _render_widget_image(d, heading_deg, colormap_mode, float(now_s))
+        _WIDGET_CACHE["img"] = _render_widget_image(d, heading_deg, colormap_mode, float(now_s), str(tile_style))
         _WIDGET_CACHE["updated_s"] = float(now_s)
         _WIDGET_CACHE["d"] = d
         _WIDGET_CACHE["colormap"] = str(colormap_mode)
+        _WIDGET_CACHE["tile_style"] = str(tile_style)
 
     widget_img = _WIDGET_CACHE["img"]
     if widget_img is None:
@@ -410,65 +450,80 @@ def draw_radar_map_widget(
     fg = cv2.bitwise_and(widget_img, widget_img, mask=mask)
     roi[:] = cv2.add(bg, fg)
 
-    # White debug telemetry below radar for magnetometer calibration checks.
-    dbg_text = (
-        f"X={int(getattr(HUD, 'mag_x_raw', 0))}  "
-        f"Y={int(getattr(HUD, 'mag_y_raw', 0))}  "
-        f"Z={int(getattr(HUD, 'mag_z_raw', 0))}  "
-        f"Heading={int(round(float(getattr(HUD, 'mag_heading_dbg', heading_deg))))}deg"
-    )
-    x_min = getattr(HUD, "mag_x_min", None)
-    x_max = getattr(HUD, "mag_x_max", None)
-    y_min = getattr(HUD, "mag_y_min", None)
-    y_max = getattr(HUD, "mag_y_max", None)
-    if x_min is None or x_max is None or y_min is None or y_max is None:
-        dbg_line2 = "Range X=[--,--] Y=[--,--]  Ctr=[--,--]  Hcal=--deg"
-    else:
-        x_ctr = int(round((x_min + x_max) * 0.5))
-        y_ctr = int(round((y_min + y_max) * 0.5))
-        hcal = int(round(float(getattr(HUD, "mag_heading_cal_dbg", heading_deg))))
-        cal_on = "ON" if bool(getattr(HUD, "mag_cal_active", False)) else "OFF"
-        pair = str(getattr(HUD, "mag_pair_dbg", "XY"))
-        sx = int(getattr(HUD, "mag_span_x", 0))
-        sy = int(getattr(HUD, "mag_span_y", 0))
-        sz = int(getattr(HUD, "mag_span_z", 0))
-        dbg_line2 = (
-            f"Range X=[{int(x_min)},{int(x_max)}] Y=[{int(y_min)},{int(y_max)}]  "
-            f"Ctr=[{x_ctr},{y_ctr}]  Hcal={hcal}deg  Pair={pair}  Span=({sx},{sy},{sz})  Cal={cal_on}"
+    if show_debug:
+        line1 = (
+            f"X={int(getattr(HUD, 'mag_x_raw', 0))}  "
+            f"Y={int(getattr(HUD, 'mag_y_raw', 0))}  "
+            f"Z={int(getattr(HUD, 'mag_z_raw', 0))}  "
+            f"Heading={int(round(float(getattr(HUD, 'mag_heading_dbg', heading_deg))))}deg"
         )
-    text_y = cy + r + 14
-    if text_y < fh - 30:
-        cv2.putText(
-            frame,
-            dbg_text,
-            (max(2, cx - r), text_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.42,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
+        x_min = getattr(HUD, "mag_x_min", None)
+        x_max = getattr(HUD, "mag_x_max", None)
+        y_min = getattr(HUD, "mag_y_min", None)
+        y_max = getattr(HUD, "mag_y_max", None)
+        if x_min is None or x_max is None or y_min is None or y_max is None:
+            line2 = "Range X=[--,--] Y=[--,--]"
+            line3 = "Ctr=[--,--]  Hcal=--deg  Pair=XY  Cal=OFF"
+            span_txt = "Span=(0,0,0)"
+        else:
+            x_ctr = int(round((x_min + x_max) * 0.5))
+            y_ctr = int(round((y_min + y_max) * 0.5))
+            hcal = int(round(float(getattr(HUD, "mag_heading_cal_dbg", heading_deg))))
+            cal_on = "ON" if bool(getattr(HUD, "mag_cal_active", False)) else "OFF"
+            pair = str(getattr(HUD, "mag_pair_dbg", "XY"))
+            sx = int(getattr(HUD, "mag_span_x", 0))
+            sy = int(getattr(HUD, "mag_span_y", 0))
+            sz = int(getattr(HUD, "mag_span_z", 0))
+            line2 = f"Range X=[{int(x_min)},{int(x_max)}] Y=[{int(y_min)},{int(y_max)}]"
+            line3 = f"Ctr=[{x_ctr},{y_ctr}]  Hcal={hcal}deg  Pair={pair}  Cal={cal_on}"
+            span_txt = f"Span=({sx},{sy},{sz})"
         gps_status = "FIX" if bool(getattr(HUD, "gps_fix_valid", False)) else "NOFIX"
         sats = int(getattr(HUD, "gps_sat_count", 0))
+        pos_source = str(getattr(HUD.position, "source", "none")).upper()
         map_status = _MAP_LAST_STATUS
-        dbg_line3 = f"GPS={gps_status} SAT={sats} MAP={map_status} CM={colormap_mode}"
-        cv2.putText(
-            frame,
-            dbg_line3,
-            (max(2, cx - r), text_y + 28),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.40,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.putText(
-            frame,
-            dbg_line2,
-            (max(2, cx - r), text_y + 14),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.40,
-            (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
+        line4 = f"{span_txt}  SRC={pos_source} GPS={gps_status} SAT={sats} MAP={map_status} CM={colormap_mode}"
+        debug_lines = [line1, line2, line3, line4]
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.45
+        thickness = 1
+        pad = 12
+        line_h = 18
+        max_w = int(getattr(config, "RADAR_DEBUG_BOX_MAX_WIDTH", 360))
+
+        def _fit_line(text: str, width_px: int) -> str:
+            s = text
+            while s:
+                (tw, _), _ = cv2.getTextSize(s, font, font_scale, thickness)
+                if tw <= width_px:
+                    return s
+                if len(s) <= 4:
+                    break
+                s = s[:-2]
+            return "..."
+
+        max_text_px = max(40, max_w - 2 * pad)
+        debug_lines = [_fit_line(line, max_text_px) for line in debug_lines]
+        text_w = 0
+        for line in debug_lines:
+            (tw, _), _ = cv2.getTextSize(line, font, font_scale, thickness)
+            text_w = max(text_w, tw)
+        box_w = min(text_w + 2 * pad, max_w)
+        box_h = line_h * len(debug_lines) + 2 * pad
+
+        # Place box to the right of radar with ~3px gap, fallback left if needed.
+        box_x = cx + r + 3
+        box_y = cy - r + int(hud_offset_y)
+        if box_x + box_w > fw - 2:
+            box_x = max(2, cx - r - 3 - box_w)
+        box_y = max(2, min(box_y, fh - box_h - 2))
+
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (box_x, box_y), (box_x + box_w, box_y + box_h), (40, 40, 40), -1)
+        cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
+        cv2.rectangle(frame, (box_x, box_y), (box_x + box_w, box_y + box_h), (100, 100, 100), 2, cv2.LINE_AA)
+        ty = box_y + pad + 13
+        for line in debug_lines:
+            cv2.putText(frame, line, (box_x + pad, ty), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+            ty += line_h
+

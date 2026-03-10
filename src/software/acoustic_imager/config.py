@@ -9,6 +9,7 @@ so that splitting into modules does not change behavior.
 from __future__ import annotations
 
 import struct
+import os
 import numpy as np
 
 # ===============================================================
@@ -110,7 +111,16 @@ RADAR_MIN_DB = -45.0
 RADAR_MAP_ZOOM = 17
 RADAR_MAP_TILE_SIZE = 256
 RADAR_MAP_CACHE_DIR = "data/map_tiles"
-RADAR_MAP_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+RADAR_MAP_TILE_STYLE_DEFAULT = "dark"  # "dark" | "light"
+RADAR_MAP_TILE_URL_DARK = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+RADAR_MAP_TILE_URL_LIGHT = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+RADAR_MAP_TILE_URL = RADAR_MAP_TILE_URL_DARK
+# Tile brightness multipliers by style (1.0 = unchanged).
+RADAR_MAP_BRIGHTNESS_DARK = 2.2
+RADAR_MAP_BRIGHTNESS_LIGHT = 1.0
+# Fallback-only radar brightness (used when no map tiles are shown).
+# Kept separate so pure radar darkness does not affect tile overlays.
+RADAR_MAP_FALLBACK_BRIGHTNESS = 0.65
 RADAR_MAP_USER_AGENT = "acoustic-imager-radar/1.0"
 RADAR_MAP_FETCH_TIMEOUT_SEC = 1.5
 RADAR_MAP_RETRY_SEC = 3.0
@@ -118,6 +128,22 @@ RADAR_MAP_UPDATE_HZ = 15.0
 RADAR_MAP_POS_BIN_PX = 3
 RADAR_MAP_PATCH_CACHE_SIZE = 12
 RADAR_MAP_FETCH_WORKERS = 2
+# Optional radar controls
+RADAR_UI_DEFAULT = True
+POSITION_SERVICES_DEFAULT = True
+RADAR_DEBUG_OVERLAY_DEFAULT = False
+RADAR_DEBUG_BOX_MAX_WIDTH = 360
+
+# Wi-Fi geolocation (Google Geolocation API)
+WIFI_GEO_API_KEY = os.getenv("GOOGLE_GEOLOCATION_API_KEY", "")
+WIFI_GEO_REQUEST_TIMEOUT_SEC = 3.0
+WIFI_GEO_INTERVAL_SEC = 12.0
+
+# Position fusion behavior
+POSITION_STALE_SEC = 30.0
+POSITION_SOURCE_HYSTERESIS_M = 8.0
+GPS_DEFAULT_ACCURACY_M = 30.0
+WIFI_DEFAULT_ACCURACY_M = 80.0
 
 # FPS defaults (MENU controls 30/60/MAX at runtime)
 FPS_TARGET = 60
@@ -147,6 +173,8 @@ DRAG_MARGIN_PX = 18
 # UI visibility (swipe/double-tap): hide offsets in px, animation speed, gesture thresholds
 UI_TOP_HUD_HIDE_OFFSET = -150      # top HUD + dropdown panel move fully up off screen
 UI_BOTTOM_HUD_HIDE_OFFSET = 60     # bottom HUD moves down off screen
+# Extra bottom hide distance when original debug panel is visible.
+UI_BOTTOM_HUD_DEBUG_EXTRA_HIDE_OFFSET = 20
 UI_MENU_HIDE_OFFSET = 220          # menu moves right off screen
 UI_MENU_HIDE_OFFSET_Y = 80         # menu moves down off screen (with bottom HUD on swipe down)
 UI_VISIBILITY_ANIM_SPEED = 0.18    # lerp per frame (~60fps: ~0.25s to settle)
@@ -178,12 +206,25 @@ N_BINS = SAMPLES_PER_CHANNEL // 2 + 1  # 257
 # ===============================================================
 # SIM sources
 # ===============================================================
+# SIM_1 (existing SIM mode): fixed source set
 SIM_SOURCE_FREQS = [9000, 11000, 30000]
 SIM_SOURCE_ANGLES = [-35.0, 0.0, 40.0]
 SIM_SOURCE_AMPLS = [0.6, 1.0, 2.0]
 # Display distance (m) per sim source for crosshair tooltip; sim uses far-field so this is for UI only
 SIM_SOURCE_DISTANCES_M = [1.0, 1.5, 2.0]  # same length as SIM_SOURCE_ANGLES
 SIM_N_SOURCES = len(SIM_SOURCE_ANGLES)
+
+# SIM_2: directional event model (persistent + transient), no true range simulation
+SIM2_PERSISTENT_BEARINGS = [-55.0, -15.0, 30.0]
+SIM2_PERSISTENT_FREQS = [9500.0, 12000.0, 27000.0]
+SIM2_PERSISTENT_AMPLS = [1.2, 0.9, 1.1]
+SIM2_PERSISTENT_JITTER_DEG = 3.0
+SIM2_TRANSIENT_EVENT_RATE_HZ = 0.20
+SIM2_TRANSIENT_MIN_DURATION_S = 0.8
+SIM2_TRANSIENT_MAX_DURATION_S = 2.4
+SIM2_TRANSIENT_FREQ_RANGE = (8000.0, 32000.0)
+SIM2_TRANSIENT_AMPL_RANGE = (0.6, 1.6)
+SIM2_NOISE_POWER_SCALE = 1.2
 
 # dB mapping for heatmap intensity
 REL_DB_MIN = -60.0
@@ -232,7 +273,18 @@ SPI_MIC_PACKET_BYTES = SPI_MIC_HEADER_BYTES + SPI_MIC_PAYLOAD_BYTES + SPI_MIC_CH
 
 # SPI config
 SOURCE_DEFAULT = "SIM"   # or "LOOP" / "HW" / "REF"
-SOURCE_MODES = ("SIM", "LOOP", "HW", "REF")  # REF = 0 dB reference baseline (flat spectrum)
+SOURCE_MODES = ("SIM", "SIM_2", "LOOP", "HW", "REF")  # REF = 0 dB reference baseline (flat spectrum)
+
+# Directional history persistence
+DIRECTIONAL_HISTORY_ENABLED = True
+DIRECTIONAL_HISTORY_DIR = "data/directional_history"
+DIRECTIONAL_HISTORY_FLUSH_SEC = 1.0
+DIRECTIONAL_HISTORY_RETENTION_DAYS = 7
+DIRECTIONAL_HISTORY_RECORD_DEFAULT = False
+
+# SIM_2 radar extraction tuning (multi-signal window behavior)
+SIM2_RADAR_MIN_ROW_REL = 0.30
+SIM2_RADAR_MIN_SEPARATION_DEG = 12.0
 
 SPI_BUS = 0
 SPI_DEV = 0
