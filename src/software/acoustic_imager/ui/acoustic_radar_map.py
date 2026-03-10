@@ -13,6 +13,7 @@ import queue
 import threading
 import time
 import urllib.request
+import json
 from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Any
@@ -36,6 +37,29 @@ _CIRCLE_MASK_CACHE: Dict[int, Tuple[np.ndarray, np.ndarray]] = {}
 _WIDGET_CACHE: Dict[str, Any] = {"img": None, "updated_s": 0.0, "d": 0, "colormap": "", "tile_style": "dark"}
 _LAST_HISTORY_PRUNE_S = 0.0
 _MAP_LAST_STATUS = "INIT"
+_RADAR_DEBUG_LAST_LOG_S = 0.0
+
+# region agent log
+_AGENT_DEBUG_LOG_PATH = "/home/acousticlord/Capstone_490_Software/.cursor/debug-a9e491.log"
+_AGENT_DEBUG_SESSION = "a9e491"
+
+
+def _agent_debug_log(run_id: str, hypothesis_id: str, location: str, message: str, data: dict) -> None:
+    try:
+        payload = {
+            "sessionId": _AGENT_DEBUG_SESSION,
+            "runId": run_id,
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        with open(_AGENT_DEBUG_LOG_PATH, "a", encoding="utf-8") as _f:
+            _f.write(json.dumps(payload, separators=(",", ":")) + "\n")
+    except Exception:
+        pass
+# endregion
 
 
 def _latlon_to_world_px(lat: float, lon: float, zoom: int, tile_size: int) -> Tuple[float, float]:
@@ -403,6 +427,7 @@ def draw_radar_map_widget(
     hud_offset_y: float = 0.0,
     now_s: Optional[float] = None,
 ) -> None:
+    global _RADAR_DEBUG_LAST_LOG_S
     if not bool(getattr(config, "RADAR_MAP_ENABLED", True)):
         return
     if now_s is None:
@@ -513,10 +538,30 @@ def draw_radar_map_widget(
 
         # Place box to the right of radar with ~3px gap, fallback left if needed.
         box_x = cx + r + 3
-        box_y = cy - r + int(hud_offset_y)
+        box_y = cy - r
         if box_x + box_w > fw - 2:
             box_x = max(2, cx - r - 3 - box_w)
         box_y = max(2, min(box_y, fh - box_h - 2))
+
+        # region agent log
+        if (float(now_s) - _RADAR_DEBUG_LAST_LOG_S) >= 0.40:
+            _RADAR_DEBUG_LAST_LOG_S = float(now_s)
+            _agent_debug_log(
+                "run2",
+                "H4",
+                "acoustic_radar_map.py:draw_radar_map_widget",
+                "radar_debug_box_position_sample",
+                {
+                    "show_debug": bool(show_debug),
+                    "hud_offset_y": float(hud_offset_y),
+                    "anchor_rect": [int(x), int(y), int(w), int(h)],
+                    "radar_center": [int(cx), int(cy)],
+                    "radar_r": int(r),
+                    "box_xywh": [int(box_x), int(box_y), int(box_w), int(box_h)],
+                    "screen_wh": [int(fw), int(fh)],
+                },
+            )
+        # endregion
 
         overlay = frame.copy()
         cv2.rectangle(overlay, (box_x, box_y), (box_x + box_w, box_y + box_h), (40, 40, 40), -1)

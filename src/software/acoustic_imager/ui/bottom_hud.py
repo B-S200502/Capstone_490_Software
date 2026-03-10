@@ -11,8 +11,8 @@ from typing import Optional, Tuple
 import cv2
 import numpy as np
 
-from ..config import DB_BAR_WIDTH, FREQ_BAR_WIDTH, UI_PILL_H, UI_PILL_W, HUD_MENU_OPACITY, ACTION_BTN_GLOW
-from ..state import button_state, HUD
+from ..config import DB_BAR_WIDTH, UI_PILL_H, UI_PILL_W, HUD_MENU_OPACITY, ACTION_BTN_GLOW
+from ..state import button_state
 from .button import (
     menu_buttons,
     Button,
@@ -49,81 +49,6 @@ RESUME_PILL_BG: Tuple[int, int, int] = (0, 180, 255)   # yellow
 STOP_PILL_BG: Tuple[int, int, int] = (0, 0, 200)       # red
 RESUME_PILL_BORDER: Tuple[int, int, int] = (0, 220, 255)
 STOP_PILL_BORDER: Tuple[int, int, int] = (0, 0, 255)
-
-# Compass (BN-880 magnetometer) between gallery and MENU; size matches MENU button height (50)
-COMPASS_BUFFER_PX = 1
-MENU_BUTTON_HEIGHT = 50
-COMPASS_RADIUS = MENU_BUTTON_HEIGHT // 2  # 25
-# Pocket-compass style: golden-orange casing, cream face, N/E/S/W, red/blue needle
-COMPASS_CASING_BGR: Tuple[int, int, int] = (0, 165, 255)   # golden-orange
-COMPASS_FACE_BGR: Tuple[int, int, int] = (220, 230, 230)   # cream
-COMPASS_NEEDLE_N_BGR: Tuple[int, int, int] = (0, 0, 255)   # red (north)
-COMPASS_NEEDLE_S_BGR: Tuple[int, int, int] = (255, 200, 100)  # light blue (south)
-COMPASS_CARDINAL_BGR: Tuple[int, int, int] = (50, 50, 50)
-COMPASS_CROSSHAIR_BGR: Tuple[int, int, int] = (0, 200, 255)  # light orange
-COMPASS_PIVOT_BGR: Tuple[int, int, int] = (80, 80, 80)
-
-
-def _draw_compass(
-    frame: np.ndarray, cx: int, cy: int, radius: int, heading_deg: float = 0.0
-) -> None:
-    """Draw pocket-style compass: casing, cream face, N/E/S/W, crosshairs, red/blue needle. heading_deg 0 = north (needle up)."""
-    fh, fw = frame.shape[:2]
-    pad = radius + 4
-    x0 = max(0, cx - pad)
-    y0 = max(0, cy - pad)
-    x1 = min(fw, cx + pad)
-    y1 = min(fh, cy + pad)
-    if x1 <= x0 or y1 <= y0:
-        return
-    roi = frame[y0:y1, x0:x1].copy()
-    lcx, lcy = cx - x0, cy - y0
-    r = min(radius, lcx, lcy, roi.shape[1] - lcx, roi.shape[0] - lcy)
-    if r <= 0:
-        return
-    # Casing: thick golden-orange ring (outer), then cream face (inner)
-    ring_thick = max(2, r // 6)
-    inner_r = r - ring_thick
-    cv2.circle(roi, (lcx, lcy), r, COMPASS_CASING_BGR, ring_thick, cv2.LINE_AA)
-    mask = np.zeros((roi.shape[0], roi.shape[1]), dtype=np.uint8)
-    cv2.circle(mask, (lcx, lcy), max(0, inner_r), 255, -1)
-    overlay = np.empty_like(roi)
-    overlay[:] = COMPASS_FACE_BGR
-    blended = cv2.addWeighted(overlay, BOTTOM_PILL_ALPHA, roi, 1.0 - BOTTOM_PILL_ALPHA, 0.0)
-    for c in range(3):
-        roi[:, :, c] = np.where(mask > 0, blended[:, :, c], roi[:, :, c])
-    # Faint crosshairs (N-S, E-W) from center toward cardinals
-    for angle_deg in (0, 90, 180, 270):
-        rad = np.radians(angle_deg)
-        ex = int(lcx + np.sin(rad) * inner_r)
-        ey = int(lcy - np.cos(rad) * inner_r)
-        cv2.line(roi, (lcx, lcy), (ex, ey), COMPASS_CROSSHAIR_BGR, 1, cv2.LINE_AA)
-    frame[y0:y1, x0:x1] = roi
-    # Cardinal labels N, E, S, W (fixed on face; 0 = N up)
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    scale = 0.45
-    thick = 1
-    for label, angle_deg in (("N", 0), ("E", 90), ("S", 180), ("W", 270)):
-        rad = np.radians(angle_deg)
-        tx = int(cx + np.sin(rad) * (inner_r - 10))
-        ty = int(cy - np.cos(rad) * (inner_r - 10))
-        (tw, th), _ = cv2.getTextSize(label, font, scale, thick)
-        tx -= tw // 2
-        ty += th // 2
-        cv2.putText(frame, label, (tx, ty), font, scale, COMPASS_CARDINAL_BGR, thick, cv2.LINE_AA)
-    # Needle: north half red, south half light blue, rotated by heading_deg
-    rad = np.radians(heading_deg)
-    dx, dy = np.sin(rad), -np.cos(rad)
-    needle_len = inner_r - 6
-    tip_n = (int(cx + dx * needle_len), int(cy + dy * needle_len))
-    tip_s = (int(cx - dx * needle_len), int(cy - dy * needle_len))
-    cv2.line(frame, (cx, cy), tip_n, COMPASS_NEEDLE_N_BGR, 2, cv2.LINE_AA)
-    cv2.line(frame, (cx, cy), tip_s, COMPASS_NEEDLE_S_BGR, 2, cv2.LINE_AA)
-    cv2.circle(frame, tip_n, 3, COMPASS_NEEDLE_N_BGR, -1, cv2.LINE_AA)
-    cv2.circle(frame, tip_s, 2, COMPASS_NEEDLE_S_BGR, -1, cv2.LINE_AA)
-    cv2.circle(frame, (cx, cy), 3, COMPASS_PIVOT_BGR, -1, cv2.LINE_AA)
-    cv2.circle(frame, (cx, cy), r, COMPASS_CASING_BGR, 1, cv2.LINE_AA)
-
 
 def _draw_pill_tint(
     frame: np.ndarray, x: int, y: int, w: int, h: int,
@@ -305,12 +230,3 @@ def draw_bottom_hud(
         feathered_composite(frame, gy0, gy1, gx0, gx1, gpatch, ACTION_BTN_GLOW * 0.6, feather_px=8)
     cv2.putText(frame, "GALLERY", (gal_tx, gal_ty), font, 0.48, (255, 255, 255), 1, cv2.LINE_AA)
 
-    # Compass between gallery and MENU: match MENU height, equidistant with 1px buffer each side
-    if "menu" in menu_buttons:
-        menu_x = menu_buttons["menu"].x
-    else:
-        menu_x = fw - FREQ_BAR_WIDTH - 180 - 15
-    gallery_right = x_gallery + PILL_W
-    compass_cx = (gallery_right + COMPASS_BUFFER_PX + menu_x - COMPASS_BUFFER_PX) // 2
-    compass_cy = y + PILL_H // 2
-    _draw_compass(frame, compass_cx, compass_cy, COMPASS_RADIUS, HUD.compass_heading_deg)
