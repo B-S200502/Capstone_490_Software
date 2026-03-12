@@ -1,6 +1,7 @@
 # spi/spi_protocol.py
 from __future__ import annotations
 
+import logging
 import struct
 import zlib
 from dataclasses import dataclass
@@ -9,6 +10,14 @@ from typing import Optional, Tuple, Any
 import numpy as np
 
 from acoustic_imager.custom_types import LatestFrame, SourceStats
+
+# For per-mic firmware packet config (SPI_MAGIC_FW, SPI_MIC_*, etc.)
+try:
+    from acoustic_imager import config as _config  # type: ignore
+except Exception:
+    _config = None
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------
@@ -92,6 +101,42 @@ class FrameHeader:
     payload_len: int
 
 
+@dataclass(frozen=True)
+class MicPacketHeader:
+    """Matches firmware SPI_FrameHeader_t (spi_protocol.h)."""
+    magic: int
+    version: int
+    header_len: int
+    frame_counter: int
+    batch_id: int
+    mic_index: int
+    fft_size: int
+    sample_rate: int
+    flags: int
+    payload_len: int
+    battery_mv: int
+    reserved0: int
+    reserved1: int
+
+
+def unpack_packed_rfft_to_complex(payload: bytes, fft_size: int) -> np.ndarray:
+    """
+    CMSIS-style packed RFFT: [DC, Nyquist, re1, im1, re2, im2, ...].
+    Returns complex array of shape (fft_size // 2 + 1,) for bins 0..N/2.
+    """
+    n_floats = len(payload) // 4
+    arr = np.frombuffer(payload, dtype=np.float32, count=n_floats)
+    n_bins = fft_size // 2 + 1
+    if n_floats < 2 + (n_bins - 2) * 2:
+        return np.zeros(n_bins, dtype=np.complex64)
+    out = np.zeros(n_bins, dtype=np.complex64)
+    out[0] = arr[0] + 0j
+    out[n_bins - 1] = arr[1] + 0j
+    for k in range(1, n_bins - 1):
+        out[k] = arr[2 + (k - 1) * 2] + 1j * arr[2 + (k - 1) * 2 + 1]
+    return out
+
+
 class SPIProtocol:
     """
     Responsible ONLY for framing/parsing bytes.
@@ -114,6 +159,14 @@ class SPIProtocol:
         self.fft_size = int(CFG.SAMPLES_PER_CHANNEL)
         self.sample_rate = int(CFG.SAMPLE_RATE_HZ)
         self.n_bins = int(CFG.N_BINS)
+
+        # Per-mic firmware packet config (from config.py)
+        self.spi_magic_fw = int(getattr(_config, "SPI_MAGIC_FW", 0xAABBCCDD))
+        self.spi_mic_header_fmt = getattr(_config, "SPI_MIC_HEADER_FMT", "<IHHIHBHIHHHHH")
+        self.spi_mic_header_bytes = int(getattr(_config, "SPI_MIC_HEADER_BYTES", 31))
+        self.spi_mic_payload_bytes = int(getattr(_config, "SPI_MIC_PAYLOAD_BYTES", 2048))
+        self.spi_mic_packet_bytes = int(getattr(_config, "SPI_MIC_PACKET_BYTES", 2081))
+        self.spi_frame_packet_size_bytes = int(getattr(_config, "SPI_FRAME_PACKET_SIZE_BYTES", 32801))
 
     # --------
     # CRC helpers
@@ -214,6 +267,103 @@ class SPIProtocol:
 
         crc_calc = self.compute_crc(hdr, payload)
         return (crc_calc & 0xFFFFFFFF) == (int(crc_rx) & 0xFFFFFFFF)
+
+    # --------
+    # Per-mic firmware packet parsing
+    # --------
+    def parse_mic_packet(
+        self, buf: bytes
+    ) -> Tuple[bool, int, int, Optional[np.ndarray], str]:
+        """
+        Parse one per-mic packet (SPI_MIC_PACKET_BYTES).
+        Returns (ok, batch_id, mic_index, fft_1mic, why).
+        fft_1mic is (n_bins,) complex64 or None on failure.
+        """
+        if len(buf) != self.spi_mic_packet_bytes:
+            return False, 0, 0, None, "len"
+        try:
+            fields = struct.unpack_from(self.spi_mic_header_fmt, buf, 0)
+        except struct.error:
+            return False, 0, 0, None, "hdr_unpack"
+        magic = int(fields[0])
+        if magic != self.spi_magic_fw:
+            return False, 0, 0, None, "magic"
+        version = int(fields[1])
+        if version != 1:
+            return False, 0, 0, None, "version"
+        header_len = int(fields[2])
+        if header_len != self.spi_mic_header_bytes:
+            return False, 0, 0, None, "header_len"
+        frame_counter = int(fields[3])
+        batch_id = int(fields[4])
+        mic_index = int(fields[5])
+        fft_size = int(fields[6])
+        sample_rate = int(fields[7])
+        flags = int(fields[8])
+        payload_len = int(fields[9])
+        battery_mv = int(fields[10])
+        if sample_rate != self.sample_rate:
+            return False, batch_id, mic_index, None, "sample_rate"
+        if payload_len != self.spi_mic_payload_bytes:
+            return False, batch_id, mic_index, None, "payload_len"
+        if mic_index < 0 or mic_index >= self.n_mics:
+            return False, batch_id, mic_index, None, "mic_index"
+        payload = buf[self.spi_mic_header_bytes : self.spi_mic_header_bytes + self.spi_mic_payload_bytes]
+        try:
+            fft_1mic = unpack_packed_rfft_to_complex(payload, fft_size)
+        except Exception as e:
+            return False, batch_id, mic_index, None, f"rfft:{e}"
+        return True, batch_id, mic_index, fft_1mic, "ok"
+
+    def parse_full_frame(self, buf: bytes) -> Tuple[bool, int, Optional[np.ndarray], str]:
+        """
+        Parse one full frame (SPI_FRAME_PACKET_SIZE_BYTES): one header + 16 mic payloads + 2-byte checksum.
+        Returns (ok, frame_counter, fft_data, why). fft_data is (N_MICS, N_BINS) complex64 or None on failure.
+        """
+        if len(buf) != self.spi_frame_packet_size_bytes:
+            return False, 0, None, "len"
+        try:
+            fields = struct.unpack_from(self.spi_mic_header_fmt, buf, 0)
+        except struct.error:
+            return False, 0, None, "hdr_unpack"
+        magic = int(fields[0])
+        if magic != self.spi_magic_fw:
+            log.warning(
+                "parse_full_frame: magic 0x%08X != expected 0x%08X, buf[:8]=%s",
+                magic,
+                self.spi_magic_fw,
+                buf[:8].hex() if len(buf) >= 8 else buf.hex(),
+            )
+            return False, 0, None, "magic"
+        version = int(fields[1])
+        if version != 1:
+            return False, 0, None, "version"
+        header_len = int(fields[2])
+        if header_len != self.spi_mic_header_bytes:
+            return False, 0, None, "header_len"
+        frame_counter = int(fields[3])
+        fft_size = int(fields[6])
+        sample_rate = int(fields[7])
+        payload_len = int(fields[9])
+        if sample_rate != self.sample_rate:
+            return False, frame_counter, None, "sample_rate"
+        expected_payload = self.n_mics * self.spi_mic_payload_bytes
+        if payload_len != expected_payload:
+            return False, frame_counter, None, "payload_len"
+        fft_data = np.zeros((self.n_mics, self.n_bins), dtype=np.complex64)
+        for mic in range(self.n_mics):
+            start = self.spi_mic_header_bytes + mic * self.spi_mic_payload_bytes
+            end = start + self.spi_mic_payload_bytes
+            payload = buf[start:end]
+            try:
+                fft_data[mic, :] = unpack_packed_rfft_to_complex(payload, fft_size)
+            except Exception as e:
+                return False, frame_counter, None, f"rfft_mic{mic}:{e}"
+        # Sanitize so one bad frame (garbage payload or firmware inf/nan) doesn't poison pipeline
+        if not np.all(np.isfinite(fft_data)):
+            fft_data = fft_data.copy()
+            fft_data[~np.isfinite(fft_data)] = 0.0
+        return True, frame_counter, fft_data, "ok"
 
     # --------
     # Payload parsing

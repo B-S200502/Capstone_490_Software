@@ -26,6 +26,7 @@ void spi_stream_unit_test_nulls(void);
 void spi_stream_unit_test_small_cap(void);
 void spi_stream_unit_test_frame_counter(void);
 void spi_loopback_unit_test(void);
+void spi_loopback_unit_test2(void);
 
 #ifdef __cplusplus
 }

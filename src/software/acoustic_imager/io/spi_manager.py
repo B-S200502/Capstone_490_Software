@@ -13,6 +13,7 @@ Responsibilities:
 
 from __future__ import annotations
 
+import logging
 import time
 import struct
 import zlib
@@ -24,6 +25,9 @@ import numpy as np
 
 from acoustic_imager.custom_types import LatestFrame, SourceStats
 from acoustic_imager.spi.frame_ready import FrameReady, FrameReadyGPIO
+from acoustic_imager.spi.spi_protocol import SPIProtocol
+
+log = logging.getLogger(__name__)
 
 try:
     import spidev
@@ -84,6 +88,8 @@ class SPIManager:
         self.TRAILER_LEN = int(_cfg("TRAILER_LEN"))
         self.PAYLOAD_LEN = int(_cfg("PAYLOAD_LEN"))
         self.FRAME_BYTES = int(_cfg("FRAME_BYTES"))
+        self.SPI_MIC_PACKET_BYTES = int(getattr(config, "SPI_MIC_PACKET_BYTES", 2081))
+        self.SPI_FRAME_PACKET_SIZE_BYTES = int(getattr(config, "SPI_FRAME_PACKET_SIZE_BYTES", 32801))
 
         # --- spi config ---
         self.SPI_BUS = int(_cfg("SPI_BUS"))
@@ -100,6 +106,61 @@ class SPIManager:
         self.use_frame_ready = bool(use_frame_ready)
         self._frame_ready: Optional[FrameReady] = frame_ready
 
+        # --- full-frame vs per-mic vs legacy ---
+        self._use_full_frame = bool(getattr(config, "SPI_USE_FULL_FRAME", True))
+        self._mic_proto = SPIProtocol()
+        self._use_fw_mic_packets = False
+        self._mode_probe_done = False
+        self._mic_batch_id: Optional[int] = None
+        self._mic_seen: set = set()
+        self._mic_fft: Optional[np.ndarray] = None  # (N_MICS, N_BINS) accumulator
+
+    def _reset_mic_accum(self) -> None:
+        self._mic_batch_id = None
+        self._mic_seen = set()
+        self._mic_fft = None
+
+    def _accum_mic_packet(self, batch_id: int, mic_index: int, fft_1mic: np.ndarray) -> bool:
+        """Accumulate one mic's FFT. Returns True when we have all N_MICS for this batch."""
+        if self._mic_batch_id is not None and self._mic_batch_id != batch_id:
+            self._reset_mic_accum()
+        self._mic_batch_id = batch_id
+        if self._mic_fft is None:
+            self._mic_fft = np.zeros((self.N_MICS, fft_1mic.shape[0]), dtype=np.complex64)
+        self._mic_fft[mic_index, :] = fft_1mic
+        self._mic_seen.add(mic_index)
+        return len(self._mic_seen) >= self.N_MICS
+
+    def _read_one_mic_packet(self) -> Optional[bytes]:
+        """Read exactly SPI_MIC_PACKET_BYTES from SPI. Caller must ensure _spi is open."""
+        if self._spi is None:
+            return None
+        tx = bytes(self.SPI_MIC_PACKET_BYTES)
+        rx = self._spi_xfer_bytes(tx)
+        return rx
+
+    def _probe_modes_once(self) -> None:
+        """Try SPI modes 0–3 with one 2081-byte read each; if any parses as per-mic, set _use_fw_mic_packets."""
+        if self._mode_probe_done or self._spi is None:
+            return
+        self._mode_probe_done = True
+        saved_mode = self._spi.mode
+        for mode in range(4):
+            try:
+                self._spi.mode = mode
+                rx = self._read_one_mic_packet()
+                if rx is None:
+                    continue
+                ok, batch_id, mic_index, fft_1mic, why = self._mic_proto.parse_mic_packet(rx)
+                if ok and fft_1mic is not None:
+                    self._use_fw_mic_packets = True
+                    log.info("spi_manager: probed mode %d -> fw per-mic packets", mode)
+                    break
+            except Exception as e:
+                log.debug("spi_manager probe mode %d: %s", mode, e)
+            finally:
+                self._spi.mode = saved_mode
+
     # ------------------------------
     # Public API
     # ------------------------------
@@ -107,11 +168,16 @@ class SPIManager:
         if self._thread is not None and self._thread.is_alive():
             return
 
-        # Create FrameReadyGPIO only when enabled (SPI_HW)
+        # Create FrameReadyGPIO only when enabled (SPI_HW). Fail-open: if GPIO fails, run without wait.
         if self.use_frame_ready and self._frame_ready is None:
-            bcm_pin = int(getattr(config, "FRAME_READY_BCM_PIN", 25))   # GPIO25 (BCM) == physical pin 22
-            pull = getattr(config, "FRAME_READY_PULL", "down")          # "up" or "down"
-            self._frame_ready = FrameReadyGPIO(bcm_pin=bcm_pin, pull=pull)
+            try:
+                bcm_pin = int(getattr(config, "FRAME_READY_BCM_PIN", 7))   # BCM7 == physical pin 26 (MCU_STATUS)
+                pull = getattr(config, "FRAME_READY_PULL", "down")          # "up" or "down"
+                self._frame_ready = FrameReadyGPIO(bcm_pin=bcm_pin, pull=pull)
+            except Exception as e:
+                log.warning("FrameReadyGPIO init failed (%s); continuing without GPIO wait", e)
+                self._frame_ready = None
+                self.use_frame_ready = False
 
         self._stop = False
         self._thread = threading.Thread(target=self._worker, daemon=True)
@@ -138,6 +204,13 @@ class SPIManager:
         with self._lock:
             lf = self._latest
             stats_copy = replace(lf.stats)
+            stats_copy.spi_path = f"/dev/spidev{self.SPI_BUS}.{self.SPI_DEV}"
+            if self._use_full_frame:
+                stats_copy.spi_read_size = self.SPI_FRAME_PACKET_SIZE_BYTES
+            elif self._use_fw_mic_packets:
+                stats_copy.spi_read_size = self.SPI_MIC_PACKET_BYTES
+            else:
+                stats_copy.spi_read_size = self.FRAME_BYTES
             out = LatestFrame(
                 fft_data=lf.fft_data,
                 frame_id=int(lf.frame_id),
@@ -197,28 +270,43 @@ class SPIManager:
     # ------------------------------
     # One frame read
     # ------------------------------
+    # STM32 sends one DMA transfer of SPI_FRAME_PACKET_SIZE_BYTES (32801) per frame; PE0
+    # clears only when that full transfer completes. Per-mic reads (16x2081) do not
+    # complete that transfer; use one 32801-byte read or firmware sending 16x2081 with
+    # one PE0 pulse per packet to get MCU_STATUS toggling.
     def _read_one(self) -> Optional[LatestFrame]:
         self._seq_seen += 1
+        irq_timed_out = False
 
-        # Wait for STM32 "frame ready" pulse/level
+        # Wait for STM32 "frame ready" pulse/level. On timeout still do one SPI read (so we see ok/badParse/irqTimeout).
         if self.use_frame_ready and self._frame_ready is not None:
             timeout_s = float(getattr(config, "FRAME_READY_TIMEOUT_S", 0.25))
-            self._frame_ready.clear()          # drop stale state
+            self._frame_ready.clear()
             got = self._frame_ready.wait(timeout=timeout_s)
             if not got:
-                return None
+                irq_timed_out = True
+                stats = self._get_stats()
+                stats.irq_timeout += 1
+                stats.last_err = "irq_timeout"
+                self._set_stats(stats)
+                # Do not return: proceed to one SPI read so HW shows packet activity
 
         try:
-
+            if self._use_full_frame:
+                return self._read_one_full_frame()
+            if self._use_fw_mic_packets:
+                return self._read_one_fw_mic()
+            # Legacy path
             tx = bytes(self.FRAME_BYTES)
             rx = self._spi_xfer_bytes(tx)
-
             ok, why = self._framing_validate(rx)
             stats = self._get_stats()
             if not ok:
                 stats.bad_parse += 1
                 stats.last_err = f"parse:{why}"
                 self._set_stats(stats)
+                if why == "magic_start":
+                    self._probe_modes_once()
                 return None
 
             if self.CRC_EVERY_N and ((stats.frames_ok % self.CRC_EVERY_N) == 0):
@@ -230,7 +318,6 @@ class SPIManager:
 
             payload = rx[self.HEADER_LEN : self.HEADER_LEN + self.PAYLOAD_LEN]
             mp = np.frombuffer(payload, dtype=np.float32).reshape(self.N_MICS, self.N_BINS, 2)
-
             mag = mp[:, :, 0]
             phase = mp[:, :, 1]
             fft_data = (mag * (np.cos(phase) + 1j * np.sin(phase))).astype(np.complex64)
@@ -238,7 +325,6 @@ class SPIManager:
             stats.frames_ok += 1
             stats.last_err = ""
             self._set_stats(stats)
-
             return LatestFrame(
                 fft_data=fft_data,
                 frame_id=self._seq_seen,
@@ -252,6 +338,59 @@ class SPIManager:
             stats.last_err = f"spi_exc:{e}"
             self._set_stats(stats)
             return None
+
+    def _read_one_full_frame(self) -> Optional[LatestFrame]:
+        """One read of SPI_FRAME_PACKET_SIZE_BYTES (32801), parse all 16 mics; no accumulator.
+        Single xfer to match firmware: one NSS-low period for full frame (no SPI_XFER_CHUNK)."""
+        size = self.SPI_FRAME_PACKET_SIZE_BYTES
+        tx = bytes(size)
+        r = self._spi.xfer3(tx)
+        rx = bytes(r)
+        ok, frame_counter, fft_data, why = self._mic_proto.parse_full_frame(rx)
+        stats = self._get_stats()
+        if not ok or fft_data is None:
+            stats.bad_parse += 1
+            stats.last_err = f"parse:{why}"
+            self._set_stats(stats)
+            return None
+        stats.frames_ok += 1
+        stats.last_err = ""
+        self._set_stats(stats)
+        return LatestFrame(
+            fft_data=fft_data,
+            frame_id=self._seq_seen,
+            ok=True,
+            stats=stats,
+        )
+
+    def _read_one_fw_mic(self) -> Optional[LatestFrame]:
+        """Read one per-mic packet, accumulate; return LatestFrame when we have 16 mics for same batch."""
+        rx = self._read_one_mic_packet()
+        if rx is None:
+            return None
+        ok, batch_id, mic_index, fft_1mic, why = self._mic_proto.parse_mic_packet(rx)
+        stats = self._get_stats()
+        if not ok:
+            stats.bad_parse += 1
+            stats.last_err = f"parse:{why}"
+            self._set_stats(stats)
+            return None
+        if fft_1mic is None:
+            return None
+        complete = self._accum_mic_packet(batch_id, mic_index, fft_1mic)
+        if not complete:
+            return None
+        fft_data = self._mic_fft.copy()
+        self._reset_mic_accum()
+        stats.frames_ok += 1
+        stats.last_err = ""
+        self._set_stats(stats)
+        return LatestFrame(
+            fft_data=fft_data,
+            frame_id=self._seq_seen,
+            ok=True,
+            stats=stats,
+        )
 
     # ------------------------------
     # Transfer

@@ -18,6 +18,7 @@
  * DEFINES & CONSTANTS
  * ========================================================================= */
 
+
 /* =========================================================================
  * STATIC VARIABLES
  * ========================================================================= */
@@ -66,6 +67,89 @@ uint32_t spi_stream_next_batch(spi_stream_t *s)
     return s->batch_counter++;
 }
 
+#if SPI_MODE == SPI_FULL_FRAME
+size_t spi_stream_build_frame_header(
+    spi_stream_t *s,
+    uint8_t *dst,
+    size_t dst_cap,
+    uint32_t batch_id,
+    uint16_t mic_index,
+    uint16_t fft_size,
+    uint32_t sample_rate,
+    uint16_t flags,
+    size_t   payload_len,
+    uint16_t battery_millivolts)
+{
+  if (!s || !dst)
+      return 0;
+
+  SPI_FrameHeader_t hdr = {0};
+
+  const size_t header_len = sizeof(hdr);
+
+  const size_t checksum_len = SPI_CHECKSUM_SIZE_BYTES;
+
+  const size_t total_len =
+      header_len + payload_len + checksum_len;
+
+  if (dst_cap < total_len)
+      return 0;
+
+  /* ===== HEADER ===== */
+  spi_stream_fill_header(&hdr,
+                          s,
+                          batch_id,
+                          mic_index,
+                          fft_size,
+                          sample_rate,
+                          flags,
+                          battery_millivolts,
+                          (uint32_t)payload_len);
+
+  memcpy(dst, &hdr, header_len);
+  return header_len;
+}
+
+size_t spi_stream_append_mic_payload(
+    uint8_t *dst,
+    size_t dst_cap,
+    const float *fft_data,
+    uint16_t fft_size)
+{
+  if (!dst || !fft_data)
+    return 0;
+
+  const size_t payload_bytes = fft_size * sizeof(float);
+
+  if (dst_cap < payload_bytes)
+      return 0;
+
+  memcpy(dst, fft_data, payload_bytes);
+
+  return payload_bytes;
+}
+
+size_t spi_stream_finalize_frame(
+    uint8_t *dst,
+    size_t dst_cap,
+    size_t used_len)
+{
+  uint16_t checksum;
+
+  if (!dst)
+    return 0;
+
+  if (dst_cap < SPI_CHECKSUM_SIZE_BYTES)
+    return 0;
+
+  checksum = checksum16_sum_bytes(dst, used_len);
+
+  memcpy(dst + used_len, &checksum, sizeof(checksum));
+
+  return used_len + SPI_CHECKSUM_SIZE_BYTES;
+}
+
+#elif SPI_MODE == SPI_SINGLE_MIC
 size_t spi_stream_build_mic_packet(
     spi_stream_t *s,
     uint8_t *dst,
@@ -128,6 +212,7 @@ size_t spi_stream_build_mic_packet(
 
     return total_len;
 }
+#endif
 
 void spi_stream_tx_blocking(const uint8_t *buf, size_t len)
 {

@@ -19,8 +19,6 @@ extern "C" {
 #define SPI_MAGIC 0xAABBCCDDu
 #define SPI_VERSION 1u
 
-#define SPI_BUFFER_SIZE 4
-
 #define SPI_FRAME_HEADER_SIZE_BYTES (sizeof(SPI_FrameHeader_t))
 
 #define SPI_FRAME_FLAG_SYNCED_ALL_MICS   (1u << 0)

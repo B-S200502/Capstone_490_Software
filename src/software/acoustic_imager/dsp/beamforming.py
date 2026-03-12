@@ -5,6 +5,21 @@ import numpy as np
 from numpy.linalg import eigh, pinv, eig
 
 
+def directivity_ratio(R: np.ndarray) -> float:
+    """
+    Ratio of largest eigenvalue to sum of all eigenvalues (0 to 1).
+    Near 1 = directional (rank-1 like); near 1/M = diffuse. Used to gate diffuse noise.
+    """
+    R = np.asarray(R)
+    if R.ndim != 2 or R.shape[0] != R.shape[1] or R.shape[0] < 2:
+        return 0.0
+    eigvals = np.linalg.eigvalsh(R)
+    eigvals = np.maximum(eigvals.real, 0.0)
+    total = float(np.sum(eigvals)) + 1e-12
+    lam1 = float(np.max(eigvals))
+    return lam1 / total
+
+
 def music_spectrum(
     R: np.ndarray,
     angles: np.ndarray,

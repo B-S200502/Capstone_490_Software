@@ -22,7 +22,9 @@ extern "C" {
 #define N_CH_PER_ADC 4
 #define N_MICS 16
 
-#define VALIDATION_MODE 0
+#define SPI_SINGLE_MIC 0
+#define SPI_FULL_FRAME 1
+#define SPI_MODE SPI_FULL_FRAME
 
 // TODO: Consider discarding Nyquist bin (bin 512)
 #define N_BINS ((FRAME_SIZE >> 1) + 1) // For real FFT: N_BINS = (N/2)+1 = 513 
@@ -33,6 +35,11 @@ extern "C" {
 #define BATT_ADC_VREF_MV 2900u
 #define BATT_DIVIDER_NUMERATOR 1u
 #define BATT_DIVIDER_DENOMINATOR 1u
+
+// Float print helper macros
+#define PRINT_F1(x) ((int)((x) * 10.0f) / 10),  ((int)((x) * 10.0f) % 10)
+#define PRINT_F2(x) ((int)((x) * 100.0f) / 100), ((int)((x) * 100.0f) % 100)
+#define PRINT_F3(x) ((int)((x) * 1000.0f) / 1000), ((int)((x) * 1000.0f) % 1000)
 
 /* =========================================================================
  * TYPE DEFINITIONS

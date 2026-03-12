@@ -372,6 +372,161 @@ void spi_loopback_unit_test(void)
     usb_printf("=== END LOOPBACK TEST ===\r\n");
 }
 
+void spi_loopback_unit_test2(void)
+{
+  usb_printf("\r\n=== SPI4 LOOPBACK UNIT TEST (16-MIC FRAME) ===\r\n");
+
+  const uint32_t batch_id    = 2;
+  const uint16_t mic_index   = N_MICS;   // protocol sentinel for multi-mic frame
+  const uint16_t fft_size    = 32;
+  const uint32_t sample_rate = 48000;
+  const uint16_t flags       = SPI_FRAME_FLAG_PAYLOAD_COMPLEX;
+  const uint16_t battery_mv  = 0u;
+
+  const size_t payload_len   = N_MICS * fft_size * sizeof(float);
+  const size_t test_packet_size =
+    sizeof(SPI_FrameHeader_t) + payload_len + SPI_CHECKSUM_SIZE_BYTES;
+
+  size_t offset    = 0u;
+  size_t final_len = 0u;
+
+  spi_stream_t stream;
+  spi_stream_init(&stream);
+
+  uint8_t *tx_buf = spi_dma_get_tx_buffer();
+  uint8_t *rx_buf = spi_dma_get_rx_buffer();
+
+  memset(tx_buf, 0x00, SPI_FRAME_PACKET_SIZE_BYTES);
+  memset(rx_buf, 0xCC, 4096);
+
+  /* ------------------------------------------------------------------ */
+  /* 1) Build one full multi-mic frame into tx_buf                      */
+  /* ------------------------------------------------------------------ */
+  offset = spi_stream_build_frame_header(&stream,
+                                         tx_buf,
+                                         SPI_FRAME_PACKET_SIZE_BYTES,
+                                         batch_id,
+                                         mic_index,
+                                         fft_size,
+                                         sample_rate,
+                                         flags,
+                                         payload_len,
+                                         battery_mv);
+
+  if (offset == 0u) {
+    usb_printf("FAIL: spi_stream_build_frame_header returned 0\r\n");
+    return;
+  }
+
+  /* Build synthetic FFT payloads for mic0..mic15 */
+  for (uint16_t mic = 0; mic < N_MICS; mic++) {
+    float mic_fft_buffer[fft_size];
+
+    for (uint16_t i = 0; i < fft_size; i++) {
+      /* Easy-to-recognize per-mic pattern */
+      mic_fft_buffer[i] = (float)(mic * 1000u + i) + 0.25f;
+    }
+
+    size_t appended_len = spi_stream_append_mic_payload(
+        tx_buf + offset,
+        SPI_FRAME_PACKET_SIZE_BYTES - offset,
+        mic_fft_buffer,
+        fft_size);
+
+    if (appended_len == 0u) {
+      usb_printf("FAIL: spi_stream_append_mic_payload returned 0 for mic %u\r\n",
+                 (unsigned)mic);
+      return;
+    }
+
+    offset += appended_len;
+  }
+
+  final_len = spi_stream_finalize_frame(tx_buf,
+                                        SPI_FRAME_PACKET_SIZE_BYTES - offset,
+                                        offset);
+
+  if (final_len == 0u) {
+    usb_printf("FAIL: spi_stream_finalize_frame returned 0\r\n");
+    return;
+  }
+
+  usb_printf("Built multi-mic frame len=%u\r\n", (unsigned)final_len);
+  usb_printf("TX (first 64 bytes):\r\n");
+  dump_hex(tx_buf, (final_len < 64u) ? final_len : 64u);
+
+  /* ------------------------------------------------------------------ */
+  /* 2) SPI transmit+receive                                            */
+  /* ------------------------------------------------------------------ */
+  clear_spi_dma_done();
+
+  int status = spi_stream_txrx_dma(tx_buf, rx_buf, (uint16_t)final_len);
+  usb_printf("spi_stream_txrx_dma returned %d\r\n", status);
+
+  while (!get_spi_dma_done()) {
+    usb_printf("Waiting for SPI DMA to complete...\r\n");
+    HAL_Delay(10);
+  }
+
+  usb_printf("RX (first 64 bytes):\r\n");
+  dump_hex(rx_buf, (final_len < 64u) ? final_len : 64u);
+
+  /* ------------------------------------------------------------------ */
+  /* 3) Compare TX and RX                                               */
+  /* ------------------------------------------------------------------ */
+  size_t first_bad = 0u;
+  int ok = buffers_equal(tx_buf, rx_buf, final_len, &first_bad);
+
+  if (!ok) {
+    usb_printf("FAIL: TX != RX at byte index %u\r\n", (unsigned)first_bad);
+
+    usb_printf("TX around mismatch:\r\n");
+    size_t start = (first_bad > 16u) ? (first_bad - 16u) : 0u;
+    size_t end   = (first_bad + 16u < final_len) ? (first_bad + 16u) : final_len;
+    dump_hex(&tx_buf[start], end - start);
+
+    usb_printf("RX around mismatch:\r\n");
+    dump_hex(&rx_buf[start], end - start);
+    return;
+  }
+
+  usb_printf("PASS: TX == RX (%u bytes)\r\n", (unsigned)final_len);
+
+  /* ------------------------------------------------------------------ */
+  /* 4) Parse header from RX and sanity check                           */
+  /* ------------------------------------------------------------------ */
+  SPI_FrameHeader_t hdr;
+  memcpy(&hdr, rx_buf, sizeof(hdr));
+
+  usb_printf("RX header magic=0x%08lX, batch_id=%lu, mic_index=%u, payload_len=%lu\r\n",
+             (unsigned long)hdr.magic,
+             (unsigned long)hdr.batch_id,
+             (unsigned)hdr.mic_index,
+             (unsigned long)hdr.payload_len);
+
+  /* ------------------------------------------------------------------ */
+  /* 5) Optional payload sanity check                                   */
+  /* ------------------------------------------------------------------ */
+  const uint8_t *rx_payload = rx_buf + sizeof(SPI_FrameHeader_t);
+  size_t mic_stride_bytes = fft_size * sizeof(float);
+
+  float mic0_bin0  = read_f32_le(rx_payload + 0u  * mic_stride_bytes);
+  float mic1_bin0  = read_f32_le(rx_payload + 1u  * mic_stride_bytes);
+  float mic15_bin0 = read_f32_le(rx_payload + 15u * mic_stride_bytes);
+
+  usb_printf("Payload spot-check:\r\n");
+
+  usb_printf("mic0[0]   = %d.%02d (expected 0.25)\r\n",
+            PRINT_F2(mic0_bin0));
+
+  usb_printf("mic1[0]   = %d.%02d (expected 1000.25)\r\n",
+            PRINT_F2(mic1_bin0));
+
+  usb_printf("mic15[0]  = %d.%02d (expected 15000.25)\r\n",
+            PRINT_F2(mic15_bin0));
+
+  usb_printf("=== END LOOPBACK TEST ===\r\n");
+}
 /* ============================================================================
  * STATIC FUNCTIONS
  * ============================================================================ */

@@ -21,6 +21,7 @@ from .screenshot import save_screenshot
 from ..config import SOURCE_MODES, SOURCE_DEFAULT
 from ..state import button_state, HUD
 from ..io.gallery_metadata import save_metadata
+from ..io.gain_control import GAIN_CONTROL
 from ..io.email_config import (
     load_config,
     load_provider_config,
@@ -1440,6 +1441,7 @@ def handle_menu_click(
     if "gain" in menu_buttons and menu_buttons["gain"].contains(x, y):
         button_state.gain_mode = "HIGH" if button_state.gain_mode == "LOW" else "LOW"
         menu_buttons["gain"].text = f"GAIN: {button_state.gain_mode}"
+        GAIN_CONTROL.set_mode(button_state.gain_mode)
         return video_recorder
 
     if "source" in menu_buttons and menu_buttons["source"].contains(x, y):

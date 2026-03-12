@@ -18,6 +18,8 @@ from __future__ import annotations
 import logging
 import sys
 import time
+
+log = logging.getLogger(__name__)
 import json
 from pathlib import Path
 from typing import Optional
@@ -45,10 +47,11 @@ from acoustic_imager.sources.sim_source import SimSource
 from acoustic_imager.sources.spi_source import SPISource
 from acoustic_imager.sources.spi_loopback_source import SPILoopbackSource
 from acoustic_imager.io.spi_manager import SPIManager
+from acoustic_imager.io.gain_control import GAIN_CONTROL
 
 
 # DSP modules
-from acoustic_imager.dsp.beamforming import music_spectrum
+from acoustic_imager.dsp.beamforming import directivity_ratio, music_spectrum
 from acoustic_imager.dsp.heatmap import (
     spectra_to_heatmap_absolute,
     build_w_lut_u8,
@@ -824,17 +827,14 @@ def main() -> None:
 
     spi_loopback = SPILoopbackSource()
 
-    #TODO: DEMO ONLY USB
-    from acoustic_imager.sources.usb_source import USBSource
-    spi_hw = USBSource(port="/dev/ttyACM0", baud=115200)
-
-    #TODO: FOR REAL SPI, USE THIS INSTEAD OF USBSource
-    #spi_hw = SPISource(SPIManager(use_frame_ready=True))
-
+    # HW = real SPI from STM32 (16 mics, MCU_STATUS on physical pin 26 / BCM7)
+    spi_hw = SPISource(SPIManager(use_frame_ready=True))
 
     # Force initial mode from config if UI didn't set it yet
     if button_state.source_mode not in config.SOURCE_MODES:
         button_state.source_mode = config.SOURCE_DEFAULT
+
+    GAIN_CONTROL.set_mode(button_state.gain_mode)
 
     prev_mode = button_state.source_mode
 
@@ -931,6 +931,10 @@ def main() -> None:
     frame_count = 0
     start_time = time.time()
     last_spi_fft_data: Optional[np.ndarray] = None
+    heatmap_prev: Optional[np.ndarray] = None
+    last_spi_bins: Optional[list] = None
+    last_spi_peak_angles: Optional[list] = None
+    cov_avg: dict[int, np.ndarray] = {}  # bin_idx -> averaged covariance (N_MICS, N_MICS) for MUSIC
 
     # FPS tracking
     fps_ema = 0.0
@@ -986,12 +990,17 @@ def main() -> None:
                 spi_hw.stop()
 
                 last_spi_fft_data = None
+                heatmap_prev = None
+                last_spi_bins = None
+                last_spi_peak_angles = None
+                cov_avg.clear()
 
                 # start whichever is selected
                 if mode == "LOOP":
                     spi_loopback.start()
                 elif mode == "HW":
                     spi_hw.start()
+                    log.info("HW source active, SPI: /dev/spidev%d.%d", config.SPI_BUS, config.SPI_DEV)
 
                 prev_mode = mode
 
@@ -1028,11 +1037,11 @@ def main() -> None:
 
             # Fallback to last known data if current read failed
             if fft_data is None:
-                if source_label.startswith("SPI") and last_spi_fft_data is not None:
+                if source_label in ("HW", "LOOP") and last_spi_fft_data is not None:
                     fft_data = last_spi_fft_data
                 else:
                     fft_data = np.zeros((config.N_MICS, config.N_BINS), dtype=np.complex64)
-            elif source_label.startswith("SPI"):
+            elif source_label in ("HW", "LOOP"):
                 last_spi_fft_data = fft_data
 
             prof.mark("read_source")
@@ -1083,13 +1092,42 @@ def main() -> None:
                         config.REL_DB_MIN, config.REL_DB_MAX
                     )
 
-            else:  # SPI mode
-                # TODO: FOR SPI, TOP K BINS
-                # FOR LOOPBACK ONLY:Filter bins by bandpass
-                bins = [
-                    b for b in config.SPI_SIM_BINS
-                    if 0 <= b < config.N_BINS and (f_min <= float(config.f_axis[b]) <= f_max)
-                ]
+            else:  # SPI mode (HW + LOOP): top-K bins by power within bandpass, above noise floor
+                # Per-mic gain correction and whole-array boost, then optional per-mic normalize
+                gain = np.asarray(config.SPI_MIC_GAIN, dtype=np.float32).flatten()
+                if gain.size < config.N_MICS:
+                    gain = np.pad(gain, (0, config.N_MICS - gain.size), constant_values=1.0)
+                if gain.size > config.N_MICS:
+                    gain = gain[: config.N_MICS]
+                mic_gain = gain.reshape(config.N_MICS, 1)
+                array_gain = float(config.SPI_ARRAY_GAIN)
+                fft_corrected = (fft_data * mic_gain * array_gain).astype(np.complex64)
+                if config.SPI_PER_MIC_NORMALIZE:
+                    norms = np.sqrt(np.sum(np.abs(fft_corrected) ** 2, axis=1)) + 1e-12
+                    fft_for_heatmap = (fft_corrected / norms[:, np.newaxis]).astype(np.complex64)
+                else:
+                    fft_for_heatmap = fft_corrected
+                candidate_bins = np.array([
+                    b for b in range(config.N_BINS)
+                    if f_min <= float(config.f_axis[b]) <= f_max
+                ], dtype=np.intp)
+                total_bandpass_power = 0.0
+                if len(candidate_bins) == 0:
+                    bins = []
+                else:
+                    power_per_bin = np.sum(np.abs(fft_for_heatmap[:, candidate_bins]) ** 2, axis=0)
+                    total_bandpass_power = float(power_per_bin.sum()) + 1e-12
+                    p_max = float(power_per_bin.max()) + 1e-12
+                    power_db = 10.0 * np.log10((power_per_bin.astype(np.float64) + 1e-12) / p_max)
+                    above_floor = power_db >= (-config.SPI_NOISE_FLOOR_DB)
+                    candidate_bins = candidate_bins[above_floor]
+                    power_per_bin = power_per_bin[above_floor]
+                    K = min(config.SPI_TOP_K_BINS, len(candidate_bins))
+                    if K <= 0:
+                        bins = []
+                    else:
+                        top_idx = np.argsort(power_per_bin)[::-1][:K]
+                        bins = candidate_bins[top_idx].tolist()
 
                 if not bins:
                     heatmap_left = np.zeros((config.HEIGHT, left_width), dtype=np.uint8)
@@ -1098,24 +1136,77 @@ def main() -> None:
                     band_freqs = np.array([float(config.f_axis[b]) for b in bins], dtype=np.float64)
                     power = np.zeros(len(bins), dtype=np.float32)
 
+                    n_avg = max(1, int(getattr(config, "SPI_COV_AVG_FRAMES", 1)))
+                    alpha = 1.0 / n_avg  # EMA: effective window ~ n_avg frames
                     for i, f_idx in enumerate(bins):
                         f_sig = float(config.f_axis[f_idx])
-                        Xf = fft_data[:, f_idx][:, np.newaxis]
+                        Xf = fft_for_heatmap[:, f_idx][:, np.newaxis]
                         R = Xf @ Xf.conj().T
+                        if n_avg > 1:
+                            if f_idx not in cov_avg:
+                                cov_avg[f_idx] = R.copy()
+                            else:
+                                cov_avg[f_idx] = (1.0 - alpha) * cov_avg[f_idx] + alpha * R
+                            R_use = cov_avg[f_idx]
+                        else:
+                            R_use = R
 
                         spec_matrix[i, :] = music_spectrum(
-                            R, config.ANGLES, f_sig, len(bins),
+                            R_use, config.ANGLES, f_sig, config.SPI_MUSIC_N_SOURCES,
                             config.x_coords, config.y_coords, config.SPEED_SOUND
                         )
                         power[i] = float(np.sum(np.abs(Xf) ** 2).real)
+                        # Suppress diffuse noise: only show bins that are directional (coherent)
+                        if config.SPI_DIRECTIVITY_MIN > 0:
+                            dr = directivity_ratio(R_use)
+                            if dr < config.SPI_DIRECTIVITY_MIN:
+                                power[i] = 0.0
 
-                    # Brighter SPI: per-frame normalization
+                    # Peak-angle stability: only show bins whose MUSIC peak angle didn't jump from last frame
+                    if config.SPI_ANGLE_STABILITY_DEG > 0 and len(bins) > 0:
+                        peak_idx_per_bin = np.argmax(spec_matrix, axis=1)
+                        current_angles = [float(config.ANGLES[int(peak_idx_per_bin[j])]) for j in range(len(bins))]
+                        if last_spi_bins is not None and last_spi_peak_angles is not None:
+                            last_bin_to_angle = dict(zip(last_spi_bins, last_spi_peak_angles))
+                            for j in range(len(bins)):
+                                prev_angle = last_bin_to_angle.get(bins[j])
+                                if prev_angle is not None and abs(current_angles[j] - prev_angle) > config.SPI_ANGLE_STABILITY_DEG:
+                                    power[j] = 0.0
+                        last_spi_bins = list(bins)
+                        last_spi_peak_angles = list(current_angles)
+                    elif len(bins) > 0:
+                        peak_idx_per_bin = np.argmax(spec_matrix, axis=1)
+                        last_spi_peak_angles = [float(config.ANGLES[int(peak_idx_per_bin[j])]) for j in range(len(bins))]
+                        last_spi_bins = list(bins)
+                    else:
+                        last_spi_bins = None
+                        last_spi_peak_angles = None
+
+                    # Per-frame normalization; gamma > 1 makes strongest bins stand out more
                     power_rel = power / (power.max() + 1e-12)
-                    power_rel = np.power(power_rel, 0.6)
+                    power_rel = np.power(power_rel, config.SPI_HEATMAP_POWER_GAMMA)
                     heatmap_left = spectra_to_heatmap_absolute(
                         spec_matrix, power_rel, left_width, config.HEIGHT,
                         config.REL_DB_MIN, config.REL_DB_MAX
                     )
+                # Scale heatmap by bandpass level so it brightens with sound, dims when quiet (floor keeps blobs visible)
+                level = max(
+                    config.HEATMAP_LEVEL_FLOOR,
+                    min(1.0, total_bandpass_power / config.HEATMAP_LEVEL_REFERENCE),
+                )
+                heatmap_left = (heatmap_left.astype(np.float32) * level).astype(np.uint8)
+                # Per-frame contrast stretch so bright blobs use full range (better differentiation)
+                pct = config.HEATMAP_CONTRAST_STRETCH_PERCENTILE
+                if pct > 0 and heatmap_left.size > 0:
+                    p_val = float(np.percentile(heatmap_left, pct))
+                    if p_val > 1e-6:
+                        heatmap_left = (heatmap_left.astype(np.float32) * (255.0 / p_val)).clip(0, 255).astype(np.uint8)
+                # Temporal smoothing for SPI: blend with previous frame
+                if source_label in ("HW", "LOOP") and heatmap_prev is not None and heatmap_prev.shape == heatmap_left.shape:
+                    heatmap_left = (
+                        config.HEATMAP_SMOOTH_ALPHA * heatmap_prev.astype(np.float32)
+                        + (1.0 - config.HEATMAP_SMOOTH_ALPHA) * heatmap_left.astype(np.float32)
+                    ).astype(np.uint8)
 
             prof.mark("beamform+heatmap")
 
@@ -1222,6 +1313,10 @@ def main() -> None:
             # ---- Blend heatmap onto background ----
             output_frame = blend_heatmap_left(base_frame, heatmap_left, left_width, w_lut_u8, button_state.colormap_mode)
             prof.mark("blend")
+            if source_label in ("HW", "LOOP"):
+                heatmap_prev = heatmap_left.copy()
+            else:
+                heatmap_prev = None
 
             # ---- Process pending spectrum cursor (tap or dot drag): snap to closest point on blue curve ----
             if state.SPECTRUM_CURSOR_PENDING_TAP_Y is not None and fft_data is not None:

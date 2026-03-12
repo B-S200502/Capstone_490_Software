@@ -20,7 +20,7 @@ class FrameReadyGPIO(FrameReady):
     """
     Rising-edge interrupt on a Pi GPIO pin sets an Event.
 
-    Use BCM numbering (GPIO25 == pin 22).
+    Use BCM numbering (e.g. BCM7 == physical pin 26 for MCU_STATUS).
     """
     def __init__(self, bcm_pin: int = 25, pull: str = "down") -> None:
         self._evt = threading.Event()

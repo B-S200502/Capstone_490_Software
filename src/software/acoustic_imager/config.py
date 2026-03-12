@@ -2,14 +2,14 @@
 """
 Central configuration/constants for the Acoustic Imager software.
 
-This file mirrors the constants from the original monolithic script
-so that splitting into modules does not change behavior.
+Layout: core/UI/heatmap display first; then SIM (SRC: SIM + SRC: LOOP);
+then Real hardware (SRC: HW) — SPI transport and heatmap pipeline.
+Default source on startup is HW.
 """
 
 from __future__ import annotations
 
 import struct
-import os
 import numpy as np
 
 # ===============================================================
@@ -21,7 +21,7 @@ SAMPLES_PER_CHANNEL = 512
 
 SAMPLE_RATE_HZ = 100000
 SPEED_SOUND = 343.0
-NOISE_POWER = 0.0005
+NOISE_POWER = 0.0005   # SIM source only (synthetic noise floor)
 
 WIDTH = 1024
 HEIGHT = 600
@@ -82,69 +82,6 @@ BG_GRADIENT_BOT = (10, 10, 10)
 FREQ_BAR_WIDTH = 150
 DB_BAR_WIDTH = 80
 
-# Magnetometer (BN-880) for compass
-MAG_UART_DEVICE = "/dev/ttyAMA0"
-MAG_UART_BAUD = 9600
-MAG_COMPASS_DEMO = False  # If True, drive heading from time when no device (for testing)
-MAG_USE_I2C = True        # If True, try I2C (HMC5883L) first; fall back to UART NMEA
-MAG_I2C_BUS = 1
-MAG_I2C_ADDR = 0x1e
-# HMC5883L gain register (0x20=default, 0xA0=lower sensitivity / less saturation)
-MAG_I2C_GAIN_REG = 0xA0
-# Enable hard-iron offset calibration from running X/Y extrema.
-MAG_APPLY_HARD_IRON_CAL = True
-# Minimum observed span on both axes before using calibrated heading.
-MAG_CAL_MIN_SPAN = 100
-
-# GPS (BN-880) over UART
-GPS_USE_UART = True
-GPS_UART_DEVICE = "/dev/ttyAMA0"
-GPS_UART_BAUD = 9600
-
-# Radar mini-map (under Mb/s pill)
-RADAR_MAP_ENABLED = True
-RADAR_MAP_DIAMETER_PX = 200
-RADAR_MAP_GAP_PX = 8
-RADAR_HISTORY_SEC = 6.0
-RADAR_MAX_POINTS = 180
-RADAR_MIN_DB = -45.0
-RADAR_MAP_ZOOM = 17
-RADAR_MAP_TILE_SIZE = 256
-RADAR_MAP_CACHE_DIR = "data/map_tiles"
-RADAR_MAP_TILE_STYLE_DEFAULT = "dark"  # "dark" | "light"
-RADAR_MAP_TILE_URL_DARK = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-RADAR_MAP_TILE_URL_LIGHT = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-RADAR_MAP_TILE_URL = RADAR_MAP_TILE_URL_DARK
-# Tile brightness multipliers by style (1.0 = unchanged).
-RADAR_MAP_BRIGHTNESS_DARK = 2.2
-RADAR_MAP_BRIGHTNESS_LIGHT = 1.0
-# Fallback-only radar brightness (used when no map tiles are shown).
-# Kept separate so pure radar darkness does not affect tile overlays.
-RADAR_MAP_FALLBACK_BRIGHTNESS = 0.65
-RADAR_MAP_USER_AGENT = "acoustic-imager-radar/1.0"
-RADAR_MAP_FETCH_TIMEOUT_SEC = 1.5
-RADAR_MAP_RETRY_SEC = 3.0
-RADAR_MAP_UPDATE_HZ = 15.0
-RADAR_MAP_POS_BIN_PX = 3
-RADAR_MAP_PATCH_CACHE_SIZE = 12
-RADAR_MAP_FETCH_WORKERS = 2
-# Optional radar controls
-RADAR_UI_DEFAULT = True
-POSITION_SERVICES_DEFAULT = True
-RADAR_DEBUG_OVERLAY_DEFAULT = False
-RADAR_DEBUG_BOX_MAX_WIDTH = 360
-
-# Wi-Fi geolocation (Google Geolocation API)
-WIFI_GEO_API_KEY = os.getenv("GOOGLE_GEOLOCATION_API_KEY", "")
-WIFI_GEO_REQUEST_TIMEOUT_SEC = 3.0
-WIFI_GEO_INTERVAL_SEC = 12.0
-
-# Position fusion behavior
-POSITION_STALE_SEC = 30.0
-POSITION_SOURCE_HYSTERESIS_M = 8.0
-GPS_DEFAULT_ACCURACY_M = 30.0
-WIFI_DEFAULT_ACCURACY_M = 80.0
-
 # FPS defaults (MENU controls 30/60/MAX at runtime)
 FPS_TARGET = 60
 FPS_MODE_TO_TARGET = {"30": 30, "60": 60}
@@ -168,13 +105,24 @@ F_DISPLAY_MAX = 45000.0
 F_MIN_HZ_DEFAULT = 24000.0
 F_MAX_HZ_DEFAULT = 35000.0
 
+# Radar / position (branch-specific: state.py imports these)
+RADAR_UI_DEFAULT = True
+POSITION_SERVICES_DEFAULT = False
+RADAR_MAP_TILE_STYLE_DEFAULT = "dark"   # "dark" | "light"
+DIRECTIONAL_HISTORY_RECORD_DEFAULT = False
+RADAR_DEBUG_OVERLAY_DEFAULT = False
+# Circular radar widget diameter (px)
+RADAR_MAP_DIAMETER_PX = 200
+
+# Magnetometer (compass) — main.py uses these for MagnetometerReader
+MAG_UART_DEVICE = "/dev/ttyS0"
+MAG_UART_BAUD = 9600
+
 DRAG_MARGIN_PX = 18
 
 # UI visibility (swipe/double-tap): hide offsets in px, animation speed, gesture thresholds
 UI_TOP_HUD_HIDE_OFFSET = -150      # top HUD + dropdown panel move fully up off screen
 UI_BOTTOM_HUD_HIDE_OFFSET = 60     # bottom HUD moves down off screen
-# Extra bottom hide distance when original debug panel is visible.
-UI_BOTTOM_HUD_DEBUG_EXTRA_HIDE_OFFSET = 20
 UI_MENU_HIDE_OFFSET = 220          # menu moves right off screen
 UI_MENU_HIDE_OFFSET_Y = 80         # menu moves down off screen (with bottom HUD on swipe down)
 UI_VISIBILITY_ANIM_SPEED = 0.18    # lerp per frame (~60fps: ~0.25s to settle)
@@ -203,32 +151,17 @@ ANGLES = np.linspace(-90, 90, 181)
 f_axis = np.fft.rfftfreq(SAMPLES_PER_CHANNEL, 1 / SAMPLE_RATE_HZ)
 N_BINS = SAMPLES_PER_CHANNEL // 2 + 1  # 257
 
-# ===============================================================
-# SIM sources
-# ===============================================================
-# SIM_1 (existing SIM mode): fixed source set
-SIM_SOURCE_FREQS = [9000, 11000, 30000]
-SIM_SOURCE_ANGLES = [-35.0, 0.0, 40.0]
-SIM_SOURCE_AMPLS = [0.6, 1.0, 2.0]
-# Display distance (m) per sim source for crosshair tooltip; sim uses far-field so this is for UI only
-SIM_SOURCE_DISTANCES_M = [1.0, 1.5, 2.0]  # same length as SIM_SOURCE_ANGLES
-SIM_N_SOURCES = len(SIM_SOURCE_ANGLES)
-
-# SIM_2: directional event model (persistent + transient), no true range simulation
-SIM2_PERSISTENT_BEARINGS = [-55.0, -15.0, 30.0]
-SIM2_PERSISTENT_FREQS = [9500.0, 12000.0, 27000.0]
-SIM2_PERSISTENT_AMPLS = [1.2, 0.9, 1.1]
-SIM2_PERSISTENT_JITTER_DEG = 3.0
-SIM2_TRANSIENT_EVENT_RATE_HZ = 0.20
-SIM2_TRANSIENT_MIN_DURATION_S = 0.8
-SIM2_TRANSIENT_MAX_DURATION_S = 2.4
-SIM2_TRANSIENT_FREQ_RANGE = (8000.0, 32000.0)
-SIM2_TRANSIENT_AMPL_RANGE = (0.6, 1.6)
-SIM2_NOISE_POWER_SCALE = 1.2
-
 # dB mapping for heatmap intensity
 REL_DB_MIN = -60.0
 REL_DB_MAX = 0.0
+# Temporal smoothing for HW/LOOP heatmap: retain this fraction of previous frame (0=none, 1=no update)
+HEATMAP_SMOOTH_ALPHA = 0.35
+# Bandpass power above this gives full heatmap brightness; below scales down (with floor) so heatmap reacts to level (tune to room)
+HEATMAP_LEVEL_REFERENCE = 1e6
+# Minimum heatmap scale so blobs stay visible when quiet (0=can go black, 1=no level scaling)
+HEATMAP_LEVEL_FLOOR = 0.18
+# Per-frame contrast stretch: map this percentile to 255 (0=disable). Improves differentiation.
+HEATMAP_CONTRAST_STRETCH_PERCENTILE = 98.0
 
 # ===============================================================
 # Blend acceleration (LUT + integer math)
@@ -246,8 +179,38 @@ _tmp_w = None
 _tmp_out = None
 
 # ===============================================================
-# 2. SPI frame format (float32 MAG + float32 PHASE)
+# SIM (synthetic source + SRC: LOOP loopback)
 # ===============================================================
+# --- SRC: SIM (pure synthetic FFT) ---
+SIM_SOURCE_FREQS = [9000, 11000, 30000]
+SIM_SOURCE_ANGLES = [-35.0, 0.0, 40.0]
+SIM_SOURCE_AMPLS = [0.6, 1.0, 2.0]
+# Display distance (m) per sim source for crosshair tooltip; sim uses far-field so this is for UI only
+SIM_SOURCE_DISTANCES_M = [1.0, 1.5, 2.0]  # same length as SIM_SOURCE_ANGLES
+SIM_N_SOURCES = len(SIM_SOURCE_ANGLES)
+
+# --- SRC: SIM_2 (event model: persistent + transient sources) ---
+SIM2_PERSISTENT_BEARINGS = [-20.0, 10.0]   # degrees
+SIM2_PERSISTENT_FREQS = [10000.0, 28000.0]  # Hz
+SIM2_PERSISTENT_AMPLS = [0.8, 1.0]
+SIM2_PERSISTENT_JITTER_DEG = 2.0
+SIM2_TRANSIENT_EVENT_RATE_HZ = 0.5
+SIM2_TRANSIENT_MIN_DURATION_S = 0.1
+SIM2_TRANSIENT_MAX_DURATION_S = 2.0
+SIM2_TRANSIENT_FREQ_RANGE = (5000.0, 35000.0)
+SIM2_TRANSIENT_AMPL_RANGE = (0.2, 1.0)
+SIM2_NOISE_POWER_SCALE = 1.0
+
+# --- SRC: LOOP (loopback: simulated bins fed through same pipeline as HW) ---
+SPI_SIM_BINS = [35, 80, 160, 220]       # which frequency bins to simulate in loopback
+SPI_SIM_AMPLS = [6.0, 3.0, 5.0, 4.0]    # per-bin amplitude
+SPI_SIM_ANGLES = [-25.0, 35.0, -5.0, 60.0]
+SPI_SIM_DRIFT_DEG_PER_SEC = [1.2, -0.6, 0.4, -0.3]
+
+# ===============================================================
+# Real hardware (SRC: HW) — SPI transport & heatmap pipeline
+# ===============================================================
+# --- SPI frame format (matches STM32) ---
 MAGIC_START = 0x46524654  # 'TFRF' (example)
 MAGIC_END = 0x454E4421    # 'END!' (example)
 VERSION = 1
@@ -271,37 +234,70 @@ SPI_MIC_PAYLOAD_BYTES = 2048   # 512 * 4 (packed RFFT floats per mic)
 SPI_MIC_CHECKSUM_BYTES = 2
 SPI_MIC_PACKET_BYTES = SPI_MIC_HEADER_BYTES + SPI_MIC_PAYLOAD_BYTES + SPI_MIC_CHECKSUM_BYTES  # 2081
 
-# SPI config
-SOURCE_DEFAULT = "SIM"   # or "LOOP" / "HW" / "REF"
-SOURCE_MODES = ("SIM", "SIM_2", "LOOP", "HW", "REF")  # REF = 0 dB reference baseline (flat spectrum)
+# Full-frame format: one header + all N_MICS payloads + checksum (matches STM32 SPI_FRAME_PACKET_SIZE_BYTES).
+SPI_FRAME_PACKET_SIZE_BYTES = SPI_MIC_HEADER_BYTES + N_MICS * SPI_MIC_PAYLOAD_BYTES + SPI_MIC_CHECKSUM_BYTES  # 32801
+SPI_USE_FULL_FRAME = True  # HW: one read of 32801 bytes per frame; no per-mic accumulator.
 
-# Directional history persistence
-DIRECTIONAL_HISTORY_ENABLED = True
-DIRECTIONAL_HISTORY_DIR = "data/directional_history"
-DIRECTIONAL_HISTORY_FLUSH_SEC = 1.0
-DIRECTIONAL_HISTORY_RETENTION_DAYS = 7
-DIRECTIONAL_HISTORY_RECORD_DEFAULT = False
-
-# SIM_2 radar extraction tuning (multi-signal window behavior)
-SIM2_RADAR_MIN_ROW_REL = 0.30
-SIM2_RADAR_MIN_SEPARATION_DEG = 12.0
-
-SPI_BUS = 0
-SPI_DEV = 0
-SPI_MODE = 0
+# --- SPI bus & GPIO (HW only) ---
+# Single switch: 0 = SPI0 (CE0, primary header), 1 = SPI1 (CE2, secondary header). Pinouts in branch_merge_preservation_checklist.md §10.
+SPI_INTERFACE = 1  # default SPI1 (current setup); set 0 for SPI0
+# (SPI_BUS, SPI_DEV, FRAME_READY_BCM_PIN, GAIN_CTRL_BCM_PIN) per interface
+_SPI_PIN_SETUPS = {
+    0: (0, 0, 7, 25),   # SPI0: /dev/spidev0.0, frame-ready BCM7, gain BCM25
+    1: (1, 2, 7, 25),   # SPI1: /dev/spidev1.2, frame-ready BCM7, gain BCM25
+}
+_SPI_BUS, _SPI_DEV, _FRAME_READY_BCM, _GAIN_CTRL_BCM = _SPI_PIN_SETUPS[SPI_INTERFACE]
+SPI_BUS = _SPI_BUS
+SPI_DEV = _SPI_DEV
+SPI_MODE = 1
 SPI_BITS = 8
 
-SPI_MAX_SPEED_HZ = 80_000_000
+SPI_MAX_SPEED_HZ = 20_000_000  # 20 MHz; stable for full-frame. See utilities/debug/SPI_settings.md for 21.25/30 MHz notes.
 SPI_XFER_CHUNK = 8192
+
+# Frame-ready GPIO: MCU_STATUS from STM32 -> Pi (physical pin 26 = BCM7 for both interfaces)
+FRAME_READY_BCM_PIN = _FRAME_READY_BCM
+FRAME_READY_PULL = "down"
+FRAME_READY_TIMEOUT_S = 0.25
+
+# Gain control output: Pi drives STM32 AUTO_GAIN_CNTL (physical pin 22 = BCM25). Set True to link GAIN menu to hardware.
+GAIN_CTRL_ENABLED = True
+GAIN_CTRL_BCM_PIN = _GAIN_CTRL_BCM
+
+# Source modes (order = cycle order; default on startup)
+SOURCE_DEFAULT = "HW"    # real hardware first
+SOURCE_MODES = ("HW", "SIM", "LOOP", "REF")  # REF = 0 dB reference baseline (flat spectrum)
 
 # For debugging if FPS is too slow, we can pre-generate a static frame and reuse it.
 STATIC_TX_FRAME = None
 
-# --- LOOPBACK SPI "virtual sources" ---
-SPI_SIM_BINS = [35, 80, 160, 220]
-SPI_SIM_AMPLS = [6.0, 3.0, 5.0, 4.0]  # boosted
-SPI_SIM_ANGLES = [-25.0, 35.0, -5.0, 60.0]
-SPI_SIM_DRIFT_DEG_PER_SEC = [1.2, -0.6, 0.4, -0.3]
+# --- Camera–array calibration (debug test setup) ---
+# See utilities/debug/calibration_test.md. For overlay alignment: distance and lateral offset.
+CALIBRATION_DISTANCE_INCHES = 5.0   # depth: camera to array center
+CALIBRATION_OFFSET_INCHES = 7.0     # lateral: + = array to right of camera center (camera left, board right)
+CALIBRATION_NOTE = "Camera left, board right, same heading"
+
+# --- HW heatmap pipeline (gain, MUSIC, directivity, etc.) ---
+# Per-mic gain correction (length N_MICS): boost weak mics; 1.0 = no change. Use metrics_debug.py --live --write-config to tune.
+SPI_MIC_GAIN = (1.00, 3.03, 12.56, 5.18, 2.62, 9.78, 9.79, 12.94, 2.66, 10.76, 24.53, 10.12, 4.03, 9.67, 12.75, 11.90)
+# Whole-array gain boost (linear): 2.0 = ~6 dB; use if mics seem low
+SPI_ARRAY_GAIN = 2.0
+# Number of bins to use for heatmap in HW/LOOP: top-K by power within bandpass (replaces fixed SPI_SIM_BINS for live display)
+SPI_TOP_K_BINS = 4
+# Only bins within this many dB of peak (in bandpass) are eligible for heatmap; lower = stricter, less noisy
+SPI_NOISE_FLOOR_DB = 15.0
+# Number of spatial sources MUSIC assumes per bin (1 = one dominant source e.g. one speaker, 2 = allow one reflection)
+SPI_MUSIC_N_SOURCES = 1
+# Covariance averaging: smooth R over this many frames (EMA) before MUSIC; 1 = no averaging, 3–5 = less noisy peaks.
+SPI_COV_AVG_FRAMES = 4
+# Only show bins that are directional: lambda_1/sum(eigvals) >= this (0=off). Stricter = less random noise.
+SPI_DIRECTIVITY_MIN = 0.5
+# Only show bin if its MUSIC peak angle is stable: change from last frame <= this deg (0=off). Suppresses jitter.
+SPI_ANGLE_STABILITY_DEG = 25.0
+# Per-mic normalization: scale each mic so L2 norm across bins is 1 (balances gain across mics; use if some mics are weak).
+SPI_PER_MIC_NORMALIZE = True
+# Power curve for blob brightness: 1.0=linear, >1=stronger bins dominate (more differentiation), <1=lift weak bins
+SPI_HEATMAP_POWER_GAMMA = 1.15
 
 CRC_EVERY_N = 30
 

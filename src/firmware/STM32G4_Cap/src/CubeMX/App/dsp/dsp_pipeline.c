@@ -82,7 +82,6 @@ void calculate_magnitude(float *fft_output, float *magnitude, uint32_t fft_size)
   // [Re(0), Re(N/2), Re(1), Im(1), Re(2), Im(2), ..., Re(N/2-1), Im(N/2-1)]
 
   const uint32_t half = fft_size >> 1; // N/2
-  const uint32_t bins = half + 1; // Number of bins for real FFT
 
   // Bin 0 and N/2 are purely real.
   magnitude[0]    = fabsf(fft_output[0]);  // DC bin
