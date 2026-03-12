@@ -56,17 +56,22 @@ def _draw_toggle(frame: np.ndarray, x: int, y: int, w: int, h: int, on: bool) ->
 
 
 CONTENT_BOTTOM_PAD = 50  # extra space below Email Settings so it scrolls fully into view
+# Flash Firmware button (red, above Display)
+FLASH_FIRMWARE_BTN_H = 44
+FLASH_FIRMWARE_BTN_OFFSET = FLASH_FIRMWARE_BTN_H + SECTION_GAP
 
 
 def _compute_content_height() -> int:
     """Total height of scrollable content (must match actual drawn layout)."""
+    # Flash Firmware button + gap
+    flash_h = FLASH_FIRMWARE_BTN_OFFSET
     # Display: label + gap + 3 toggles + gap + heatmap label + gap + color row + section_gap
     display_h = 20 + ITEM_GAP + 3 * (ROW_H + ITEM_GAP) + 6 + ROW_H + ITEM_GAP + (ROW_H - 4) + SECTION_GAP  # 6 = reduced gap before heatmap
     # Divider + Advanced: section_gap + label + gap + Debug + Radar + Map Tiles + Position Services + Record History + Show Radar Debug + section_gap
     advanced_h = SECTION_GAP + 20 + ITEM_GAP + 6 * (ROW_H + ITEM_GAP) + SECTION_GAP
     # Divider + Share: section_gap + label + gap + email button + bottom padding
     share_h = SECTION_GAP + 20 + ITEM_GAP + 44 + CONTENT_BOTTOM_PAD
-    return display_h + advanced_h + share_h
+    return flash_h + display_h + advanced_h + share_h
 
 
 # Content cache: avoid redrawing scrollable content every frame when state unchanged
@@ -85,8 +90,9 @@ def _update_settings_button_positions(
     hit_x = row_x + row_w - TOGGLE_W - TOGGLE_HIT_EXTRA_LEFT
     color_btn_w = (row_w - 3 * ITEM_GAP) // 4
     email_h = 44
+    offset = FLASH_FIRMWARE_BTN_OFFSET
     # Content y positions (must match _build_settings_content layout)
-    y_cam, y_cross, y_color, y_debug, y_radar, y_mapstyle, y_possvc, y_record, y_radar_dbg, y_email = 34, 90, 208, 314, 370, 426, 482, 538, 594, 712
+    y_cam, y_cross, y_color, y_debug, y_radar, y_mapstyle, y_possvc, y_record, y_radar_dbg, y_email = 34 + offset, 90 + offset, 208 + offset, 314 + offset, 370 + offset, 426 + offset, 482 + offset, 538 + offset, 594 + offset, 712 + offset
     if "settings_cam" in menu_buttons:
         b = menu_buttons["settings_cam"]
         b.x, b.y, b.w, b.h = hit_x, content_top + y_cam - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
@@ -118,6 +124,11 @@ def _update_settings_button_positions(
     if "settings_show_radar_debug" in menu_buttons:
         b = menu_buttons["settings_show_radar_debug"]
         b.x, b.y, b.w, b.h = hit_x, content_top + y_radar_dbg - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
+    y_flash = 0
+    if "settings_flash_firmware" in menu_buttons:
+        b = menu_buttons["settings_flash_firmware"]
+        b.x, b.y = row_x, content_top + y_flash - scroll_offset
+        b.w, b.h = row_w, FLASH_FIRMWARE_BTN_H
     if "settings_email" in menu_buttons:
         b = menu_buttons["settings_email"]
         b.x = row_x - EMAIL_BTN_HIT_PAD_X
@@ -137,6 +148,19 @@ def _build_settings_content(
     content_canvas[:] = (40, 40, 40)
     y = 0
     pad = CONTENT_PAD
+
+    # Flash Firmware button (red, above Display)
+    FLASH_BTN_RED = (0, 0, 255)  # BGR red
+    FLASH_BTN_RED_LIGHT = (100, 100, 255)
+    cv2.rectangle(content_canvas, (0, y), (row_w, y + FLASH_FIRMWARE_BTN_H), FLASH_BTN_RED, -1, cv2.LINE_AA)
+    cv2.rectangle(content_canvas, (0, y), (row_w, y + FLASH_FIRMWARE_BTN_H), FLASH_BTN_RED_LIGHT, 1, cv2.LINE_AA)
+    (tw, th), _ = cv2.getTextSize("Flash Firmware", font, 0.54, 1)
+    text_x = (row_w - tw) // 2
+    text_y = y + FLASH_FIRMWARE_BTN_H // 2 + th // 2 + 2
+    cv2.putText(content_canvas, "Flash Firmware", (text_x, text_y), font, 0.54, text_color, 1, cv2.LINE_AA)
+    if "settings_flash_firmware" not in menu_buttons:
+        menu_buttons["settings_flash_firmware"] = Button(0, 0, row_w, FLASH_FIRMWARE_BTN_H, "")
+    y += FLASH_FIRMWARE_BTN_OFFSET
 
     def _toggle_row(canvas: np.ndarray, label: str, on: bool, key: str, y_pos: int) -> int:
         cv2.putText(canvas, label, (0, y_pos + ROW_H // 2 + 6), font, 0.50, text_color, 1, cv2.LINE_AA)
@@ -460,7 +484,7 @@ def _hit_any_settings_button(x: int, y: int) -> bool:
     """True if (x,y) hits any interactive button in the modal."""
     for k in (
         "settings_close", "settings_scroll_up", "settings_scroll_down", "settings_scrollbar",
-        "settings_email", "settings_cam", "settings_theme", "settings_crosshairs", "settings_debug",
+        "settings_flash_firmware", "settings_email", "settings_cam", "settings_theme", "settings_crosshairs", "settings_debug",
         "settings_radar_ui", "settings_map_style", "settings_position_services", "settings_record_compass_history",
         "settings_show_radar_debug",
     ):
@@ -506,6 +530,13 @@ def handle_settings_modal_click(x: int, y: int) -> bool:
         HUD.settings_modal_scroll_dragging = True
         HUD.settings_modal_drag_start_y = y
         HUD.settings_modal_drag_start_scroll = HUD.settings_modal_scroll_offset
+        return True
+
+    # Flash Firmware
+    if "settings_flash_firmware" in menu_buttons and menu_buttons["settings_flash_firmware"].contains(x, y):
+        _reset_settings_modal_scroll_state()
+        HUD.settings_modal_open = False
+        button_state.firmware_flash_modal_open = True
         return True
 
     # Email Settings

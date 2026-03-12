@@ -109,6 +109,10 @@ from acoustic_imager.ui.settings_modal import (
     handle_settings_modal_mouse,
     handle_settings_modal_scroll,
 )
+from acoustic_imager.ui.firmware_flash_modal import (
+    draw_firmware_flash_modal,
+    handle_firmware_flash_modal_click,
+)
 from acoustic_imager.ui.acoustic_radar_map import draw_radar_map_widget, update_detection_history
 from acoustic_imager.ui.video_recorder import VideoRecorder
 from acoustic_imager.ui.battery_icon import draw_battery_icon_for_view
@@ -250,6 +254,12 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
         # Email Settings modal (when open, handle first)
         if button_state.email_settings_modal_open:
             if handle_email_modal_click(mx, my, state.OUTPUT_DIR):
+                state.ui_click_was_on_ui = True
+                return
+
+        # Firmware Flash modal (when open, handle first)
+        if button_state.firmware_flash_modal_open:
+            if handle_firmware_flash_modal_click(mx, my):
                 state.ui_click_was_on_ui = True
                 return
 
@@ -1614,6 +1624,10 @@ def main() -> None:
                 from acoustic_imager.ui.email_modal import draw_email_modal
                 draw_email_modal(output_frame, state.OUTPUT_DIR)
 
+            # Firmware Flash modal
+            if button_state.firmware_flash_modal_open:
+                draw_firmware_flash_modal(output_frame)
+
             # ---- Draw gallery view if open ----
             if button_state.gallery_open:
                 draw_gallery_view(output_frame, state.OUTPUT_DIR)
@@ -1676,6 +1690,9 @@ def main() -> None:
                 button_state.email_modal_provider = ""
                 button_state.email_test_status = ""
                 button_state.email_test_message = ""
+            elif key == 27 and button_state.firmware_flash_modal_open:
+                button_state.firmware_flash_modal_open = False
+                button_state.firmware_flash_status = ""
             elif key == ord("c"):
                 # Reset magnetometer calibration extrema (use during heading tests)
                 HUD.mag_x_min = HUD.mag_x_max = None

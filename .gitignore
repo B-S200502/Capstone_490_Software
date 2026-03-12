@@ -243,5 +243,7 @@ data/models/*.tflite
 # Debug dummy file (regenerate with data/debug/create_debug_file.py)
 data/debug/dummy_*.bin
 
+utilities/debug/array_geometry/*.csv
+
 # Allow splash screen asset
 !/deploy/splash/splash.png
