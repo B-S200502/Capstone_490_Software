@@ -40,6 +40,8 @@
 #define ADC_READY_HALF_MASK ((1u << N_ADCS) - 1u)
 #define ADC_READY_FULL_MASK (ADC_READY_HALF_MASK << N_ADCS)
 #define PASSTHROUGH_DISABLED_MIC 0xFFu
+#define ADC_CLIP_LOW_THRESHOLD 200u
+#define ADC_CLIP_HIGH_THRESHOLD 3900u
 
 /* =========================================================================
  * STATIC VARIABLES
@@ -52,6 +54,7 @@ static uint16_t adc3_buf[ADC_DMA_BUF_SIZE];
 static uint16_t adc4_buf[ADC_DMA_BUF_SIZE];
 
 static float mic_fft_buffer[FRAME_SIZE];
+static float fft_avg[N_MICS][FRAME_SIZE];
 
 
 // TODO: Test buffer for raw FFT output magnitude calcs, delete or pre-processor guard
@@ -63,6 +66,8 @@ static spi_stream_t spi_stream_ctx;
 
 static uint32_t _print_counter = 0;
 static uint32_t adc_pending_mask = 0;
+static uint32_t clip_window_count = 0u;
+static uint32_t clip_sample_count = 0u;
 
 // TODO: sample_rate_hz bug
 static uint32_t sample_rate_hz = 0;
@@ -99,6 +104,7 @@ static uint32_t app_get_tim6_trigger_hz(void);
 static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags);
 static const uint16_t *app_get_adc_buffer(uint8_t adc_index);
 static uint16_t app_read_battery_millivolts(void);
+static uint16_t app_scan_time_domain_clipping(uint32_t half_offset);
 static void app_send_passthrough_window(uint32_t half_offset, uint32_t sample_rate_hz);
 static void app_handle_usb_command(const char *command);
 
@@ -118,6 +124,10 @@ typedef struct {
 void app_init(void) {
   // Initialize FFT instance (precompute twiddle factors, etc.)
   arm_rfft_fast_init_f32(&fft_instance, FRAME_SIZE);
+  
+  // Initialize FFT performance measurement
+  init_fft_performance_measurement();
+  
   spi_stream_init(&spi_stream_ctx);
 }
 
@@ -168,6 +178,10 @@ void app_loop(void) {
   if (_print_counter++ >= 1000) {
     _print_counter = 0;
     usb_printf("Main loop heartbeat\r\n");
+    
+    // Report FFT performance
+    usb_printf("FFT Avg Cycles: %d.%02d\r\n", PRINT_F2(get_fft_avg_cycles()));
+    usb_printf("FFT Last Cycles: %d.%02d\r\n", PRINT_F2(get_fft_last_cycles()));
   }
 #endif
 
@@ -242,6 +256,7 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
   // uint32_t sample_rate_hz;
   uint32_t batch_id;
   uint16_t battery_millivolts;
+  uint16_t clipping_hits;
   uint8_t  mic_index;
   size_t   payload_len, final_len;
 
@@ -252,6 +267,13 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
   // sample_rate_hz = app_get_tim6_trigger_hz();
   batch_id = spi_stream_next_batch(&spi_stream_ctx);
   battery_millivolts = app_read_battery_millivolts();
+  clipping_hits = app_scan_time_domain_clipping(half_offset);
+
+  if (clipping_hits > 0u) {
+    frame_flags |= SPI_FRAME_FLAG_TIME_CLIPPING;
+    clip_window_count++;
+    clip_sample_count += clipping_hits;
+  }
 
   // Keep mic_index and set to 16 for now
   mic_index = N_MICS;
@@ -293,6 +315,11 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
                                    active_half,
                                    channel,
                                    mic_fft_buffer);
+
+      {
+        uint8_t mic_idx = adc * N_CH_PER_ADC + channel;
+        update_fft_bin_average(fft_avg[mic_idx], mic_fft_buffer, FRAME_SIZE, FFT_BIN_AVG_BETA);
+      }
       
       // if (_print_counter++ == 100) {
       // _print_counter = 0;
@@ -373,6 +400,31 @@ static uint16_t app_read_battery_millivolts(void)
   return (uint16_t)sense_mv;
 }
 
+static uint16_t app_scan_time_domain_clipping(uint32_t half_offset)
+{
+  uint32_t hits = 0u;
+
+  for (uint8_t adc = 0u; adc < N_ADCS; adc++) {
+    const uint16_t *active_half = app_get_adc_buffer(adc) + half_offset;
+
+    for (uint32_t i = 0u; i < FRAME_SIZE; i++) {
+      uint32_t base = i * N_CH_PER_ADC;
+      for (uint8_t ch = 0u; ch < N_CH_PER_ADC; ch++) {
+        uint16_t sample = active_half[base + ch];
+        if (sample <= ADC_CLIP_LOW_THRESHOLD || sample >= ADC_CLIP_HIGH_THRESHOLD) {
+          hits++;
+        }
+      }
+    }
+  }
+
+  if (hits > 0xFFFFu) {
+    return 0xFFFFu;
+  }
+
+  return (uint16_t)hits;
+}
+
 static void app_send_passthrough_window(uint32_t half_offset, uint32_t sample_rate_hz)
 {
   uint8_t mic_index = passthrough_state.mic_index;
@@ -432,17 +484,35 @@ static void app_handle_usb_command(const char *command)
   }
 
   if (strcmp(command, "help") == 0) {
-    usb_printf("Commands: help, status, battery, pass off, pass <0-15>\r\n");
+    usb_printf("Commands: help, status, battery, clip, clip reset, pass off, pass <0-15>\r\n");
     return;
   }
 
   if (strcmp(command, "status") == 0) {
-    usb_printf("status: pending=0x%02lX passthrough=%s mic=%u battery=%umV rate=%luHz\r\n",
+    usb_printf("status: pending=0x%02lX passthrough=%s mic=%u battery=%umV rate=%luHz clip_windows=%lu clip_hits=%lu\r\n",
                (unsigned long)adc_pending_mask,
                passthrough_state.enabled ? "on" : "off",
                (unsigned)passthrough_state.mic_index,
                (unsigned)app_read_battery_millivolts(),
-               (unsigned long)app_get_tim6_trigger_hz());
+               (unsigned long)app_get_tim6_trigger_hz(),
+               (unsigned long)clip_window_count,
+               (unsigned long)clip_sample_count);
+    return;
+  }
+
+  if (strcmp(command, "clip") == 0) {
+    usb_printf("clip: windows=%lu hits=%lu thresholds=[<=%u, >=%u]\r\n",
+               (unsigned long)clip_window_count,
+               (unsigned long)clip_sample_count,
+               (unsigned)ADC_CLIP_LOW_THRESHOLD,
+               (unsigned)ADC_CLIP_HIGH_THRESHOLD);
+    return;
+  }
+
+  if (strcmp(command, "clip reset") == 0) {
+    clip_window_count = 0u;
+    clip_sample_count = 0u;
+    usb_printf("clip counters reset\r\n");
     return;
   }
 

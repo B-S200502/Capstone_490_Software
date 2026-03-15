@@ -264,6 +264,7 @@ static void spi_stream_fill_header(SPI_FrameHeader_t *hdr,
     hdr->flags = flags;
     hdr->payload_len = payload_len;
     hdr->battery_mv = battery_millivolts;
+    hdr->clipping_flag = (uint8_t)((flags & SPI_FRAME_FLAG_TIME_CLIPPING) ? 1u : 0u);
     hdr->reserved0 = 0u;
     hdr->reserved1 = 0u;
 }
