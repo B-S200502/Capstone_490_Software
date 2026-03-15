@@ -123,7 +123,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-#if MODE == RELEASE
+#if MODE == RELEASE | MODE == DEBUG
     app_loop();
 #elif MODE == TEST_SPI_STREAM
     test_spi_stream_loop();

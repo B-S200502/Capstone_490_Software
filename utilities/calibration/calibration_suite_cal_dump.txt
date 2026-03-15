@@ -1,0 +1,418 @@
+=== Calibration Suite (stop acoustic imager for SPI steps) ===
+STEP_PROGRESS 0 7
+[0] Silence check (env quiet enough for gain cal)...
+SILENCE_START 1.5
+  max_total_power=4.187e+03 threshold=1.000e+09 frames=13 -> PASS
+  FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
+  parse_full_frame: magic 0xF63F246C != expected 0xAABBCCDD, buf[:8]=6c243ff6ce1c3f7c
+  parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+  parse_full_frame: magic 0x3FC17125 != expected 0xAABBCCDD, buf[:8]=2571c13ff051c0be
+  parse_full_frame: magic 0x11111111 != expected 0xAABBCCDD, buf[:8]=1111111111111111
+  parse_full_frame: magic 0xBE6904A8 != expected 0xAABBCCDD, buf[:8]=a80469bed912123e
+  parse_full_frame: magic 0x40404040 != expected 0xAABBCCDD, buf[:8]=4040404040404040
+  parse_full_frame: magic 0xD4BD2BF7 != expected 0xAABBCCDD, buf[:8]=f72bbdd443a1bdc6
+  parse_full_frame: magic 0xA7A7A7A7 != expected 0xAABBCCDD, buf[:8]=a7a7a7a7a7a7a7a7
+  parse_full_frame: magic 0x90F38CBE != expected 0xAABBCCDD, buf[:8]=be8cf3903e97b072
+  parse_full_frame: magic 0xE3E3E3E3 != expected 0xAABBCCDD, buf[:8]=e3e3e3e3e3e3e3e3
+  parse_full_frame: magic 0x58C0A3DD != expected 0xAABBCCDD, buf[:8]=dda3c0589e48bf08
+  parse_full_frame: magic 0x85858585 != expected 0xAABBCCDD, buf[:8]=8585858585858585
+  parse_full_frame: magic 0xA4BCE3F4 != expected 0xAABBCCDD, buf[:8]=f4e3bca4abb7bd83
+  parse_full_frame: magic 0xF2F2F2F2 != expected 0xAABBCCDD, buf[:8]=f2f2f2f2f2f2f2f2
+  parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+  parse_full_frame: magic 0x1D1D1D1D != expected 0xAABBCCDD, buf[:8]=1d1d1d1d1d1d1d1d
+  parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+  parse_full_frame: magic 0x63636363 != expected 0xAABBCCDD, buf[:8]=6363636363636363
+  parse_full_frame: magic 0x959F04C0 != expected 0xAABBCCDD, buf[:8]=c0049f953f67fc15
+  parse_full_frame: magic 0xCACACACA != expected 0xAABBCCDD, buf[:8]=cacacacacacacaca
+  parse_full_frame: magic 0x0000BA6B != expected 0xAABBCCDD, buf[:8]=6bba000000001057
+  parse_full_frame: magic 0x2F2F2F2F != expected 0xAABBCCDD, buf[:8]=2f2f2f2f2f2f2f2f
+  parse_full_frame: magic 0x0000BA8A != expected 0xAABBCCDD, buf[:8]=8aba000000003055
+  parse_full_frame: magic 0x17171717 != expected 0xAABBCCDD, buf[:8]=1717171717171717
+  parse_full_frame: magic 0xE9B9B5BD != expected 0xAABBCCDD, buf[:8]=bdb5b9e9bdfc36e3
+  parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+  parse_full_frame: magic 0x50563D23 != expected 0xAABBCCDD, buf[:8]=233d5650753d049d
+  parse_full_frame: magic 0x0E0E0E0E != expected 0xAABBCCDD, buf[:8]=0e0e0e0e0e0e0e0e
+  parse_full_frame: magic 0xC1E9983E != expected 0xAABBCCDD, buf[:8]=3e98e9c1bdd7a52d
+  parse_full_frame: magic 0xD6D6D6D6 != expected 0xAABBCCDD, buf[:8]=d6d6d6d6d6d6d6d6
+  parse_full_frame: magic 0x7F703E0F != expected 0xAABBCCDD, buf[:8]=0f3e707f4abcd65d
+  parse_full_frame: magic 0x9B9B9B9B != expected 0xAABBCCDD, buf[:8]=9b9b9b9b9b9b9b9b
+  parse_full_frame: magic 0x3D3EB0BC != expected 0xAABBCCDD, buf[:8]=bcb03e3d3b68b5ce
+  parse_full_frame: magic 0x91919191 != expected 0xAABBCCDD, buf[:8]=9191919191919191
+  parse_full_frame: magic 0x93E464BC != expected 0xAABBCCDD, buf[:8]=bc64e4933d3df695
+  parse_full_frame: magic 0x34343434 != expected 0xAABBCCDD, buf[:8]=3434343434343434
+  parse_full_frame: magic 0x20C43D6D != expected 0xAABBCCDD, buf[:8]=6d3dc4209d3c3adb
+  parse_full_frame: magic 0x30303030 != expected 0xAABBCCDD, buf[:8]=3030303030303030
+  parse_full_frame: magic 0x443FE3D3 != expected 0xAABBCCDD, buf[:8]=d3e33f44c1b5bee4
+  parse_full_frame: magic 0x81818181 != expected 0xAABBCCDD, buf[:8]=8181818181818181
+  parse_full_frame: magic 0x8076F43D != expected 0xAABBCCDD, buf[:8]=3df47680bd61c220
+  parse_full_frame: magic 0x8C8C8C8C != expected 0xAABBCCDD, buf[:8]=8c8c8c8c8c8c8c8c
+  parse_full_frame: magic 0xF23D26FF != expected 0xAABBCCDD, buf[:8]=ff263df268b7bd8c
+  parse_full_frame: magic 0xBABABABA != expected 0xAABBCCDD, buf[:8]=babababababababa
+  parse_full_frame: magic 0x3B48D000 != expected 0xAABBCCDD, buf[:8]=00d0483be03848bc
+  parse_full_frame: magic 0x6A6A6A6A != expected 0xAABBCCDD, buf[:8]=6a6a6a6a6a6a6a6a
+  parse_full_frame: magic 0x0793FBBD != expected 0xAABBCCDD, buf[:8]=bdfb9307beed9238
+  parse_full_frame: magic 0x0B0B0B0B != expected 0xAABBCCDD, buf[:8]=0b0b0b0b0b0b0b0b
+  parse_full_frame: magic 0xC30C6A3D != expected 0xAABBCCDD, buf[:8]=3d6a0cc3beca643d
+  parse_full_frame: magic 0x2C2C2C2C != expected 0xAABBCCDD, buf[:8]=2c2c2c2c2c2c2c2c
+  parse_full_frame: magic 0x3D47A99E != expected 0xAABBCCDD, buf[:8]=9ea9473d55cd253d
+  parse_full_frame: magic 0x9E9E9E9E != expected 0xAABBCCDD, buf[:8]=9e9e9e9e9e9e9e9e
+  parse_full_frame: magic 0xF8323ABD != expected 0xAABBCCDD, buf[:8]=bd3a32f83db89849
+  parse_full_frame: magic 0xF6F6F6F6 != expected 0xAABBCCDD, buf[:8]=f6f6f6f6f6f6f6f6
+  parse_full_frame: magic 0x0000BA5F != expected 0xAABBCCDD, buf[:8]=5fba00000000d2cc
+  parse_full_frame: magic 0x67676767 != expected 0xAABBCCDD, buf[:8]=6767676767676767
+  OK
+STEP_PROGRESS 1 7
+[1] Pin monitor (ribbon cable, 5 runs)...
+  Physical   BCM    Usage                      Value
+  ----------------------------------------------------------
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  25         -      GND                        -
+  40         21     SCK                        0
+  36         16     NSS (SPI1 CE2)             1
+  35         19     MISO                       0
+  38         20     MOSI                       0
+  39         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  25         -      GND                        -
+  40         21     SCK                        0
+  36         16     NSS (SPI1 CE2)             1
+  35         19     MISO                       0
+  38         20     MOSI                       0
+  39         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  25         -      GND                        -
+  40         21     SCK                        0
+  36         16     NSS (SPI1 CE2)             1
+  35         19     MISO                       0
+  38         20     MOSI                       0
+  39         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  25         -      GND                        -
+  40         21     SCK                        0
+  36         16     NSS (SPI1 CE2)             1
+  35         19     MISO                       0
+  38         20     MOSI                       0
+  39         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  25         -      GND                        -
+  40         21     SCK                        0
+  36         16     NSS (SPI1 CE2)             1
+  35         19     MISO                       0
+  38         20     MOSI                       0
+  39         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+  OK
+STEP_PROGRESS 2 7
+[2] Array geometry & config alignment...
+  Calibration test setup (see utilities/calibration/calibration_test.md):
+    distance_inches = 5.0
+    offset_inches   = 7.0 (+ = array right of camera center)
+    note            = Camera left, board right, same heading
+
+  Config (config.py):
+    CALIBRATION_DISTANCE_INCHES = 5.0
+    CALIBRATION_OFFSET_INCHES   = 7.0
+    CALIBRATION_NOTE             = 'Camera left, board right, same heading'
+    HW geometry: x_coords_hw, y_coords_hw (from array_geometry), length 16
+
+  Validate OK: config matches calibration_test.md
+  Geometry OK (config matches array_geometry)
+STEP_PROGRESS 3 7
+[3] SPI devices...
+  === Boot config (SPI enabled?) ===
+  --- /boot/config.txt ---
+  --- /boot/firmware/config.txt ---
+  6:dtparam=i2c_arm=on
+  7:#dtparam=i2s=on
+  8:dtparam=spi=on
+  11:dtparam=audio=on
+  56:dtoverlay=spi1-3cs
+
+  === SPI device nodes ===
+  crw-rw---- 1 root spi 153, 0 Mar 14 22:59 /dev/spidev0.0
+  crw-rw---- 1 root spi 153, 1 Mar 14 22:59 /dev/spidev0.1
+  crw-rw---- 1 root spi 153, 4 Mar 14 22:59 /dev/spidev1.0
+  crw-rw---- 1 root spi 153, 5 Mar 14 22:59 /dev/spidev10.0
+  crw-rw---- 1 root spi 153, 3 Mar 14 22:59 /dev/spidev1.1
+  crw-rw---- 1 root spi 153, 2 Mar 14 22:59 /dev/spidev1.2
+
+  === Kernel SPI modules ===
+  spidev                 49152  0
+  spi_bcm2835            49152  0
+  spi_dw_mmio            49152  0
+  spi_dw                 49152  1 spi_dw_mmio
+
+  === dmesg (SPI) ===
+  [ 3520.117836] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3520.130577] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3520.143628] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3520.156378] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3552.223169] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3552.235275] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3552.247375] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3552.260982] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3840.489292] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3840.502794] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3840.515481] spidev spi0.0: setup: unsupported mode bits 8
+  [ 3840.528089] spidev spi0.0: setup: unsupported mode bits 8
+  [ 4060.270747] spidev spi0.0: setup: unsupported mode bits 8
+  [ 4060.283451] spidev spi0.0: setup: unsupported mode bits 8
+  [ 4060.296083] spidev spi0.0: setup: unsupported mode bits 8
+  [ 4060.308902] spidev spi0.0: setup: unsupported mode bits 8
+  [ 5247.721941] spidev spi0.0: setup: unsupported mode bits 8
+  [ 5247.734428] spidev spi0.0: setup: unsupported mode bits 8
+  [ 5247.746614] spidev spi0.0: setup: unsupported mode bits 8
+  [ 5247.759843] spidev spi0.0: setup: unsupported mode bits 8
+STEP_PROGRESS 4 7
+[4] Parsing (magic probe) & frame rate...
+  Probing /dev/spidev0.0, frame_size=32801, sync=False
+  Magic LE: dd cc bb aa  |  BE: aa bb cc dd  |  bit_rev LE: bb33dd55
+  ------------------------------------------------------------
+  mode=0 lsbfirst=False: magic@[0x0] BE no bit_rev no
+  mode=0 lsbfirst=True: lsbfirst not supported
+  mode=1 lsbfirst=False: magic no BE no bit_rev no
+  mode=1 lsbfirst=True: lsbfirst not supported
+  mode=2 lsbfirst=False: magic@[0x0] BE no bit_rev no
+  mode=2 lsbfirst=True: lsbfirst not supported
+  mode=3 lsbfirst=False: magic no BE no bit_rev no
+  mode=3 lsbfirst=True: lsbfirst not supported
+  ------------------------------------------------------------
+  At least one setting saw magic (LE/BE/bit_rev). Consider aligning config to that.
+  SPI_MAX_SPEED_HZ = 30000000
+  FPS = 11.9  frames_ok = 18  bad_parse = 68  bad_crc = 0
+  OK (magic + frames seen; FPS < 15 — run with app stopped and on Pi with GPIO for higher FPS)
+STEP_PROGRESS 5 7
+[5] Metrics (gain normalization)...
+  --- Per-mic levels (LOW gain, averaged over 5 frames) ---
+    Total power (sum of squared L2 per mic): 6.851247e+02
+    Max mic L2: 1.401886e+01  Min mic L2: 2.014160e-03
+    Ratio max/min: 6960.15
+
+    mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
+    ---   ---   ---------   ---------   -----    -----------------------------
+      0   ADC1   7.087223e+00   -3.0 dB    0.506     1.98
+      1   ADC1   9.770471e-01   -11.6 dB    0.070     14.35
+      2   ADC1   4.682362e+00   -4.8 dB    0.334     2.99
+      3   ADC1   5.674184e+00   -3.9 dB    0.405     2.47
+      4   ADC2   7.683429e+00   -2.6 dB    0.548     1.82
+      5   ADC2   1.401886e+01   +0.0 dB    1.000     1.00
+      6   ADC2   5.416127e+00   -4.1 dB    0.386     2.59
+      7   ADC2   6.277231e+00   -3.5 dB    0.448     2.23
+      8   ADC3   1.005823e+01   -1.4 dB    0.717     1.39
+      9   ADC3   5.157836e+00   -4.3 dB    0.368     2.72
+     10   ADC3   4.646845e+00   -4.8 dB    0.331     3.02
+     11   ADC3   5.798035e+00   -3.8 dB    0.414     2.42
+     12   ADC4   6.695367e+00   -3.2 dB    0.478     2.09
+     13   ADC4   3.091866e+00   -6.6 dB    0.221     4.53
+     14   ADC4   2.014160e-03   -38.4 dB    0.000     100+
+     15   ADC4   4.260243e+00   -5.2 dB    0.304     3.29
+
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -5.8 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -2.6 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -3.6 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -13.3 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 2, 10, 13, 14, 15]
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
+
+  --- Per-mic levels (HIGH gain, averaged over 5 frames) ---
+    Total power (sum of squared L2 per mic): 3.116272e+03
+    Max mic L2: 3.265286e+01  Min mic L2: 4.028320e-03
+    Ratio max/min: 8105.82
+
+    mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
+    ---   ---   ---------   ---------   -----    -----------------------------
+      0   ADC1   1.639616e+01   -3.0 dB    0.502     1.99
+      1   ADC1   1.457941e+01   -3.5 dB    0.446     2.24
+      2   ADC1   7.141873e+00   -6.6 dB    0.219     4.57
+      3   ADC1   8.522119e+00   -5.8 dB    0.261     3.83
+      4   ADC2   1.450684e+01   -3.5 dB    0.444     2.25
+      5   ADC2   9.893820e+00   -5.2 dB    0.303     3.30
+      6   ADC2   7.548149e+00   -6.4 dB    0.231     4.33
+      7   ADC2   9.109382e+00   -5.5 dB    0.279     3.58
+      8   ADC3   1.705970e+01   -2.8 dB    0.522     1.91
+      9   ADC3   3.265286e+01   +0.0 dB    1.000     1.00
+     10   ADC3   6.920244e+00   -6.7 dB    0.212     4.72
+     11   ADC3   9.622766e+00   -5.3 dB    0.295     3.39
+     12   ADC4   2.252828e+01   -1.6 dB    0.690     1.45
+     13   ADC4   1.315161e+00   -13.9 dB    0.040     24.83
+     14   ADC4   4.028320e-03   -39.1 dB    0.000     100+
+     15   ADC4   7.481430e+00   -6.4 dB    0.229     4.36
+
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -4.7 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -5.2 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -3.7 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -15.3 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [2, 3, 5, 6, 7, 10, 11
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
+
+    Wrote SPI_MIC_GAIN to /home/basempi/Capstone_490_Software/src/software/acoustic_imager/c
+    Restart the acoustic imager for changes to take effect.
+  FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
+  /home/basempi/Capstone_490_Software/utilities/calibration/metrics_debug.py:83: RuntimeWarn
+    scale = np.where(mag > _FFT_MAG_CAP, _FFT_MAG_CAP / (mag + 1e-30), 1.0)
+  OK
+STEP_PROGRESS 6 7
+[6] Post-gain sanity (ratio check)...
+  --- Per-mic levels (LOW gain, latest of 3 frames) ---
+    Total power (sum of squared L2 per mic): 3.195228e+03
+    Max mic L2: 3.157366e+01  Min mic L2: 2.014160e-03
+    Ratio max/min: 15675.84
+
+    mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
+    ---   ---   ---------   ---------   -----    -----------------------------
+      0   ADC1   1.484563e+01   -3.3 dB    0.470     2.13
+      1   ADC1   2.014160e-03   -42.0 dB    0.000     100+
+      2   ADC1   9.005244e+00   -5.4 dB    0.285     3.51
+      3   ADC1   1.147130e+01   -4.4 dB    0.363     2.75
+      4   ADC2   1.635667e+01   -2.9 dB    0.518     1.93
+      5   ADC2   3.157366e+01   +0.0 dB    1.000     1.00
+      6   ADC2   9.436063e+00   -5.2 dB    0.299     3.35
+      7   ADC2   1.236697e+01   -4.1 dB    0.392     2.55
+      8   ADC3   2.171821e+01   -1.6 dB    0.688     1.45
+      9   ADC3   7.956135e+00   -6.0 dB    0.252     3.97
+     10   ADC3   9.098611e+00   -5.4 dB    0.288     3.47
+     11   ADC3   1.204462e+01   -4.2 dB    0.381     2.62
+     12   ADC4   1.314623e+01   -3.8 dB    0.416     2.40
+     13   ADC4   1.138697e+01   -4.4 dB    0.361     2.77
+     14   ADC4   2.014160e-03   -42.0 dB    0.000     100+
+     15   ADC4   1.379883e+01   -3.6 dB    0.437     2.29
+
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -13.8 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -3.0 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -4.3 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -13.4 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 2, 6, 9, 10, 14]
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
+
+  --- Per-mic levels (HIGH gain, latest of 3 frames) ---
+    Total power (sum of squared L2 per mic): 1.326876e+04
+    Max mic L2: 6.175243e+01  Min mic L2: 4.028320e-03
+    Ratio max/min: 15329.57
+
+    mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
+    ---   ---   ---------   ---------   -----    -----------------------------
+      0   ADC1   2.693756e+01   -3.6 dB    0.436     2.29
+      1   ADC1   3.283612e+01   -2.7 dB    0.532     1.88
+      2   ADC1   1.503093e+01   -6.1 dB    0.243     4.11
+      3   ADC1   1.725414e+01   -5.5 dB    0.279     3.58
+      4   ADC2   2.877726e+01   -3.3 dB    0.466     2.15
+      5   ADC2   4.028320e-03   -41.9 dB    0.000     100+
+      6   ADC2   1.630852e+01   -5.8 dB    0.264     3.79
+      7   ADC2   2.082401e+01   -4.7 dB    0.337     2.97
+      8   ADC3   3.569039e+01   -2.4 dB    0.578     1.73
+      9   ADC3   6.175243e+01   +0.0 dB    1.000     1.00
+     10   ADC3   1.253394e+01   -6.9 dB    0.203     4.93
+     11   ADC3   2.080312e+01   -4.7 dB    0.337     2.97
+     12   ADC4   5.802919e+01   -0.3 dB    0.940     1.06
+     13   ADC4   3.294355e+00   -12.7 dB    0.053     18.74
+     14   ADC4   4.028320e-03   -41.9 dB    0.000     100+
+     15   ADC4   1.892791e+01   -5.1 dB    0.307     3.26
+
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -4.5 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -13.9 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -3.5 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -15.0 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [2, 3, 5, 6, 7, 10, 11
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
+  FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
+  /home/basempi/Capstone_490_Software/utilities/calibration/metrics_debug.py:83: RuntimeWarn
+    scale = np.where(mag > _FFT_MAG_CAP, _FFT_MAG_CAP / (mag + 1e-30), 1.0)
+  OK (ratio in output)
+CPU temp: 85.3 C
+=== Done: 7/7 steps passed ===
+[stderr] FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
+[stderr] parse_full_frame: magic 0x7799BBBB != expected 0xAABBCCDD, buf[:8]=bbbb99775402003e
+[stderr] parse_full_frame: magic 0xB9B9B9B9 != expected 0xAABBCCDD, buf[:8]=b9b9b9b9b9b9b9b9
+[stderr] parse_full_frame: magic 0x3DC5B2D8 != expected 0xAABBCCDD, buf[:8]=d8b2c53d148fa93d
+[stderr] parse_full_frame: magic 0xBDBDBDBD != expected 0xAABBCCDD, buf[:8]=bdbdbdbdbdbdbdbd
+[stderr] parse_full_frame: magic 0x9BBF1AC8 != expected 0xAABBCCDD, buf[:8]=c81abf9b67233fb3
+[stderr] parse_full_frame: magic 0xB0B0B0B0 != expected 0xAABBCCDD, buf[:8]=b0b0b0b0b0b0b0b0
+[stderr] parse_full_frame: magic 0x3D0FBBC0 != expected 0xAABBCCDD, buf[:8]=c0bb0f3d8c36ba3c
+[stderr] parse_full_frame: magic 0x98989898 != expected 0xAABBCCDD, buf[:8]=9898989898989898
+[stderr] parse_full_frame: magic 0xBFC61873 != expected 0xAABBCCDD, buf[:8]=7318c6bf9c8f6dc0
+[stderr] parse_full_frame: magic 0xCECECECE != expected 0xAABBCCDD, buf[:8]=cececececececece
+[stderr] parse_full_frame: magic 0xA35F203E != expected 0xAABBCCDD, buf[:8]=3e205fa33e2a029b
+[stderr] parse_full_frame: magic 0xA9A9A9A9 != expected 0xAABBCCDD, buf[:8]=a9a9a9a9a9a9a9a9
+[stderr] parse_full_frame: magic 0x773CEBE0 != expected 0xAABBCCDD, buf[:8]=e0eb3c77b3d4bde6
+[stderr] parse_full_frame: magic 0x5E5E5E5E != expected 0xAABBCCDD, buf[:8]=5e5e5e5e5e5e5e5e
+[stderr] parse_full_frame: magic 0x3EE8DFA6 != expected 0xAABBCCDD, buf[:8]=a6dfe83e742320be
+[stderr] parse_full_frame: magic 0x90909090 != expected 0xAABBCCDD, buf[:8]=9090909090909090
+[stderr] parse_full_frame: magic 0x0000BA83 != expected 0xAABBCCDD, buf[:8]=83ba0000000014bc
+[stderr] parse_full_frame: magic 0xA1A1A1A1 != expected 0xAABBCCDD, buf[:8]=a1a1a1a1a1a1a1a1
+[stderr] parse_full_frame: magic 0x8FA1CD3D != expected 0xAABBCCDD, buf[:8]=3dcda18f3cf79749
+[stderr] parse_full_frame: magic 0xC6C6C6C6 != expected 0xAABBCCDD, buf[:8]=c6c6c6c6c6c6c6c6
+[stderr] parse_full_frame: magic 0x4F7C09BC != expected 0xAABBCCDD, buf[:8]=bc097c4fbf90bb81
+[stderr] parse_full_frame: magic 0xA4A4A4A4 != expected 0xAABBCCDD, buf[:8]=a4a4a4a4a4a4a4a4
+[stderr] parse_full_frame: magic 0x3F1E1CC7 != expected 0xAABBCCDD, buf[:8]=c71c1e3fee09b9be
+[stderr] parse_full_frame: magic 0x9F9F9F9F != expected 0xAABBCCDD, buf[:8]=9f9f9f9f9f9f9f9f
+[stderr] parse_full_frame: magic 0x33E8DABD != expected 0xAABBCCDD, buf[:8]=bddae833be54964d
+[stderr] parse_full_frame: magic 0xCCCCCCCC != expected 0xAABBCCDD, buf[:8]=cccccccccccccccc
+[stderr] parse_full_frame: magic 0x62213CE1 != expected 0xAABBCCDD, buf[:8]=e13c2162cebc9a16
+[stderr] parse_full_frame: magic 0x0E0E0E0E != expected 0xAABBCCDD, buf[:8]=0e0e0e0e0e0e0e0e
+[stderr] parse_full_frame: magic 0xACBBA2BD != expected 0xAABBCCDD, buf[:8]=bda2bbacbd4af2c3
+[stderr] parse_full_frame: magic 0x11111111 != expected 0xAABBCCDD, buf[:8]=1111111111111111
+[stderr] parse_full_frame: magic 0xAFBF44AA != expected 0xAABBCCDD, buf[:8]=aa44bfaf6fabbccd
+[stderr] parse_full_frame: magic 0x9F9F9F9F != expected 0xAABBCCDD, buf[:8]=9f9f9f9f9f9f9f9f
+[stderr] parse_full_frame: magic 0x9E1B05BE != expected 0xAABBCCDD, buf[:8]=be051b9e3d165b8b
+[stderr] parse_full_frame: magic 0x83838383 != expected 0xAABBCCDD, buf[:8]=8383838383838383
+[stderr] parse_full_frame: magic 0x83838383 != expected 0xAABBCCDD, buf[:8]=8383838383838383
+[stderr] parse_full_frame: magic 0x326919C0 != expected 0xAABBCCDD, buf[:8]=c019693240b51f38
+[stderr] parse_full_frame: magic 0x20202020 != expected 0xAABBCCDD, buf[:8]=2020202020202020
+[stderr] parse_full_frame: magic 0x3F5114D6 != expected 0xAABBCCDD, buf[:8]=d614513f6c0a003f
+[stderr] parse_full_frame: magic 0x7A7A7A7A != expected 0xAABBCCDD, buf[:8]=7a7a7a7a7a7a7a7a
+[stderr] parse_full_frame: magic 0x4846E83E != expected 0xAABBCCDD, buf[:8]=3ee846483d5d7cb5
+[stderr] parse_full_frame: magic 0xF3F3F3F3 != expected 0xAABBCCDD, buf[:8]=f3f3f3f3f3f3f3f3
+[stderr] parse_full_frame: magic 0x42AD8E3E != expected 0xAABBCCDD, buf[:8]=3e8ead42bd4e3f2d
+[stderr] parse_full_frame: magic 0xBABABABA != expected 0xAABBCCDD, buf[:8]=babababababababa
+[stderr] parse_full_frame: magic 0x00003B04 != expected 0xAABBCCDD, buf[:8]=043b000000000000
+[stderr] parse_full_frame: magic 0x4A4A4A4A != expected 0xAABBCCDD, buf[:8]=4a4a4a4a4a4a4a4a
+[stderr] parse_full_frame: magic 0x333378BE != expected 0xAABBCCDD, buf[:8]=be783333bf4fd3cd
+[stderr] parse_full_frame: magic 0xF9F9F9F9 != expected 0xAABBCCDD, buf[:8]=f9f9f9f9f9f9f9f9
+[stderr] parse_full_frame: magic 0xBF674C72 != expected 0xAABBCCDD, buf[:8]=724c67bfe5be8fbf
+[stderr] parse_full_frame: magic 0xE3E3E3E3 != expected 0xAABBCCDD, buf[:8]=e3e3e3e3e3e3e3e3
+[stderr] parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+[stderr] parse_full_frame: magic 0xD7D7D7D7 != expected 0xAABBCCDD, buf[:8]=d7d7d7d7d7d7d7d7
+[stderr] parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+[stderr] parse_full_frame: magic 0x34343434 != expected 0xAABBCCDD, buf[:8]=3434343434343434
+[stderr] parse_full_frame: magic 0x00003B04 != expected 0xAABBCCDD, buf[:8]=043b00000000027a
+[stderr] parse_full_frame: magic 0x50505050 != expected 0xAABBCCDD, buf[:8]=5050505050505050
+[stderr] parse_full_frame: magic 0x32F532BC != expected 0xAABBCCDD, buf[:8]=bc32f532be12ac80
+[stderr] parse_full_frame: magic 0xBE8D9D49 != expected 0xAABBCCDD, buf[:8]=499d8dbe6840d3be
+[stderr] parse_full_frame: magic 0xD6D6D6D6 != expected 0xAABBCCDD, buf[:8]=d6d6d6d6d6d6d6d6
+[stderr] parse_full_frame: magic 0x64DA8ABF != expected 0xAABBCCDD, buf[:8]=bf8ada643f69e5c2
+[stderr] parse_full_frame: magic 0xEAEAEAEA != expected 0xAABBCCDD, buf[:8]=eaeaeaeaeaeaeaea
+[stderr] parse_full_frame: magic 0xEAEAEAEA != expected 0xAABBCCDD, buf[:8]=eaeaeaeaeaeaeaea
+[stderr] parse_full_frame: magic 0x3DD320C0 != expected 0xAABBCCDD, buf[:8]=c020d33dc095753f
+[stderr] parse_full_frame: magic 0xCFCFCFCF != expected 0xAABBCCDD, buf[:8]=cfcfcfcfcfcfcfcf
+[stderr] parse_full_frame: magic 0x6D03BEF8 != expected 0xAABBCCDD, buf[:8]=f8be036d4b3dc0cf
+[stderr] parse_full_frame: magic 0x7F7F7F7F != expected 0xAABBCCDD, buf[:8]=7f7f7f7f7f7f7f7f
+[stderr] parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+[stderr] parse_full_frame: magic 0xE5E5E5E5 != expected 0xAABBCCDD, buf[:8]=e5e5e5e5e5e5e5e5
+[stderr] parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000

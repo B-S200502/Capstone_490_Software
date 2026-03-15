@@ -7,13 +7,16 @@
 /* =========================================================================
  * INCLUDES
  * ========================================================================= */
-#include "usb_debug.h"
-#include "usbd_cdc_if.h"
-#include "stm32g4xx_hal.h"
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "usb_debug.h"
+#include "usbd_cdc_if.h"
+#include "stm32g4xx_hal.h"
+#include "app_main.h"
+
+
 
 /* =========================================================================
  * DEFINES & CONSTANTS

@@ -43,7 +43,7 @@ extern "C" {
 #define TEST_DSP_PIPELINE 2
 #define DEBUG 3
 
-#define MODE RELEASE
+#define MODE DEBUG
 
 // Float print helper macros
 #define PRINT_F1(x) ((int)((x) * 10.0f) / 10),  ((int)((x) * 10.0f) % 10)
