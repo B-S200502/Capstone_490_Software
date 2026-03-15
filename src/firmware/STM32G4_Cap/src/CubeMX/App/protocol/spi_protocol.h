@@ -44,7 +44,6 @@ typedef struct __attribute__((packed)) {
     uint16_t flags;        // Payload and sync flags
     uint16_t payload_len;  // Bytes following header (FFT payload size)
     uint16_t battery_mv;   // Battery sense value in millivolts after divider compensation
-    uint8_t  clipping_flag; // 1 if time-domain clipping detected in this window, else 0
     uint16_t reserved0;    // Future use
     uint16_t reserved1;    // Future use
 } SPI_FrameHeader_t;

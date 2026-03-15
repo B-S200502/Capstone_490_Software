@@ -96,8 +96,6 @@ void apply_fft(arm_rfft_fast_instance_f32 *fft_instance,
   if (fft_perf_initialized) {
     calculate_fft_cycles_average((float)fft_cycles);
   }
-  
-  pack_rfft_complex_bins(fft_temp_buf, complex_output, fft_size);
 }
 
 // TODO: We likely don't need to calculate magnitude, I think the 
