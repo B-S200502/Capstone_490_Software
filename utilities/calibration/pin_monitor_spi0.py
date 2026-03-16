@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""
+Monitor GPIO pins used by the acoustic imager on SPI0 (/dev/spidev0.0).
+Prints a table in a loop. Uses pinctrl so pin state is visible even when
+lines are in use by the kernel (SPI, I2C).
+Run from repo root: python3 utilities/calibration/pin_monitor_spi0.py
+"""
+import os
+import subprocess
+import sys
+import time
+
+# SPI0 pinout per spi_interface_config.md (RASPI PINOUTS SPI0 column)
+# (physical_pin, bcm_gpio_or_None, usage). None = GND / no GPIO to read.
+PINS_USED = [
+    (22, 25, "Gain Ctrl"),
+    (26, 7, "MCU status"),
+    (27, 0, "RPi status"),
+    (20, None, "GND"),
+    (23, 11, "SCK"),
+    (24, 8, "NSS (SPI0 CE0)"),
+    (21, 9, "MISO"),
+    (19, 10, "MOSI"),
+    (25, None, "GND"),
+    (28, 1, "NRST"),
+]
+
+SPI0_DEVICE = "/dev/spidev0.0"
+
+
+def spi_status(spi_path):
+    """Return (exists: bool, in_use: bool). in_use=True if open() fails (e.g. EBUSY/EACCES)."""
+    exists = os.path.exists(spi_path)
+    in_use = False
+    if exists:
+        try:
+            with open(spi_path, "rb") as f:
+                pass
+        except OSError:
+            in_use = True
+    return exists, in_use
+
+
+def read_one(bcm):
+    """Read pin state via pinctrl (no line request). Returns "0", "1", or "?"."""
+    out = subprocess.run(
+        ["pinctrl", "get", str(bcm)],
+        capture_output=True,
+        text=True,
+        timeout=1,
+    )
+    if out.returncode != 0 or not out.stdout:
+        return "?"
+    for line in out.stdout.strip().splitlines():
+        if "|" in line:
+            part = line.split("|", 1)[1].strip().split()
+            if part and part[0].lower() == "hi":
+                return "1"
+            if part and part[0].lower() == "lo":
+                return "0"
+    return "?"
+
+
+def main():
+    width = 58
+    header = f"{'Physical':<10} {'BCM':<6} {'Usage':<26} {'Value':<6}"
+    print("SPI0 monitor (/dev/spidev0.0)")
+    print(header)
+    print("-" * width)
+    try:
+        while True:
+            for physical, bcm, usage in PINS_USED:
+                bcm_str = str(bcm) if bcm is not None else "-"
+                if bcm is None:
+                    val = "-"
+                else:
+                    val = read_one(bcm)
+                print(f"{physical:<10} {bcm_str:<6} {usage:<26} {val:<6}")
+            exists, in_use = spi_status(SPI0_DEVICE)
+            print(f"SPI: {SPI0_DEVICE}  exists={'yes' if exists else 'no'}  in_use={'yes' if in_use else 'no'}")
+            print()
+            time.sleep(0.2)
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()

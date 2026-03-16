@@ -1,0 +1,12 @@
+../Core/Src/adc.c:27:9:ADC_HalfReady	1
+../Core/Src/adc.c:28:9:ADC_FullReady	1
+../Core/Src/adc.c:29:9:ADC_ClearHalfReady	1
+../Core/Src/adc.c:30:9:ADC_ClearFullReady	1
+../Core/Src/adc.c:44:6:MX_ADC1_Init	7
+../Core/Src/adc.c:135:6:MX_ADC2_Init	6
+../Core/Src/adc.c:216:6:MX_ADC3_Init	7
+../Core/Src/adc.c:306:6:MX_ADC4_Init	6
+../Core/Src/adc.c:390:6:HAL_ADC_MspInit	17
+../Core/Src/adc.c:641:6:HAL_ADC_MspDeInit	9
+../Core/Src/adc.c:778:6:HAL_ADC_ConvHalfCpltCallback	5
+../Core/Src/adc.c:802:6:HAL_ADC_ConvCpltCallback	5

@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=AcousticImager
+Description=Custom splash screen for Acoustic Imager
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/mytheme
+ScriptFile=/usr/share/plymouth/themes/mytheme/mytheme.script

@@ -1,0 +1,328 @@
+=== Calibration Suite (stop acoustic imager for SPI steps) ===
+STEP_PROGRESS 0 7
+[0] Silence check (env quiet enough for gain cal)...
+SILENCE_START 1.5
+  max_total_power=1.372e+01 threshold=1.000e+09 frames=15 -> PASS
+  FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
+  parse_full_frame: magic 0x9C3BE5F0 != expected 0xAABBCCDD, buf[:8]=f0e53b9c45393c1c
+  parse_full_frame: magic 0xF2F2F2F2 != expected 0xAABBCCDD, buf[:8]=f2f2f2f2f2f2f2f2
+  parse_full_frame: magic 0x44BBF5E0 != expected 0xAABBCCDD, buf[:8]=e0f5bb44a2643c13
+  parse_full_frame: magic 0x1C1C1C1C != expected 0xAABBCCDD, buf[:8]=1c1c1c1c1c1c1c1c
+  parse_full_frame: magic 0xBB5E785D != expected 0xAABBCCDD, buf[:8]=5d785ebba9d0dabc
+  parse_full_frame: magic 0x72727272 != expected 0xAABBCCDD, buf[:8]=7272727272727272
+  parse_full_frame: magic 0x3CDA13BA != expected 0xAABBCCDD, buf[:8]=ba13da3c9cab923c
+  parse_full_frame: magic 0x19191919 != expected 0xAABBCCDD, buf[:8]=1919191919191919
+  parse_full_frame: magic 0x3D8A8F7C != expected 0xAABBCCDD, buf[:8]=7c8f8a3d1f0e553d
+  parse_full_frame: magic 0x9C9C9C9C != expected 0xAABBCCDD, buf[:8]=9c9c9c9c9c9c9c9c
+  parse_full_frame: magic 0x000039C4 != expected 0xAABBCCDD, buf[:8]=c43900000000242f
+  parse_full_frame: magic 0x02020202 != expected 0xAABBCCDD, buf[:8]=0202020202020202
+  parse_full_frame: magic 0xBCA50CE7 != expected 0xAABBCCDD, buf[:8]=e70ca5bcedcd85bc
+  parse_full_frame: magic 0x63636363 != expected 0xAABBCCDD, buf[:8]=6363636363636363
+  parse_full_frame: magic 0xF23FBDA0 != expected 0xAABBCCDD, buf[:8]=a0bd3ff2cfbb93ff
+  parse_full_frame: magic 0xAFAFAFAF != expected 0xAABBCCDD, buf[:8]=afafafafafafafaf
+  parse_full_frame: magic 0x06A53B3E != expected 0xAABBCCDD, buf[:8]=3e3ba5063ee3ad9b
+  parse_full_frame: magic 0x4A4A4A4A != expected 0xAABBCCDD, buf[:8]=4a4a4a4a4a4a4a4a
+  parse_full_frame: magic 0xB4B5663D != expected 0xAABBCCDD, buf[:8]=3d66b5b43df3f290
+  parse_full_frame: magic 0x29292929 != expected 0xAABBCCDD, buf[:8]=2929292929292929
+  parse_full_frame: magic 0x279240BD != expected 0xAABBCCDD, buf[:8]=bd4092273e653599
+  parse_full_frame: magic 0x22222222 != expected 0xAABBCCDD, buf[:8]=2222222222222222
+  parse_full_frame: magic 0xB5409CBC != expected 0xAABBCCDD, buf[:8]=bc9c40b5bc341d63
+  parse_full_frame: magic 0x6C6C6C6C != expected 0xAABBCCDD, buf[:8]=6c6c6c6c6c6c6c6c
+  parse_full_frame: magic 0x1D1288BB != expected 0xAABBCCDD, buf[:8]=bb88121d3c5424a2
+  parse_full_frame: magic 0xDEDEDEDE != expected 0xAABBCCDD, buf[:8]=dededededededede
+  parse_full_frame: magic 0x84BC32DB != expected 0xAABBCCDD, buf[:8]=db32bc84fd95bc95
+  parse_full_frame: magic 0xD5D5D5D5 != expected 0xAABBCCDD, buf[:8]=d5d5d5d5d5d5d5d5
+  parse_full_frame: magic 0x3BB58863 != expected 0xAABBCCDD, buf[:8]=6388b53b6127ab3b
+  parse_full_frame: magic 0x01010101 != expected 0xAABBCCDD, buf[:8]=0101010101010101
+  parse_full_frame: magic 0x12573992 != expected 0xAABBCCDD, buf[:8]=92395712cfb9a2ca
+  parse_full_frame: magic 0x09090909 != expected 0xAABBCCDD, buf[:8]=0909090909090909
+  parse_full_frame: magic 0x0000363D != expected 0xAABBCCDD, buf[:8]=3d36000000002e5d
+  parse_full_frame: magic 0xD2D2D2D2 != expected 0xAABBCCDD, buf[:8]=d2d2d2d2d2d2d2d2
+  parse_full_frame: magic 0x69BD0888 != expected 0xAABBCCDD, buf[:8]=8808bd695262bb40
+  parse_full_frame: magic 0x90909090 != expected 0xAABBCCDD, buf[:8]=9090909090909090
+  parse_full_frame: magic 0x9DBB05B5 != expected 0xAABBCCDD, buf[:8]=b505bb9d07823bf0
+  parse_full_frame: magic 0xAEAEAEAE != expected 0xAABBCCDD, buf[:8]=aeaeaeaeaeaeaeae
+  OK
+STEP_PROGRESS 1 7
+[1] Pin monitor (ribbon cable, 5 runs)...
+  Pin monitor (SPI0, 5 runs)
+  Physical   BCM    Usage                      Value
+  ----------------------------------------------------------
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  20         -      GND                        -
+  23         11     SCK                        0
+  24         8      NSS (SPI0 CE0)             1
+  21         9      MISO                       0
+  19         10     MOSI                       0
+  25         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  20         -      GND                        -
+  23         11     SCK                        0
+  24         8      NSS (SPI0 CE0)             1
+  21         9      MISO                       0
+  19         10     MOSI                       0
+  25         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  20         -      GND                        -
+  23         11     SCK                        0
+  24         8      NSS (SPI0 CE0)             1
+  21         9      MISO                       0
+  19         10     MOSI                       0
+  25         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  20         -      GND                        -
+  23         11     SCK                        0
+  24         8      NSS (SPI0 CE0)             1
+  21         9      MISO                       0
+  19         10     MOSI                       0
+  25         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+
+  22         25     Gain Ctrl                  0
+  26         7      MCU status                 1
+  27         0      RPi status                 0
+  20         -      GND                        -
+  23         11     SCK                        0
+  24         8      NSS (SPI0 CE0)             1
+  21         9      MISO                       0
+  19         10     MOSI                       0
+  25         -      GND                        -
+  28         1      NRST                       1
+  SPI: /dev/spidev0.0  exists=yes  in_use=no
+  OK
+STEP_PROGRESS 2 7
+[2] Array geometry & config alignment...
+  Calibration test setup (see utilities/calibration/calibration_test.md):
+    distance_inches = 5.0
+    offset_inches   = 7.0 (+ = array right of camera center)
+    note            = Camera left, board right, same heading
+
+  Config (config.py):
+    CALIBRATION_DISTANCE_INCHES = 5.0
+    CALIBRATION_OFFSET_INCHES   = 7.0
+    CALIBRATION_NOTE             = 'Camera left, board right, same heading'
+    HW geometry: x_coords_hw, y_coords_hw (source: config.py), length 16
+
+  Validate OK: config matches calibration_test.md
+  Geometry OK (config.py matches array_geometry)
+STEP_PROGRESS 3 7
+[3] SPI devices...
+  === Boot config (SPI enabled?) ===
+  --- /boot/config.txt ---
+  --- /boot/firmware/config.txt ---
+  6:dtparam=i2c_arm=on
+  7:#dtparam=i2s=on
+  8:dtparam=spi=on
+  11:dtparam=audio=on
+  56:dtoverlay=spi1-3cs
+
+  === SPI device nodes ===
+  crw-rw---- 1 root spi 153, 0 Mar 15 22:24 /dev/spidev0.0
+  crw-rw---- 1 root spi 153, 1 Mar 15 22:24 /dev/spidev0.1
+  crw-rw---- 1 root spi 153, 5 Mar 15 22:24 /dev/spidev1.0
+  crw-rw---- 1 root spi 153, 2 Mar 15 22:24 /dev/spidev10.0
+  crw-rw---- 1 root spi 153, 4 Mar 15 22:24 /dev/spidev1.1
+  crw-rw---- 1 root spi 153, 3 Mar 15 22:24 /dev/spidev1.2
+
+  === Kernel SPI modules ===
+  spidev                 49152  0
+  spi_bcm2835            49152  0
+  spi_dw_mmio            49152  0
+  spi_dw                 49152  1 spi_dw_mmio
+
+  === dmesg (SPI) ===
+  [    1.791574] systemd[1]: Hostname set to <BasemsPi5>.
+  [   98.310079] spidev spi0.0: setup: unsupported mode bits 8
+  [   98.322071] spidev spi0.0: setup: unsupported mode bits 8
+  [   98.334546] spidev spi0.0: setup: unsupported mode bits 8
+  [   98.346635] spidev spi0.0: setup: unsupported mode bits 8
+STEP_PROGRESS 4 7
+[4] Parsing (magic probe) & frame rate...
+  Probing /dev/spidev0.0, frame_size=32801, sync=False
+  Magic LE: dd cc bb aa  |  BE: aa bb cc dd  |  bit_rev LE: bb33dd55
+  ------------------------------------------------------------
+  mode=0 lsbfirst=False: magic@[0x0] BE no bit_rev no
+  mode=0 lsbfirst=True: lsbfirst not supported
+  mode=1 lsbfirst=False: magic no BE no bit_rev no
+  mode=1 lsbfirst=True: lsbfirst not supported
+  mode=2 lsbfirst=False: magic@[0x0] BE no bit_rev no
+  mode=2 lsbfirst=True: lsbfirst not supported
+  mode=3 lsbfirst=False: magic no BE no bit_rev no
+  mode=3 lsbfirst=True: lsbfirst not supported
+  ------------------------------------------------------------
+  At least one setting saw magic (LE/BE/bit_rev). Consider aligning config to that.
+  SPI_MAX_SPEED_HZ = 30000000
+  FPS = 27.4  frames_ok = 42  bad_parse = 10  bad_crc = 0
+  OK
+STEP_PROGRESS 5 7
+[5] Metrics (gain normalization)...
+  --- Per-mic levels (LOW gain, averaged over 5 frames) ---
+    Total power (sum of squared L2 per mic): 6.008898e+02
+    Max mic L2: 7.619253e+00  Min mic L2: 4.562758e-01
+    Ratio max/min: 16.70
+
+    mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
+    ---   ---   ---------   ---------   -----    -----------------------------
+      0   ADC1   7.619253e+00   +0.0 dB    1.000     1.00
+      1   ADC1   6.312195e+00   -0.8 dB    0.828     1.21
+      2   ADC1   4.795832e+00   -2.0 dB    0.629     1.59
+      3   ADC1   6.133035e+00   -0.9 dB    0.805     1.24
+      4   ADC2   7.257651e+00   -0.2 dB    0.953     1.05
+      5   ADC2   6.958036e+00   -0.4 dB    0.913     1.10
+      6   ADC2   4.925561e+00   -1.9 dB    0.646     1.55
+      7   ADC2   6.260058e+00   -0.9 dB    0.822     1.22
+      8   ADC3   6.779273e+00   -0.5 dB    0.890     1.12
+      9   ADC3   6.325512e+00   -0.8 dB    0.830     1.20
+     10   ADC3   5.195348e+00   -1.7 dB    0.682     1.47
+     11   ADC3   6.085256e+00   -1.0 dB    0.799     1.25
+     12   ADC4   6.856258e+00   -0.5 dB    0.900     1.11
+     13   ADC4   6.773638e+00   -0.5 dB    0.889     1.12
+     14   ADC4   4.562758e-01   -12.2 dB    0.060     16.70
+     15   ADC4   5.894942e+00   -1.1 dB    0.774     1.29
+
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -0.9 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -0.8 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -1.0 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -3.6 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [14]
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
+
+  --- Per-mic levels (HIGH gain, averaged over 5 frames) ---
+    Total power (sum of squared L2 per mic): 1.105575e+03
+    Max mic L2: 1.248843e+01  Min mic L2: 1.835749e-02
+    Ratio max/min: 680.29
+
+    mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
+    ---   ---   ---------   ---------   -----    -----------------------------
+      0   ADC1   9.906316e+00   -1.0 dB    0.793     1.26
+      1   ADC1   8.657101e+00   -1.6 dB    0.693     1.44
+      2   ADC1   6.211293e+00   -3.0 dB    0.497     2.01
+      3   ADC1   7.501879e+00   -2.2 dB    0.601     1.66
+      4   ADC2   9.952668e+00   -1.0 dB    0.797     1.25
+      5   ADC2   7.537133e+00   -2.2 dB    0.604     1.66
+      6   ADC2   6.572219e+00   -2.8 dB    0.526     1.90
+      7   ADC2   7.782644e+00   -2.1 dB    0.623     1.60
+      8   ADC3   1.099841e+01   -0.6 dB    0.881     1.14
+      9   ADC3   8.262129e+00   -1.8 dB    0.662     1.51
+     10   ADC3   7.006729e+00   -2.5 dB    0.561     1.78
+     11   ADC3   8.361951e+00   -1.7 dB    0.670     1.49
+     12   ADC4   1.248843e+01   +0.0 dB    1.000     1.00
+     13   ADC4   8.564796e+00   -1.6 dB    0.686     1.46
+     14   ADC4   1.835749e-02   -28.3 dB    0.001     100+
+     15   ADC4   6.359787e+00   -2.9 dB    0.509     1.96
+
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -2.0 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -2.0 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -1.6 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -8.2 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [14]
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
+
+    Wrote SPI_MIC_GAIN to /home/basempi/Capstone_490_Software/src/software/acoustic_imager/c
+    Restart the acoustic imager for changes to take effect.
+  FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
+  /home/basempi/Capstone_490_Software/utilities/calibration/metrics_debug.py:83: RuntimeWarn
+    scale = np.where(mag > _FFT_MAG_CAP, _FFT_MAG_CAP / (mag + 1e-30), 1.0)
+  OK
+STEP_PROGRESS 6 7
+[6] Post-gain sanity (ratio check)...
+  --- Per-mic levels (LOW gain, latest of 3 frames) ---
+    Total power (sum of squared L2 per mic): 6.960020e+01
+    Max mic L2: 6.134088e+00  Min mic L2: 2.017720e-03
+    Ratio max/min: 3040.11
+
+    mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
+    ---   ---   ---------   ---------   -----    -----------------------------
+      0   ADC1   1.931695e+00   -5.0 dB    0.315     3.18
+      1   ADC1   2.030600e-03   -34.8 dB    0.000     100+
+      2   ADC1   1.076792e+00   -7.6 dB    0.176     5.70
+      3   ADC1   1.331036e+00   -6.6 dB    0.217     4.61
+      4   ADC2   1.929562e+00   -5.0 dB    0.315     3.18
+      5   ADC2   6.134088e+00   +0.0 dB    1.000     1.00
+      6   ADC2   1.146699e+00   -7.3 dB    0.187     5.35
+      7   ADC2   1.384882e+00   -6.5 dB    0.226     4.43
+      8   ADC3   3.109991e+00   -2.9 dB    0.507     1.97
+      9   ADC3   5.983893e-01   -10.1 dB    0.098     10.25
+     10   ADC3   9.476455e-01   -8.1 dB    0.154     6.47
+     11   ADC3   1.328777e+00   -6.6 dB    0.217     4.62
+     12   ADC4   1.721236e+00   -5.5 dB    0.281     3.56
+     13   ADC4   2.301771e-01   -14.3 dB    0.038     26.65
+     14   ADC4   2.017720e-03   -34.8 dB    0.000     100+
+     15   ADC4   1.626382e+00   -5.8 dB    0.265     3.77
+
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -13.5 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -4.7 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -7.0 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -15.1 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [0, 1, 2, 3, 4, 6, 7,
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
+
+  --- Per-mic levels (HIGH gain, latest of 3 frames) ---
+    Total power (sum of squared L2 per mic): 3.524104e+04
+    Max mic L2: 6.231242e+01  Min mic L2: 4.023620e-03
+    Ratio max/min: 15486.65
+
+    mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
+    ---   ---   ---------   ---------   -----    -----------------------------
+      0   ADC1   6.231242e+01   +0.0 dB    1.000     1.00
+      1   ADC1   4.464943e+01   -1.4 dB    0.717     1.40
+      2   ADC1   3.415193e+01   -2.6 dB    0.548     1.82
+      3   ADC1   4.133698e+01   -1.8 dB    0.663     1.51
+      4   ADC2   5.952348e+01   -0.2 dB    0.955     1.05
+      5   ADC2   4.601198e+01   -1.3 dB    0.738     1.35
+      6   ADC2   3.723581e+01   -2.2 dB    0.598     1.67
+      7   ADC2   4.373428e+01   -1.5 dB    0.702     1.42
+      8   ADC3   5.403222e+01   -0.6 dB    0.867     1.15
+      9   ADC3   5.123579e+01   -0.9 dB    0.822     1.22
+     10   ADC3   3.682518e+01   -2.3 dB    0.591     1.69
+     11   ADC3   4.529818e+01   -1.4 dB    0.727     1.38
+     12   ADC4   6.161466e+01   -0.0 dB    0.989     1.01
+     13   ADC4   5.255749e+01   -0.7 dB    0.843     1.19
+     14   ADC4   4.023620e-03   -41.9 dB    0.000     100+
+     15   ADC4   4.493249e+01   -1.4 dB    0.721     1.39
+
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -1.5 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -1.3 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -1.3 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -11.0 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [14]
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
+  FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
+  /home/basempi/Capstone_490_Software/utilities/calibration/metrics_debug.py:83: RuntimeWarn
+    scale = np.where(mag > _FFT_MAG_CAP, _FFT_MAG_CAP / (mag + 1e-30), 1.0)
+  OK (ratio in output)
+CPU temp: 84.2 C
+=== Done: 7/7 steps passed ===
+[stderr] FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
+[stderr] parse_full_frame: magic 0x7799BBBB != expected 0xAABBCCDD, buf[:8]=bbbb99775402003e
+[stderr] parse_full_frame: magic 0x07070707 != expected 0xAABBCCDD, buf[:8]=0707070707070707
+[stderr] parse_full_frame: magic 0xC4AD553D != expected 0xAABBCCDD, buf[:8]=3d55adc43c1ac6c1
+[stderr] parse_full_frame: magic 0x18181818 != expected 0xAABBCCDD, buf[:8]=1818181818181818
+[stderr] parse_full_frame: magic 0xD95FBC28 != expected 0xAABBCCDD, buf[:8]=28bc5fd9773b6b3c
+[stderr] parse_full_frame: magic 0x7B7B7B7B != expected 0xAABBCCDD, buf[:8]=7b7b7b7b7b7b7b7b
+[stderr] parse_full_frame: magic 0x863C7285 != expected 0xAABBCCDD, buf[:8]=85723c868b1dbc7a
+[stderr] parse_full_frame: magic 0xEFEFEFEF != expected 0xAABBCCDD, buf[:8]=efefefefefefefef
+[stderr] parse_full_frame: magic 0x0C53BD10 != expected 0xAABBCCDD, buf[:8]=10bd530ce3bc841a
+[stderr] parse_full_frame: magic 0x4C4C4C4C != expected 0xAABBCCDD, buf[:8]=4c4c4c4c4c4c4c4c

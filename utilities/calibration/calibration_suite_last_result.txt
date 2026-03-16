@@ -1,0 +1,7 @@
+silence:True
+pins:True
+geometry:True
+spi_devices:True
+parsing_ok:True
+metrics:True
+post_gain:True

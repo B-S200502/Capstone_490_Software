@@ -1,0 +1,12 @@
+../Core/Src/adc.c:27:9:ADC_HalfReady	4	static
+../Core/Src/adc.c:28:9:ADC_FullReady	4	static
+../Core/Src/adc.c:29:9:ADC_ClearHalfReady	4	static
+../Core/Src/adc.c:30:9:ADC_ClearFullReady	4	static
+../Core/Src/adc.c:44:6:MX_ADC1_Init	56	static
+../Core/Src/adc.c:135:6:MX_ADC2_Init	40	static
+../Core/Src/adc.c:216:6:MX_ADC3_Init	56	static
+../Core/Src/adc.c:306:6:MX_ADC4_Init	40	static
+../Core/Src/adc.c:390:6:HAL_ADC_MspInit	168	static
+../Core/Src/adc.c:641:6:HAL_ADC_MspDeInit	16	static
+../Core/Src/adc.c:778:6:HAL_ADC_ConvHalfCpltCallback	16	static
+../Core/Src/adc.c:802:6:HAL_ADC_ConvCpltCallback	16	static

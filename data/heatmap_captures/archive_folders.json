@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "folders": [
+    {
+      "id": "folder_1",
+      "name": "Folder 1",
+      "files": [
+        "screenshot_20260308_180712.png",
+        "recording_20260303_132604.mp4"
+      ]
+    },
+    {
+      "id": "folder_2",
+      "name": "Folder 2",
+      "files": []
+    },
+    {
+      "id": "folder_3",
+      "name": "Folder 3",
+      "files": []
+    },
+    {
+      "id": "folder_4",
+      "name": "Folder 4",
+      "files": []
+    }
+  ]
+}

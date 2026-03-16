@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import List
 import numpy as np
 
+
 @dataclass
 class FFTFrame:
     FRAME_HEADER: int = 0xAA55
@@ -12,8 +13,8 @@ class FFTFrame:
     frame_id: int = 0
     timestamp_us: int = field(default_factory=lambda: int(time.time() * 1e6))
     channel_count: int = 16
-    sampling_rate: int = 72000
-    fft_size: int = 2048
+    sampling_rate: int = 100000
+    fft_size: int = 1024
     fft_format: int = 1  # 1 = complex float32
     fft_data: np.ndarray = field(default_factory=lambda: np.zeros((16, 1025), dtype=np.complex64))
     crc: int = 0

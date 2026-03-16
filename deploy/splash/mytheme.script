@@ -1,0 +1,22 @@
+img = Image("splash.png");
+screen_width = Window.GetWidth();
+screen_height = Window.GetHeight();
+
+# Scale image to fit screen while keeping aspect ratio
+img_width = img.GetWidth();
+img_height = img.GetHeight();
+scale_w = screen_width / img_width;
+scale_h = screen_height / img_height;
+scale_factor = scale_w;
+if (scale_h < scale_w)
+  scale_factor = scale_h;
+
+scaled_width = img_width * scale_factor;
+scaled_height = img_height * scale_factor;
+scaled_img = img.Scale(scaled_width, scaled_height);
+sprite = Sprite(scaled_img);
+
+# Center on screen
+x = (screen_width - scaled_width) / 2;
+y = (screen_height - scaled_height) / 2;
+sprite.SetPosition(x, y);

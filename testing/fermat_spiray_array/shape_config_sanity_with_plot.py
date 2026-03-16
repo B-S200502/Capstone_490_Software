@@ -15,8 +15,8 @@ alias_pass = 26000
 alias_warn = 20000
 
 # Physical MEMS microphone size
-mic_length = 3.5 / 1000   # meters
-mic_width  = 2.65 / 1000  # meters
+mic_length = 3.7 / 1000   # meters
+mic_width  = 2.9 / 1000  # meters
 mic_radius_effective = np.sqrt((mic_length/2)**2 + (mic_width/2)**2)
 
 # Minimum spacing requirement (edge-to-edge)
@@ -54,7 +54,7 @@ def min_pairwise_distance(xs, ys):
 
 
 # ==========================================================
-# 🧮 SWEEP RESULTS TABLE
+#  SWEEP RESULTS TABLE
 # ==========================================================
 rows = []
 
@@ -90,13 +90,13 @@ print(tabulate(rows, headers=[
 
 
 # =======================================================
-# === CHOOSE RADIUS TO VISUALIZE & CHECK COLLISIONS ====
+# CHOOSE RADIUS TO VISUALIZE & CHECK COLLISIONS ====
 # =======================================================
 R_plot = 0.025  # 5 cm diameter
 xs, ys = fermat_positions(N, R_plot)
 
 # =======================================================
-# 🔴 COLLISION DETECTION
+# COLLISION DETECTION
 # =======================================================
 print("\n=== Collision Detection (for R = %.3f m) ===" % R_plot)
 
@@ -129,17 +129,25 @@ print(tabulate(collision_rows, headers=["Pair", "CenterDist", "Clearance", "Stat
 
 
 # =======================================================
-# 📍 PRINT COORDINATES
+# PRINT COORDINATES (mm)
 # =======================================================
-print("\n=== Microphone Coordinates (meters) for R = %.3f m ===" % R_plot)
+print("\n=== Microphone Coordinates (mm) for R = %.1f mm (Diameter = %.1f mm) ===" %
+      (R_plot * 1000, 2 * R_plot * 1000))
+
 coord_rows = []
 for i in range(N):
-    coord_rows.append([f"U{i+1}", f"{xs[i]:.5f}", f"{ys[i]:.5f}"])
-print(tabulate(coord_rows, headers=["Mic", "X (m)", "Y (m)"]))
+    coord_rows.append([
+        f"U{i+1}",
+        f"{xs[i]*1000:.2f}",   # X in mm
+        f"{ys[i]*1000:.2f}",   # Y in mm
+    ])
+
+print(tabulate(coord_rows, headers=["Mic", "X (mm)", "Y (mm)"]))
+
 
 
 # =======================================================
-# 🖼️ PLOT ARRAY WITH LABELS
+# PLOT ARRAY WITH LABELS
 # =======================================================
 fig, ax = plt.subplots(figsize=(6,6))
 ax.set_title(f"Fermat Spiral Microphone Geometry (Diameter = {2*R_plot*100:.1f} cm)")
@@ -165,7 +173,7 @@ for idx, (x, y) in enumerate(zip(xs, ys)):
     ax.plot(x, y, 'ko')
 
     # === Improved coordinate labeling ===
-    label = f"U{idx+1}\n({x:.3f}, {y:.3f})"
+    label = f"U{idx+1}\n({x*1000:.1f}, {y*1000:.1f}) mm"
 
     ax.text(
         x + 0.001,      # 3 mm horizontal offset
