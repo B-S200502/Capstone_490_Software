@@ -22,7 +22,13 @@ from ..config import (
     REL_DB_MAX,
 )
 from .bars import _get_panel_bg, freq_to_y, y_to_freq
-from .spectrum_ruler import RULER_HEIGHT, BAR_MARGIN_LEFT, BAR_MARGIN_RIGHT, draw_spectrum_ruler
+from .spectrum_ruler import (
+    RULER_HEIGHT,
+    BAR_MARGIN_RIGHT,
+    FREQ_RULER_WIDTH,
+    get_cached_ruler_strip,
+    get_cached_freq_ruler_strip,
+)
 
 
 SPECTRUM_DB_MIN = REL_DB_MIN
@@ -37,6 +43,9 @@ SPECTRUM_CURVE_THICKNESS = 2
 
 # Subsample curve to reduce polylines cost (step 2 = every 2nd bin)
 CURVE_SUBSAMPLE = 2
+
+# Reusable bar buffer (Phase 2)
+_bar_buf: Optional[np.ndarray] = None
 
 
 def _a_weighting_db(f_hz: np.ndarray) -> np.ndarray:
@@ -76,7 +85,7 @@ def spectrum_closest_curve_point(
     valid = f_axis <= f_display_max
     f_valid = f_axis[valid]
     mag_valid = mag2[valid]
-    graph_left = BAR_MARGIN_LEFT
+    graph_left = FREQ_RULER_WIDTH
     graph_right = bar_w - BAR_MARGIN_RIGHT
     graph_width = max(1, graph_right - graph_left)
     graph_h_safe = max(1, h)
@@ -118,7 +127,7 @@ def spectrum_curve_x_at_y(
         return float(bar_w // 2)
     freq = y_to_freq(tap_y, h, f_display_max)
     idx = int(np.argmin(np.abs(f_valid - freq)))
-    graph_left = BAR_MARGIN_LEFT
+    graph_left = FREQ_RULER_WIDTH
     graph_right = bar_w - BAR_MARGIN_RIGHT
     if mode in ("dB", "dBA"):
         ref = float(np.max(mag_valid)) + 1e-20
@@ -168,15 +177,23 @@ def draw_spectrum_analyzer(
     mag_valid = mag2[valid]
 
     panel_bg = _get_panel_bg(h, bar_w)
-    bar = panel_bg.copy()
+    global _bar_buf
+    if _bar_buf is None or _bar_buf.shape != (h, bar_w, 3):
+        _bar_buf = np.empty((h, bar_w, 3), dtype=np.uint8)
+    np.copyto(_bar_buf, panel_bg)
+    bar = _bar_buf
+
+    graph_h = h - RULER_HEIGHT
+    # Left vertical frequency ruler (cached)
+    freq_ruler_strip = get_cached_freq_ruler_strip(panel_bg, graph_h, f_display_max)
+    bar[0:graph_h, 0:FREQ_RULER_WIDTH] = freq_ruler_strip
 
     use_db = mode in ("dB", "dBA")
     draw_curve = True
     draw_bandpass = True
-    graph_h = h - RULER_HEIGHT
     draw_h = h
     graph_h_safe = max(1, draw_h)
-    graph_left = BAR_MARGIN_LEFT
+    graph_left = FREQ_RULER_WIDTH
     graph_right = bar_w - BAR_MARGIN_RIGHT
     graph_width = max(2, graph_right - graph_left)
 
@@ -278,15 +295,16 @@ def draw_spectrum_analyzer(
                 cursor_db_val = 10.0 * np.log10((cursor_mag + 1e-20) / ref_cursor)
                 cursor_draw_y = int(np.clip((graph_h_safe - 1) - (cursor_freq_hz / f_display_max) * (graph_h_safe - 1), 0, graph_h_safe - 1))
 
-    # Ruler for all modes (NORM = linear 0-100%, dB/dBA = -60..0)
-    draw_spectrum_ruler(bar[graph_h : h, :], bar_w, mode)
+    # Ruler: use cached strip (Phase 1)
+    ruler_strip = get_cached_ruler_strip(panel_bg, h, bar_w, mode)
+    bar[graph_h:h, :] = ruler_strip
 
     # ---- Bandpass overlay (sliding window; all modes) ----
     if draw_bandpass:
         # Use draw_h so overlay aligns with full-height graph (ruler is drawn on top of bottom strip)
         y_min = int(np.clip(freq_to_y(f_min, draw_h, f_display_max), 0, draw_h - 1))
         y_max = int(np.clip(freq_to_y(f_max, draw_h, f_display_max), 0, draw_h - 1))
-        label_x = BAR_MARGIN_LEFT
+        label_x = FREQ_RULER_WIDTH + 2
         fmin_khz = float(f_min) / 1000.0
         fmax_khz = float(f_max) / 1000.0
         y_min_txt = int(np.clip(y_min - 6, 12, h - 6))
