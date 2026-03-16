@@ -280,19 +280,6 @@ WantedBy=graphical.target
 EOF
 
 # ----------------------------
-# Allow app user to control WiFi (NetworkManager) — fixes "not authorized to control networking"
-# ----------------------------
-if [[ -f "$PROJECT_DIR/deploy/10-acoustic-imager-networkmanager.rules" ]]; then
-    echo "Installing NetworkManager polkit rule (WiFi control for $ACOUSTIC_USER)..."
-    cp "$PROJECT_DIR/deploy/10-acoustic-imager-networkmanager.rules" /etc/polkit-1/rules.d/
-    getent group netdev >/dev/null 2>&1 && usermod -aG netdev "$ACOUSTIC_USER" || true
-    systemctl restart polkit 2>/dev/null || systemctl restart polkitd 2>/dev/null || true
-    echo "  Polkit rule installed; $ACOUSTIC_USER added to netdev. Reboot (or log out/in) for WiFi control to take effect."
-else
-    echo "  Skipping polkit rule (file not found). If WiFi connect fails with 'not authorized', install deploy/10-acoustic-imager-networkmanager.rules and add your user to netdev."
-fi
-
-# ----------------------------
 # Activate service
 # ----------------------------
 systemctl daemon-reload
