@@ -1944,7 +1944,7 @@ def main() -> None:
                 warped = cv2.warpAffine(content_rect, M_inv, (content_width, content_height))
                 output_frame[0:content_height, x0:x1, :] = warped
 
-            # ---- Screen calibration overlay ----
+            # ---- Screen calibration overlay (steps 1–3; box aligned with HUD pill edges) ----
             if (
                 button_state.screen_calibration_active
                 and button_state.screen_calibration_step in (1, 2, 3)
@@ -1960,18 +1960,22 @@ def main() -> None:
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 (tw, th), _ = cv2.getTextSize(msg, font, 0.5, 1)
                 bar_h = th + 16
-                bar_y = content_height - bar_h - 8
+                bar_y = config.UI_CONTENT_TOP_MARGIN + 4
+                # Align instruction box with HUD pills (same horizontal span as top HUD)
+                hud_pill_total_w = 4 * config.UI_PILL_W + 12 + 8 * 3  # net + fps + bat + time + gaps (match top_hud.py)
+                cal_bar_x = content_offset_x + (content_width - hud_pill_total_w) // 2
+                cal_bar_w = hud_pill_total_w
                 cv2.rectangle(
                     output_frame,
-                    (content_offset_x, bar_y),
-                    (content_offset_x + content_width, bar_y + bar_h),
+                    (cal_bar_x, bar_y),
+                    (cal_bar_x + cal_bar_w, bar_y + bar_h),
                     (40, 40, 40),
                     -1,
                 )
                 cv2.rectangle(
                     output_frame,
-                    (content_offset_x, bar_y),
-                    (content_offset_x + content_width, bar_y + bar_h),
+                    (cal_bar_x, bar_y),
+                    (cal_bar_x + cal_bar_w, bar_y + bar_h),
                     (180, 180, 180),
                     1,
                     cv2.LINE_AA,
@@ -1979,7 +1983,7 @@ def main() -> None:
                 cv2.putText(
                     output_frame,
                     msg,
-                    (content_offset_x + (content_width - tw) // 2, bar_y + bar_h - 8),
+                    (cal_bar_x + (cal_bar_w - tw) // 2, bar_y + bar_h - 8),
                     font,
                     0.5,
                     (255, 255, 255),
