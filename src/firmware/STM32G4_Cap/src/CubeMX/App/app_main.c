@@ -154,6 +154,7 @@ void app_start(void) {
   HAL_ADCEx_Calibration_Start(&hadc2, (uint32_t)ADC_SINGLE_ENDED);
   HAL_ADCEx_Calibration_Start(&hadc3, (uint32_t)ADC_SINGLE_ENDED);
   HAL_ADCEx_Calibration_Start(&hadc4, (uint32_t)ADC_SINGLE_ENDED);
+  HAL_ADCEx_Calibration_Start(&hadc5, (uint32_t)ADC_SINGLE_ENDED);
 
 
   // Start Timer6 (triggers all ADCs synchronously)
@@ -304,6 +305,12 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
   usb_printf("Clipping hits in window: %u, total clipped windows: %u, total clipped samples: %u\r\n",
              clipping_hits, clip_window_count, clip_sample_count);
 #endif
+
+#if MODE != RELEASE
+usb_printf("Battery millivolts: %u mV\r\n", battery_millivolts);
+usb_printf("Raw Battery millivolts: %u mV\r\n", (uint16_t)(battery_millivolts/BATT_DIVIDER_NUMERATOR));
+#endif
+
 
   // Keep mic_index and set to 16 for now
   mic_index = N_MICS;
