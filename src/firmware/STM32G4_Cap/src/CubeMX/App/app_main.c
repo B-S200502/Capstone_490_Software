@@ -7,6 +7,9 @@
 /* =========================================================================
  * INCLUDES
  * ========================================================================= */
+#include <stdlib.h>
+#include <string.h>
+
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
@@ -21,17 +24,19 @@
 #include "app_main.h"
 
 #include "protocol/spi_protocol.h"
+
 #include "transport/spi_stream.h"
 #include "transport/spi_stream_test.h"
 #include "transport/spi_dma.h"
 
+#include "dsp/dsp_pipeline.h"
 #include "dsp/dsp_pipeline_test.h"
 
 #include "usb/usb_debug.h"
-#include "dsp/dsp_pipeline.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include "metrics/timing.h"
+
+
 
 /* =========================================================================
  * DEFINES & CONSTANTS
@@ -197,18 +202,22 @@ void app_loop(void) {
     adc_pending_mask &= ~ADC_READY_HALF_MASK;
 
     if (!fft_in_progress && !get_spi_dma_busy()) {
+      start_performance_measurement();
       app_process_synced_window(0u, SPI_FRAME_FLAG_SYNCED_ALL_MICS);
+      end_performance_measurement();
     }
     return;
   }
 
   if ((adc_pending_mask & ADC_READY_FULL_MASK) == ADC_READY_FULL_MASK) {
     adc_pending_mask &= ~ADC_READY_FULL_MASK;
-
+    
     if (!fft_in_progress && !get_spi_dma_busy()) {
+      start_performance_measurement();
       app_process_synced_window(ADC_DMA_BUF_SIZE / 2u,
                                 (uint16_t)(SPI_FRAME_FLAG_SYNCED_ALL_MICS |
                                            SPI_FRAME_FLAG_SECOND_HALF));
+      end_performance_measurement();
     }
     return;
   }

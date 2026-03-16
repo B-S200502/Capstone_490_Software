@@ -16,9 +16,6 @@ extern "C" {
  * DEFINES
  * ========================================================================= */
 
-  /* FFT Performance Measurement */
-#define FFT_PERF_BETA 0.1f
-
 /* FFT Bin Averaging (EMA) */
 #define FFT_BIN_AVG_BETA 0.15f
 

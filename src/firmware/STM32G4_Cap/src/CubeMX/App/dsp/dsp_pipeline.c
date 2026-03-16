@@ -10,8 +10,6 @@
 #include <stdint.h>
 #include <math.h>
 
-/* DWT (Data Watchpoint and Trace) cycle counter support */
-#include "stm32g4xx_hal.h"
 #include "arm_math.h"
 
 #include "app_main.h"
@@ -26,14 +24,10 @@
 /* =========================================================================
  * STATIC VARIABLES
  * ========================================================================= */
+
 static const float adc_scalar = 3.3f / 4095.0f;
 
 static float fft_input_buf[FRAME_SIZE];
-
-/* FFT Performance measurement variables */
-static float fft_precise_average = 0.0f;
-static float fft_last_cycles = 0.0f;
-static uint8_t fft_perf_initialized = 0;
 
 /* =========================================================================
  * FORWARD DECLARATIONS
@@ -45,14 +39,6 @@ static uint8_t fft_perf_initialized = 0;
 /* =========================================================================
  * PUBLIC FUNCTIONS
  * ========================================================================= */
-
-void calculate_fft_cycles_average(float cycles)
-{
-    float lpVal = fft_precise_average;
-    
-    fft_precise_average = (lpVal - (FFT_PERF_BETA * ((float)(lpVal - cycles))));
-    fft_last_cycles = cycles;
-}
 
 // Process raw ADC data to float voltage values for a specific channel (de-interleaves)
 void process_adc_to_float(uint16_t *adc_raw, float *output, uint8_t ch,
@@ -101,20 +87,9 @@ void apply_fft(arm_rfft_fast_instance_f32 *fft_instance,
                float *input,
                float *fft_output,
                uint32_t fft_size) {
-  (void)fft_size;
-
-  // Measure FFT performance using DWT cycle counter
-  uint32_t start_cycles = DWT->CYCCNT;
-
   arm_rfft_fast_f32(fft_instance, input, fft_output, 0);
-
-  uint32_t end_cycles = DWT->CYCCNT;
-  uint32_t fft_cycles = end_cycles - start_cycles;
-  
-  // Update moving average if performance measurement is initialized
-  if (fft_perf_initialized) {
-    calculate_fft_cycles_average((float)fft_cycles);
-  }
+  /* Optional optimization: if host accepts CMSIS packed format (512 floats), skip
+   * pack_rfft_complex_bins and write fft_temp_buf directly to SPI; see OPTIMIZATION_PLAN.md */
 }
 
 // TODO: We likely don't need to calculate magnitude, I think the
@@ -188,30 +163,11 @@ void process_adc_pipeline(arm_rfft_fast_instance_f32 *fft_instance,
  * STATIC FUNCTIONS
  * ============================================================================ */
 
-void init_fft_performance_measurement(void)
-{
-  // Enable DWT (Data Watchpoint and Trace)
-  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-  
-  // Reset and enable DWT cycle counter
-  DWT->CYCCNT = 0;
-  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-  
-  // Initialize performance tracking
-  fft_precise_average = 0.0f;
-  fft_last_cycles = 0.0f;
-  fft_perf_initialized = 1;
-}
+/**
+ * @brief Static helper function description
+ * @return void
+ */
 
-float get_fft_avg_cycles(void)
-{
-  return fft_precise_average;
-}
-
-float get_fft_last_cycles(void)
-{
-  return fft_last_cycles;
-}
 
 void update_fft_bin_average(float *avg, const float *new_data, uint32_t length, float beta)
 {
