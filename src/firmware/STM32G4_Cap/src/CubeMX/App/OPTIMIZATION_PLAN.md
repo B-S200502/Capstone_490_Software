@@ -16,7 +16,7 @@
 | 2 | **Battery every N frames** | `APP_BATTERY_READ_EVERY_N_FRAMES` (e.g. 8) | [app_main.c](app_main.c): `app_process_synced_window`; cache in `battery_millivolts_cached`; CLI uses `app_get_cached_battery_mv()` | ~100k CC per frame saved when N > 1 (read every Nth frame) | Battery in header/status updates at most every N frames. |
 | 3 | **Clipping scan off** | `APP_CLIP_DETECT_ENABLE` (0 = off) | [app_main.c](app_main.c): `app_process_synced_window` | Saves full clipping scan over all ADCs × FRAME_SIZE × channels | `SPI_FRAME_FLAG_TIME_CLIPPING` never set; clip counters stay 0. |
 | 4 | **ADC + DC in one step** | (no switch) | [dsp/dsp_pipeline.c](dsp/dsp_pipeline.c): `process_adc_to_float_and_remove_dc`, used by `process_adc_channel_pipeline` | One fewer full pass over the buffer per channel (merge de-interleave + DC sum + DC remove into two loops) | None. |
-| 5 | **Bulk payload copy** | (no switch) | [app_main.c](app_main.c): after the 16× FFT+avg loop, one capacity check and one loop of `memcpy` per mic into `tx_buf` | Same bytes copied, fewer capacity checks and a single logical “block” instead of 16 appends | None. |
+| 5 | **Bulk payload copy** | `SPI_FRAME_PAYLOAD_BYTES` (spi_stream.h) | [app_main.c](app_main.c): after the 16× FFT+avg loop, one memcpy of SPI_FRAME_PAYLOAD_BYTES from &fft_avg[0][0]; no runtime size check | Single bulk copy; no per-frame capacity check | None. |
 | 6 | **Optional: no FFT repack** | Not implemented | [dsp/dsp_pipeline.c](dsp/dsp_pipeline.c): `apply_fft` → `pack_rfft_complex_bins` | Saves repack step if host accepts CMSIS packed layout | Host must accept **CMSIS packed** FFT output (512 floats) instead of current complex layout. |
 
 ---

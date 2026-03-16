@@ -339,16 +339,9 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
     }
   }
 
-  // One full bulk copy of entire payload (fft_avg is contiguous: N_MICS rows of FRAME_SIZE floats)
-  {
-    const size_t payload_total = (size_t)N_MICS * SPI_MIC_PAYLOAD_BYTES;
-    if ((offset + payload_total) > SPI_FRAME_PACKET_SIZE_BYTES) {
-      fft_in_progress = 0u;
-      return;
-    }
-    memcpy(tx_buf + offset, &fft_avg[0][0], payload_total);
-    offset += payload_total;
-  }
+  // One full bulk copy of entire payload (fft_avg is contiguous; size is fixed at build time)
+  memcpy(tx_buf + offset, &fft_avg[0][0], SPI_FRAME_PAYLOAD_BYTES);
+  offset += SPI_FRAME_PAYLOAD_BYTES;
 
   // Finalize (append checksum if enabled) and send
   final_len = spi_stream_finalize_frame(tx_buf,

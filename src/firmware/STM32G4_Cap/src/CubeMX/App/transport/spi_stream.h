@@ -24,6 +24,7 @@ extern "C" {
 // arm_rfft_fast_f32() with N=FRAME_SIZE produces FRAME_SIZE total floats 
 //(DC and Nyquist bin complex components are omitted)
 #define SPI_MIC_PAYLOAD_BYTES (FRAME_SIZE * SPI_FLOAT_SIZE_BYTES)
+#define SPI_FRAME_PAYLOAD_BYTES (N_MICS * SPI_MIC_PAYLOAD_BYTES)
 
 #define SPI_PACKET_SIZE (SPI_FRAME_HEADER_SIZE_BYTES + \
                          SPI_MIC_PAYLOAD_BYTES + SPI_CHECKSUM_SIZE_BYTES)
