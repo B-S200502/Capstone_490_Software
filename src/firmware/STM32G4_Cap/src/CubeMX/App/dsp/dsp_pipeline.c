@@ -29,7 +29,6 @@
 static const float adc_scalar = 3.3f / 4095.0f;
 
 static float fft_input_buf[FRAME_SIZE];
-static float fft_temp_buf[FRAME_SIZE];
 
 /* FFT Performance measurement variables */
 static float fft_precise_average = 0.0f;
@@ -42,9 +41,6 @@ static uint8_t fft_perf_initialized = 0;
 
 /* static void module_init(void); */
 /* static void module_process(void); */
-static void pack_rfft_complex_bins(const float *packed_fft,
-                                   float *complex_output,
-                                   uint32_t fft_size);
 
 /* =========================================================================
  * PUBLIC FUNCTIONS
@@ -103,16 +99,14 @@ static void process_adc_to_float_and_remove_dc(uint16_t *adc_raw, float *output,
 
 void apply_fft(arm_rfft_fast_instance_f32 *fft_instance,
                float *input,
-               float *complex_output,
+               float *fft_output,
                uint32_t fft_size) {
+  (void)fft_size;
 
   // Measure FFT performance using DWT cycle counter
   uint32_t start_cycles = DWT->CYCCNT;
 
-  arm_rfft_fast_f32(fft_instance, input, fft_temp_buf, 0);
-  /* Optional optimization: if host accepts CMSIS packed format (512 floats), skip
-   * pack_rfft_complex_bins and write fft_temp_buf directly to SPI; see OPTIMIZATION_PLAN.md */
-  pack_rfft_complex_bins(fft_temp_buf, complex_output, fft_size);
+  arm_rfft_fast_f32(fft_instance, input, fft_output, 0);
 
   uint32_t end_cycles = DWT->CYCCNT;
   uint32_t fft_cycles = end_cycles - start_cycles;
@@ -123,8 +117,8 @@ void apply_fft(arm_rfft_fast_instance_f32 *fft_instance,
   }
 }
 
-// TODO: We likely don't need to calculate magnitude, I think the 
-// beamforming algorithm can work directly with complex FFT output.
+// TODO: We likely don't need to calculate magnitude, I think the
+// beamforming algorithm can work directly with packed FFT output.
 void calculate_magnitude(float *fft_output, float *magnitude, uint32_t fft_size)
 {
   // For real FFT output of size N, the bins are arranged as:
@@ -193,28 +187,6 @@ void process_adc_pipeline(arm_rfft_fast_instance_f32 *fft_instance,
 /* ============================================================================
  * STATIC FUNCTIONS
  * ============================================================================ */
-
-/**
- * @brief Static helper function description
- * @return void
- */
-static void pack_rfft_complex_bins(const float *packed_fft,
-                                   float *complex_output,
-                                   uint32_t fft_size)
-{
-  const uint32_t half = fft_size >> 1;
-
-  complex_output[0] = packed_fft[0];
-  complex_output[1] = 0.0f;
-
-  for (uint32_t bin = 1; bin < half; bin++) {
-    complex_output[2u * bin] = packed_fft[2u * bin];
-    complex_output[2u * bin + 1u] = packed_fft[2u * bin + 1u];
-  }
-
-  complex_output[2u * half] = packed_fft[1];
-  complex_output[2u * half + 1u] = 0.0f;
-}
 
 void init_fft_performance_measurement(void)
 {
