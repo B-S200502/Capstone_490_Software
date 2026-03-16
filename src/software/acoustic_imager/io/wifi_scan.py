@@ -1,6 +1,8 @@
 """
 WiFi network scanning for Raspberry Pi / Linux.
-Uses nmcli (NetworkManager) first, falls back to iwlist when nmcli fails or returns empty.
+Uses nmcli (NetworkManager) for connect; scan uses nmcli then iw/iwlist.
+Disconnect tries nmcli first, then ip link down/up (no nmcli) so it works on Pi.
+SSIDs are normalized to ASCII apostrophe so "Basem's iPhone" works everywhere.
 """
 
 from __future__ import annotations
@@ -9,6 +11,22 @@ import re
 import subprocess
 import time
 from typing import List, Dict
+
+# All common Unicode apostrophe/quote code points -> ASCII apostrophe (U+0027)
+_APOSTROPHE_MAP = str.maketrans({
+    "\u2019": "'",   # RIGHT SINGLE QUOTATION MARK (iOS, Word)
+    "\u2018": "'",   # LEFT SINGLE QUOTATION MARK
+    "\u02BC": "'",   # MODIFIER LETTER APOSTROPHE
+    "\u02B9": "'",   # MODIFIER LETTER PRIME
+    "\u0060": "'",   # GRAVE ACCENT (sometimes used as apostrophe)
+    "\u00B4": "'",   # ACUTE ACCENT
+    "\u2032": "'",   # PRIME
+    "\u2039": "'",   # SINGLE LEFT-POINTING ANGLE QUOTATION MARK (abuse)
+})
+# Three-byte sequence when SSID was decoded wrong (UTF-8 bytes as Latin-1)
+_THREE_BYTE_APOSTROPHE = "\xe2\x80\x99"
+# Literal backslash-x hex as printed in errors (e.g. "Basem\xe2\x80\x99s iPhone" as 12 chars)
+_LITERAL_APOSTROPHE_ESCAPE = "\\xe2\\x80\\x99"
 
 
 def _scan_nmcli() -> List[Dict[str, str]]:
@@ -44,9 +62,10 @@ def _scan_nmcli() -> List[Dict[str, str]]:
             security = (parts[3] or "").strip()
             freq = (parts[4] or "").strip()
             channel = (parts[5] or "").strip()
-            if not ssid or ssid in seen:
+            ssid_ascii = normalize_ssid(ssid)
+            if not ssid_ascii or ssid_ascii in seen:
                 continue
-            seen.add(ssid)
+            seen.add(ssid_ascii)
             # Convert signal % (0..100) to rough dBm estimate for geolocation APIs.
             try:
                 sig_pct = float(signal)
@@ -54,7 +73,7 @@ def _scan_nmcli() -> List[Dict[str, str]]:
             except Exception:
                 rssi = 0
             result.append({
-                "ssid": ssid,
+                "ssid": ssid_ascii,
                 "signal": signal,
                 "security": security if security and security != "--" else "Open",
                 "bssid": bssid,
@@ -92,7 +111,7 @@ def _parse_iw(text: str) -> List[Dict[str, str]]:
         if not current:
             continue
         if line.startswith("SSID:"):
-            current["ssid"] = line[5:].strip()
+            current["ssid"] = normalize_ssid(line[5:].strip())
         elif line.startswith("freq:"):
             m = re.search(r"(\d+)", line)
             if m:
@@ -177,7 +196,7 @@ def _parse_iwlist(text: str) -> List[Dict[str, str]]:
         bssid = ""
         essid_match = re.search(r'ESSID:"([^"]*)"', cell)
         if essid_match:
-            ssid = essid_match.group(1).strip()
+            ssid = normalize_ssid(essid_match.group(1).strip())
         addr_match = re.search(r"Address:\s*([0-9A-Fa-f:]{17})", cell)
         if addr_match:
             bssid = addr_match.group(1).lower()
@@ -211,7 +230,8 @@ def scan_wifi_networks() -> List[Dict[str, str]]:
     Tries nmcli first, then iw (often returns more networks on Pi), then iwlist.
     On Raspberry Pi, nmcli often returns only the connected network; iw/sudo iw
     typically returns all visible networks.
-    Returns list of {"ssid", "signal", "security"} dicts.
+    Returns list of {"ssid", "signal", "security", ...} dicts. SSIDs are normalized
+    (Unicode apostrophe -> ASCII) for reliable matching and connect.
     """
     result = _scan_nmcli()
     if not result:
@@ -223,6 +243,10 @@ def scan_wifi_networks() -> List[Dict[str, str]]:
             result = iw_result
     if not result:
         result = _scan_iwlist()
+    # Normalize SSIDs so "Basem's iPhone" (Unicode apostrophe) matches and connects reliably
+    for entry in result:
+        if "ssid" in entry and entry["ssid"]:
+            entry["ssid"] = normalize_ssid(entry["ssid"])
     return result
 
 
@@ -254,9 +278,10 @@ def _scan_nmcli_iface() -> List[Dict[str, str]]:
             security = (parts[3] or "").strip()
             freq = (parts[4] or "").strip()
             channel = (parts[5] or "").strip()
-            if not ssid or ssid in seen:
+            ssid_ascii = normalize_ssid(ssid)
+            if not ssid_ascii or ssid_ascii in seen:
                 continue
-            seen.add(ssid)
+            seen.add(ssid_ascii)
             try:
                 sig_pct = float(signal)
                 rssi = int(round(-100.0 + (sig_pct / 100.0) * 70.0))
@@ -264,7 +289,7 @@ def _scan_nmcli_iface() -> List[Dict[str, str]]:
                 rssi = 0
             result.append(
                 {
-                    "ssid": ssid,
+                    "ssid": ssid_ascii,
                     "signal": signal,
                     "security": security if security and security != "--" else "Open",
                     "bssid": bssid,
@@ -286,31 +311,92 @@ def _is_full_bssid(bssid: str | None) -> bool:
     return bool(re.match(r"^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$", s))
 
 
-def _normalize_ssid_for_connect(ssid: str) -> str:
-    """Normalize SSID so nmcli can match: Unicode apostrophe -> ASCII (e.g. Basem's iPhone from iOS)."""
+def normalize_ssid(ssid: str) -> str:
+    """
+    Normalize SSID to ASCII: all apostrophe-like/smart-quote chars -> ASCII apostrophe (').
+    Handles: U+2019, three-byte 0xe2/0x80/0x99, and literal string "\\xe2\\x80\\x99".
+    Use for display, comparison, and connect so "Basem's iPhone" works everywhere.
+    """
     if not ssid:
         return ssid
-    return ssid.replace("\u2019", "'").replace("\u2018", "'").replace("\xe2\x80\x99", "'")
+    # Literal backslash-x hex (e.g. from nmcli error or wrong encoding)
+    s = ssid.replace(_LITERAL_APOSTROPHE_ESCAPE, "'")
+    s = s.translate(_APOSTROPHE_MAP)
+    s = s.replace(_THREE_BYTE_APOSTROPHE, "'")
+    return s
+
+
+def _normalize_ssid_for_connect(ssid: str) -> str:
+    """Alias for connect path; use normalize_ssid for consistency."""
+    return normalize_ssid(ssid)
 
 
 def _rescan_wifi() -> None:
-    """Rescan so the AP list is fresh before connect."""
+    """Rescan so the AP list is fresh before connect. Tries with ifname for Pi."""
+    for args in [
+        ["nmcli", "device", "wifi", "rescan", "ifname", "wlan0"],
+        ["nmcli", "device", "wifi", "rescan"],
+    ]:
+        try:
+            out = subprocess.run(
+                args,
+                capture_output=True,
+                timeout=10,
+                encoding="utf-8",
+                errors="replace",
+            )
+            if out.returncode == 0:
+                break
+        except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+            pass
+
+
+def _get_saved_connection_for_ssid(normalized_ssid: str) -> str | None:
+    """
+    Return the saved NetworkManager connection name (id) for the given SSID, or None.
+    Used to reconnect via 'nmcli connection up' so previously saved credentials are used.
+    """
+    if not normalized_ssid:
+        return None
     try:
-        subprocess.run(
-            ["nmcli", "device", "wifi", "rescan"],
+        out = subprocess.run(
+            ["nmcli", "-t", "-g", "NAME", "connection", "show"],
             capture_output=True,
-            timeout=10,
+            text=True,
+            timeout=5,
             encoding="utf-8",
             errors="replace",
         )
+        if out.returncode != 0 or not out.stdout:
+            return None
+        for name in out.stdout.strip().splitlines():
+            name = (name or "").strip()
+            if not name:
+                continue
+            out2 = subprocess.run(
+                ["nmcli", "-t", "-g", "802-11-wireless.ssid", "connection", "show", name],
+                capture_output=True,
+                text=True,
+                timeout=2,
+                encoding="utf-8",
+                errors="replace",
+            )
+            if out2.returncode != 0:
+                continue
+            saved_ssid = (out2.stdout or "").strip()
+            if normalize_ssid(saved_ssid) == normalized_ssid:
+                return name
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
         pass
+    return None
 
 
 def connect_wifi(ssid: str, password: str, bssid: str | None = None) -> tuple[bool, str]:
     """
-    Connect to WiFi using only nmcli device wifi connect (no profile, no ifname, no sudo).
-    SSID is normalized so e.g. "Basem's iPhone" with Unicode apostrophe becomes ASCII for matching.
+    Connect to WiFi. For a network the user has connected to before (saved profile),
+    uses only 'nmcli connection up' with retries so we don't hit "No network with SSID"
+    from device wifi connect (nmcli device wifi list often omits networks on Pi).
+    For first-time connect, uses nmcli device wifi connect with password.
     """
     connect_timeout = 35
 
@@ -329,13 +415,48 @@ def connect_wifi(ssid: str, password: str, bssid: str | None = None) -> tuple[bo
         return False, err[:120] if err else "Connection failed"
 
     try:
+        normalized = normalize_ssid(ssid)
+        saved = _get_saved_connection_for_ssid(normalized)
+
+        if saved:
+            # Reconnect: use only connection up (no device wifi connect fallback).
+            # Retry with rescan so the AP is visible; ifname wlan0 helps on Pi.
+            last_msg = "Connection failed"
+            for attempt in range(2):
+                _rescan_wifi()
+                time.sleep(2)
+                ok, msg = run(["nmcli", "-w", "30", "connection", "up", saved, "ifname", "wlan0"])
+                if ok:
+                    return True, msg
+                last_msg = msg
+                # If first attempt failed, try without ifname (some NM versions)
+                if not ok and attempt == 0:
+                    ok, msg = run(["nmcli", "-w", "30", "connection", "up", saved])
+                    if ok:
+                        return True, msg
+                    last_msg = msg
+            return False, last_msg
+
+        # First-time connect (e.g. hotspot): device wifi connect with password; ifname helps on Pi.
         _rescan_wifi()
         time.sleep(2)
-        normalized = _normalize_ssid_for_connect(ssid)
-        args = ["nmcli", "-w", "30", "device", "wifi", "connect", normalized]
+        args = ["nmcli", "-w", "30", "device", "wifi", "connect", normalized, "ifname", "wlan0"]
         if password:
             args += ["password", password]
+        if bssid and _is_full_bssid(bssid):
+            args += ["bssid", bssid.strip()]
         ok, msg = run(args)
+        if not ok:
+            # Retry without ifname in case this NM version doesn't support it for device wifi connect
+            args_retry = ["nmcli", "-w", "30", "device", "wifi", "connect", normalized]
+            if password:
+                args_retry += ["password", password]
+            if bssid and _is_full_bssid(bssid):
+                args_retry += ["bssid", bssid.strip()]
+            ok2, msg2 = run(args_retry)
+            if ok2:
+                return True, msg2
+            msg = msg2
         return (True, msg) if ok else (False, msg)
     except subprocess.TimeoutExpired:
         return False, "Connection timed out"
@@ -365,34 +486,100 @@ def _get_active_wifi_connection_name() -> str | None:
     return None
 
 
-def disconnect_wifi() -> tuple[bool, str]:
-    """
-    Disconnect from current WiFi. Returns (success, message).
-    Tries device disconnect first, then connection down by name (more reliable on some Pi/NM setups).
-    """
-    def run_nm(args: list) -> bool:
+def _run_cmd(args: list, timeout: int = 8) -> bool:
+    """Run a command; return True if returncode is 0."""
+    try:
+        out = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            encoding="utf-8",
+            errors="replace",
+        )
+        return out.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+        return False
+
+
+def _is_wifi_connected() -> bool:
+    """True if the system reports an active WiFi connection (so we can verify disconnect)."""
+    for cmd in [["iwgetid", "-r"], ["iwgetid", "-r", "-s"]]:
         try:
             out = subprocess.run(
-                args,
+                cmd,
                 capture_output=True,
                 text=True,
-                timeout=8,
+                timeout=2,
                 encoding="utf-8",
                 errors="replace",
             )
-            return out.returncode == 0
+            if out.returncode == 0 and (out.stdout or "").strip():
+                return True
         except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
-            return False
+            continue
+    try:
+        out = subprocess.run(
+            ["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if out.returncode == 0 and out.stdout:
+            for line in out.stdout.strip().splitlines():
+                if line.startswith("yes:"):
+                    return True
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+        pass
+    return False
 
-    # 1) Disconnect the device (works on most systems)
-    if run_nm(["nmcli", "device", "disconnect", "ifname", "wlan0"]):
-        return True, "Disconnected"
-    if run_nm(["nmcli", "device", "disconnect"]):
+
+def disconnect_wifi() -> tuple[bool, str]:
+    """
+    Disconnect from current WiFi. Returns (success, message).
+    Tries several methods and only reports success when the Pi is actually disconnected
+    (verified with iwgetid/nmcli). So the app really controls WiFi state.
+    Order: wpa_cli, nmcli device disconnect, nmcli connection down, ip link down/up.
+    """
+    if not _is_wifi_connected():
         return True, "Disconnected"
 
-    # 2) Bring down the active connection by name (fallback when device disconnect fails)
-    conn = _get_active_wifi_connection_name()
-    if conn and run_nm(["nmcli", "connection", "down", conn]):
-        return True, "Disconnected"
+    def try_disconnect() -> bool:
+        if not _is_wifi_connected():
+            return True
+        # 1) wpa_cli: tell wpa_supplicant to disconnect (no sudo, often works on Pi)
+        for iface in ["wlan0", "wlan1"]:
+            if _run_cmd(["wpa_cli", "-i", iface, "disconnect"], timeout=5):
+                time.sleep(2)
+                if not _is_wifi_connected():
+                    return True
+        # 2) nmcli device disconnect
+        if _run_cmd(["nmcli", "device", "disconnect", "ifname", "wlan0"]):
+            time.sleep(2)
+            if not _is_wifi_connected():
+                return True
+        if _run_cmd(["nmcli", "device", "disconnect"]):
+            time.sleep(2)
+            if not _is_wifi_connected():
+                return True
+        # 3) nmcli connection down by name
+        conn = _get_active_wifi_connection_name()
+        if conn and _run_cmd(["nmcli", "connection", "down", conn]):
+            time.sleep(2)
+            if not _is_wifi_connected():
+                return True
+        # 4) ip link down then up (requires sudo)
+        for iface in ["wlan0", "wlan1"]:
+            if _run_cmd(["sudo", "ip", "link", "set", iface, "down"], timeout=5):
+                time.sleep(2)
+                _run_cmd(["sudo", "ip", "link", "set", iface, "up"], timeout=5)
+                time.sleep(1)
+                if not _is_wifi_connected():
+                    return True
+        return False
 
+    if try_disconnect():
+        return True, "Disconnected"
     return False, "Disconnect failed"

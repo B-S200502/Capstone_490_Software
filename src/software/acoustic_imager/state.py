@@ -59,6 +59,8 @@ class HudState:
     wifi_shift_next: bool = False
     wifi_connect_status: str = ""   # "" | "connecting" | "ok" | "error"
     wifi_connect_message: str = ""
+    wifi_disconnecting: bool = False   # True while disconnect in progress (background thread)
+    wifi_disconnect_message: str = ""  # error message if disconnect failed
     connected_ssid: str = ""      # currently connected SSID or ""
     wifi_current_expanded: bool = False  # when True, show expanded network info
     wifi_scanning: bool = False   # True while scan is in progress (background thread)

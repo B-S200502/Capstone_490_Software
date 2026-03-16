@@ -19,7 +19,7 @@ from .standard_keyboard import (
 )
 from ..state import HUD
 from ..config import MENU_ACTIVE_BLUE, MENU_ACTIVE_BLUE_LIGHT
-from ..io.wifi_scan import scan_wifi_networks, connect_wifi, disconnect_wifi
+from ..io.wifi_scan import scan_wifi_networks, connect_wifi, disconnect_wifi, normalize_ssid
 from ..system_info import get_system_network_info, invalidate_system_network_cache
 from .email_modal import _draw_eye_icon
 
@@ -49,6 +49,21 @@ def _run_scan() -> None:
         HUD.wifi_scanning = False
 
 
+def _run_disconnect() -> None:
+    """Background thread: disconnect from current WiFi and refresh UI state."""
+    HUD.wifi_disconnecting = True
+    HUD.wifi_disconnect_message = ""
+    try:
+        ok, msg = disconnect_wifi()
+        if ok:
+            invalidate_system_network_cache()
+            HUD.wifi_current_expanded = False
+        else:
+            HUD.wifi_disconnect_message = msg[:60] if msg else "Disconnect failed"
+    finally:
+        HUD.wifi_disconnecting = False
+
+
 def _get_wifi_list_layout(fw: int, fh: int) -> dict:
     """Return layout for list screen: list rect, scrollbar rect, row_h, max_scroll, other_networks."""
     modal_w = MODAL_W
@@ -70,7 +85,11 @@ def _get_wifi_list_layout(fw: int, fh: int) -> dict:
     list_visible_h = max(0, list_visible_h)
     connected_ssid, _, _ = get_system_network_info(0)
     networks = HUD.wifi_networks or []
-    other_networks = [n for n in networks if (n.get("ssid") or "").strip() != connected_ssid]
+    connected_norm = normalize_ssid((connected_ssid or "").strip())
+    other_networks = [
+        n for n in networks
+        if normalize_ssid((n.get("ssid") or "").strip()) != connected_norm
+    ]
     total_content_h = len(other_networks) * row_h
     max_scroll = max(0, total_content_h - list_visible_h)
     scroll_offset = min(HUD.wifi_list_scroll_offset, max_scroll) if max_scroll > 0 else 0
@@ -169,7 +188,7 @@ def _draw_list_screen(
     # Blue highlight for current connection box (expanded when clicked)
     cv2.rectangle(frame, (row_x, current_row_y), (row_x + row_w, current_row_y + box_h), MENU_ACTIVE_BLUE, -1, cv2.LINE_AA)
     cv2.rectangle(frame, (row_x, current_row_y), (row_x + row_w, current_row_y + box_h), MENU_ACTIVE_BLUE_LIGHT, 1, cv2.LINE_AA)
-    current_label = connected_ssid[:24] if connected_ssid else "Not connected"
+    current_label = (normalize_ssid(connected_ssid)[:24] if connected_ssid else "Not connected")
     cv2.putText(frame, current_label, (row_x + 8, current_row_y + (row_h - 4) // 2 + 6), font, 0.48, text_color, 1, cv2.LINE_AA)
     if expanded:
         info_y = current_row_y + row_h + 4
@@ -177,14 +196,17 @@ def _draw_list_screen(
         line_h = 18
         info_color = (220, 220, 220)
         if ssid_full:
-            cv2.putText(frame, f"SSID: {ssid_full[:28]}", (row_x + 8, info_y), font, 0.40, info_color, 1, cv2.LINE_AA)
+            cv2.putText(frame, f"SSID: {normalize_ssid(ssid_full)[:28]}", (row_x + 8, info_y), font, 0.40, info_color, 1, cv2.LINE_AA)
         if ip:
             cv2.putText(frame, f"IP: {ip}", (row_x + 8, info_y + line_h), font, 0.40, info_color, 1, cv2.LINE_AA)
         if hostname:
             cv2.putText(frame, f"Device: {hostname[:24]}", (row_x + 8, info_y + 2 * line_h), font, 0.40, info_color, 1, cv2.LINE_AA)
         # Signal/security from scan if available
         networks = HUD.wifi_networks or []
-        match = next((n for n in networks if (n.get("ssid") or "").strip() == ssid_full), None)
+        match = next(
+            (n for n in networks if normalize_ssid((n.get("ssid") or "").strip()) == normalize_ssid(ssid_full or "")),
+            None,
+        )
         if match:
             sig = match.get("signal", "")
             sec = match.get("security", "Open")
@@ -199,10 +221,15 @@ def _draw_list_screen(
             else:
                 menu_buttons["wifi_disconnect"].x, menu_buttons["wifi_disconnect"].y = disc_x, disc_y
                 menu_buttons["wifi_disconnect"].w, menu_buttons["wifi_disconnect"].h = disconnect_btn_w, disconnect_btn_h
-            cv2.rectangle(frame, (disc_x, disc_y), (disc_x + disconnect_btn_w, disc_y + disconnect_btn_h), (60, 60, 60), -1, cv2.LINE_AA)
+            disconnecting = HUD.wifi_disconnecting
+            btn_label = "Disconnecting..." if disconnecting else "Disconnect"
+            btn_color = (50, 50, 50) if disconnecting else (60, 60, 60)
+            cv2.rectangle(frame, (disc_x, disc_y), (disc_x + disconnect_btn_w, disc_y + disconnect_btn_h), btn_color, -1, cv2.LINE_AA)
             cv2.rectangle(frame, (disc_x, disc_y), (disc_x + disconnect_btn_w, disc_y + disconnect_btn_h), (255, 255, 255), 1, cv2.LINE_AA)
-            (tw, th), _ = cv2.getTextSize("Disconnect", font, 0.5, 1)
-            cv2.putText(frame, "Disconnect", (disc_x + (disconnect_btn_w - tw) // 2, disc_y + (disconnect_btn_h + th) // 2), font, 0.5, text_color, 1, cv2.LINE_AA)
+            (tw, th), _ = cv2.getTextSize(btn_label, font, 0.5, 1)
+            cv2.putText(frame, btn_label, (disc_x + (disconnect_btn_w - tw) // 2, disc_y + (disconnect_btn_h + th) // 2), font, 0.5, text_color, 1, cv2.LINE_AA)
+            if HUD.wifi_disconnect_message:
+                cv2.putText(frame, HUD.wifi_disconnect_message[:32], (row_x + 8, current_row_y + box_h + 4), font, 0.36, (0, 0, 220), 1, cv2.LINE_AA)
     if not (expanded and connected_ssid) and "wifi_disconnect" in menu_buttons:
         menu_buttons["wifi_disconnect"].w = 0
         menu_buttons["wifi_disconnect"].h = 0
@@ -216,12 +243,13 @@ def _draw_list_screen(
         row_y = list_y0 + i * row_h - scroll_offset
         if row_y < list_y0 or row_y + row_h > list_y0 + list_visible_h:
             continue
-        ssid = net.get("ssid", "")
+        ssid_raw = net.get("ssid", "")
+        ssid_display = normalize_ssid(ssid_raw)
         signal = net.get("signal", "")
         security = net.get("security", "Open")
         cv2.rectangle(frame, (row_x, row_y), (row_x + list_content_w, row_y + row_h - 4), (50, 50, 50), -1)
         cv2.rectangle(frame, (row_x, row_y), (row_x + list_content_w, row_y + row_h - 4), (80, 80, 80), 1, cv2.LINE_AA)
-        label = f"{ssid[:24]}  {signal}%  {security}" if signal else f"{ssid[:28]}  {security}"
+        label = f"{ssid_display[:24]}  {signal}%  {security}" if signal else f"{ssid_display[:28]}  {security}"
         cv2.putText(frame, label, (row_x + 8, row_y + (row_h - 4) // 2 + 6), font, 0.48, text_color, 1, cv2.LINE_AA)
     # Scroll up/down buttons (when scrollable)
     if max_scroll > 0:
@@ -273,9 +301,9 @@ def _draw_password_screen(
     cv2.rectangle(frame, (modal_x, modal_y), (modal_x + modal_w, modal_y + modal_h), border_color, 3, cv2.LINE_AA)
 
     pad = 16
-    ssid = HUD.wifi_connect_ssid or ""
+    ssid_display = normalize_ssid(HUD.wifi_connect_ssid or "")
     title_y = modal_y + 32
-    cv2.putText(frame, f"Connect to: {ssid[:28]}", (modal_x + pad, title_y), font, 0.56, text_color, 1, cv2.LINE_AA)
+    cv2.putText(frame, f"Connect to: {ssid_display[:28]}", (modal_x + pad, title_y), font, 0.56, text_color, 1, cv2.LINE_AA)
 
     # Password field with show/hide toggle
     field_y = modal_y + 56
@@ -328,7 +356,12 @@ def _draw_password_screen(
     elif status == "ok":
         cv2.putText(frame, "Connected!", (modal_x + pad, conn_y + conn_h + 24), font, 0.44, (0, 200, 100), 1, cv2.LINE_AA)
     elif status == "error" and msg:
-        cv2.putText(frame, msg[:40], (modal_x + pad, conn_y + conn_h + 24), font, 0.40, (0, 0, 220), 1, cv2.LINE_AA)
+        # Show full error (e.g. "Connection activation failed: Not authorized") on up to 2 lines
+        err_line1 = msg[:48]
+        err_line2 = msg[48:96] if len(msg) > 48 else ""
+        cv2.putText(frame, err_line1, (modal_x + pad, conn_y + conn_h + 24), font, 0.40, (0, 0, 220), 1, cv2.LINE_AA)
+        if err_line2:
+            cv2.putText(frame, err_line2, (modal_x + pad, conn_y + conn_h + 42), font, 0.40, (0, 0, 220), 1, cv2.LINE_AA)
 
     # Keyboard: standard layout (matches app style)
     keyboard_y0 = modal_y + modal_h - 200
@@ -411,7 +444,8 @@ def _wifi_select_network_at_position(x: int, y: int, fw: int, fh: int) -> bool:
     if row_i < 0 or row_i >= len(other_networks):
         return False
     net = other_networks[row_i]
-    ssid = net.get("ssid", "")
+    ssid_raw = net.get("ssid", "")
+    ssid = normalize_ssid(ssid_raw)  # ensure connect gets normalized SSID (e.g. Basem's iPhone)
     security = net.get("security", "Open")
     if security == "Open":
         HUD.wifi_connect_ssid = ssid
@@ -506,12 +540,14 @@ def _handle_list_click(x: int, y: int, fw: int, fh: int) -> bool:
             thread.start()
         return True
     if "wifi_disconnect" in menu_buttons and menu_buttons["wifi_disconnect"].w > 0 and menu_buttons["wifi_disconnect"].contains(x, y):
-        ok, _ = disconnect_wifi()
-        if ok:
-            invalidate_system_network_cache()
+        if not HUD.wifi_disconnecting:
+            thread = threading.Thread(target=_run_disconnect, daemon=True)
+            thread.start()
         return True
     if "wifi_current" in menu_buttons and menu_buttons["wifi_current"].contains(x, y):
         HUD.wifi_current_expanded = not HUD.wifi_current_expanded
+        if not HUD.wifi_current_expanded:
+            HUD.wifi_disconnect_message = ""
         return True
     if fw > 0 and fh > 0:
         layout = _get_wifi_list_layout(fw, fh)
@@ -564,9 +600,11 @@ def _handle_password_click(x: int, y: int) -> bool:
         if HUD.wifi_connect_status != "connecting":
             HUD.wifi_connect_status = ""
             HUD.wifi_connect_message = ""
+            # Always normalize before connect (handles literal \xNN and Unicode apostrophe)
+            ssid_to_connect = normalize_ssid(HUD.wifi_connect_ssid or "")
             thread = threading.Thread(
                 target=_run_connect,
-                args=(HUD.wifi_connect_ssid, HUD.wifi_password, HUD.wifi_connect_bssid),
+                args=(ssid_to_connect, HUD.wifi_password, HUD.wifi_connect_bssid),
                 daemon=True,
             )
             thread.start()
