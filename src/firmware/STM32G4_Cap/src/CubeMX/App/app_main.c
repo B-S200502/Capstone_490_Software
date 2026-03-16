@@ -203,9 +203,7 @@ void app_loop(void) {
     adc_pending_mask &= ~ADC_READY_HALF_MASK;
 
     if (!fft_in_progress && !get_spi_dma_busy()) {
-      start_performance_measurement();
       app_process_synced_window(0u, SPI_FRAME_FLAG_SYNCED_ALL_MICS);
-      end_performance_measurement();
     }
     return;
   }
@@ -214,11 +212,9 @@ void app_loop(void) {
     adc_pending_mask &= ~ADC_READY_FULL_MASK;
     
     if (!fft_in_progress && !get_spi_dma_busy()) {
-      start_performance_measurement();
       app_process_synced_window(ADC_DMA_BUF_SIZE / 2u,
                                 (uint16_t)(SPI_FRAME_FLAG_SYNCED_ALL_MICS |
                                            SPI_FRAME_FLAG_SECOND_HALF));
-      end_performance_measurement();
     }
     return;
   }
@@ -275,7 +271,6 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
 
   fft_in_progress = 1u;
 
-
   // TODO: Might want to do this once only?
   // sample_rate_hz = app_get_tim6_trigger_hz();
   batch_id = spi_stream_next_batch(&spi_stream_ctx);
@@ -301,7 +296,7 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
   clipping_hits = 0u;
 #endif
 
-#if MODE != RELEASE
+#if MODE != RELEASE && APP_CLIP_DETECT_ENABLE
   usb_printf("Clipping hits in window: %u, total clipped windows: %u, total clipped samples: %u\r\n",
              clipping_hits, clip_window_count, clip_sample_count);
 #endif

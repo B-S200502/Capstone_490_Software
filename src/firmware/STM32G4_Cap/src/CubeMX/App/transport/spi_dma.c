@@ -13,6 +13,7 @@
 
 #include "spi_dma.h"
 #include "protocol/spi_protocol.h"
+#include "metrics/timing.h"
 #include "spi_stream.h"
 #include "spi.h"
 
@@ -75,8 +76,6 @@ int spi_stream_tx_dma(uint8_t *tx_buf, uint16_t len)
   if ((tx_buf == NULL) || (len == 0u)) {
       return 0;
   }
-
-  while (spi_dma_busy) {}
 
   // if (spi_dma_busy) {
   //     return 0;
@@ -183,6 +182,7 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 
   // Reset MCU_STATUS pin to LOW (PE0)
   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
+  end_performance_measurement();
 }
 
 
