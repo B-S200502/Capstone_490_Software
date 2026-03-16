@@ -68,6 +68,7 @@ static uint32_t _print_counter = 0;
 static uint32_t adc_pending_mask = 0;
 static uint32_t clip_window_count = 0u;
 static uint32_t clip_sample_count = 0u;
+static uint16_t battery_millivolts_cached = 0u;
 
 // TODO: sample_rate_hz bug
 static uint32_t sample_rate_hz = 0;
@@ -104,6 +105,7 @@ static uint32_t app_get_tim6_trigger_hz(void);
 static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags);
 static const uint16_t *app_get_adc_buffer(uint8_t adc_index);
 static uint16_t app_read_battery_millivolts(void);
+static uint16_t app_get_cached_battery_mv(void);
 static uint16_t app_scan_time_domain_clipping(uint32_t half_offset);
 static void app_send_passthrough_window(uint32_t half_offset, uint32_t sample_rate_hz);
 static void app_handle_usb_command(const char *command);
@@ -267,8 +269,17 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
   // TODO: Might want to do this once only?
   // sample_rate_hz = app_get_tim6_trigger_hz();
   batch_id = spi_stream_next_batch(&spi_stream_ctx);
-  battery_millivolts = app_read_battery_millivolts();
 
+#if APP_BATTERY_READ_EVERY_N_FRAMES > 0u
+  if ((batch_id % (uint32_t)APP_BATTERY_READ_EVERY_N_FRAMES) == 0u) {
+    battery_millivolts_cached = app_read_battery_millivolts();
+  }
+  battery_millivolts = battery_millivolts_cached;
+#else
+  battery_millivolts = app_read_battery_millivolts();
+#endif
+
+#if APP_CLIP_DETECT_ENABLE
   clipping_hits = app_scan_time_domain_clipping(half_offset);
 
   if (clipping_hits > 0u) {
@@ -276,6 +287,9 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
     clip_window_count++;
     clip_sample_count += clipping_hits;
   }
+#else
+  clipping_hits = 0u;
+#endif
 
 #if MODE != RELEASE
   usb_printf("Clipping hits in window: %u, total clipped windows: %u, total clipped samples: %u\r\n",
@@ -311,52 +325,32 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
     return;
   }
 
-  // Fill the payload with each mic's FFT data
+  // Process all mics: FFT + bin average (no per-mic append)
   for (uint8_t adc = 0; adc < N_ADCS; adc++) {
     uint16_t *active_half = (uint16_t *)(app_get_adc_buffer(adc) + half_offset);
 
     for (uint8_t channel = 0; channel < N_CH_PER_ADC; channel++) {
-      // uint16_t mic_index = (uint16_t)(adc * N_CH_PER_ADC + channel);
-      size_t appended_len = 0;
+      uint8_t mic_idx = adc * N_CH_PER_ADC + channel;
       process_adc_channel_pipeline(&fft_instance,
                                    active_half,
                                    channel,
                                    mic_fft_buffer);
-
-      uint8_t mic_idx = adc * N_CH_PER_ADC + channel;
       update_fft_bin_average(fft_avg[mic_idx], mic_fft_buffer, FRAME_SIZE, FFT_BIN_AVG_BETA);
-      
-      // if (_print_counter++ == 100) {
-      //   _print_counter = 0;
-
-      //   for (int i = 0; i < FRAME_SIZE; i++) {
-      //     usb_printf("mic_fft_buffer index=%d, value=%d.%02d\r\n",
-      //               i,
-      //               PRINT_F3(mic_fft_buffer[i]));
-      //     usb_printf("fft_avg        index=%d, value=%d.%02d\r\n",
-      //               i,
-      //               PRINT_F3(fft_avg[mic_idx][i]));            
-      //   }
-      //   rfft_packed_to_mag(mic_fft_buffer, mag_buffer, FRAME_SIZE);
-      //   dsp_print_fft_report(SAMPLE_RATE_HZ, mag_buffer, FRAME_SIZE);
-      //   rfft_packed_to_mag(fft_avg[mic_idx], mag_buffer, FRAME_SIZE);
-      //   dsp_print_fft_report(SAMPLE_RATE_HZ, mag_buffer, FRAME_SIZE);
-      // }
-     
-      appended_len = spi_stream_append_mic_payload(tx_buf + offset,
-                                                    SPI_FRAME_PACKET_SIZE_BYTES - offset,
-                                                    fft_avg[mic_idx],
-                                                    FRAME_SIZE);
-      
-      if (appended_len == 0u) {
-        fft_in_progress = 0u;
-        return;
-      }
-      offset += appended_len;                                              
     }
   }
 
-  // Send one big frame, set a pending flag
+  // One full bulk copy of entire payload (fft_avg is contiguous: N_MICS rows of FRAME_SIZE floats)
+  {
+    const size_t payload_total = (size_t)N_MICS * SPI_MIC_PAYLOAD_BYTES;
+    if ((offset + payload_total) > SPI_FRAME_PACKET_SIZE_BYTES) {
+      fft_in_progress = 0u;
+      return;
+    }
+    memcpy(tx_buf + offset, &fft_avg[0][0], payload_total);
+    offset += payload_total;
+  }
+
+  // Finalize (append checksum if enabled) and send
   final_len = spi_stream_finalize_frame(tx_buf,
                                         SPI_FRAME_PACKET_SIZE_BYTES - offset,
                                         offset);
@@ -366,10 +360,7 @@ static void app_process_synced_window(uint32_t half_offset, uint16_t frame_flags
     return;
   }
 
-  if (final_len == SPI_FRAME_PACKET_SIZE_BYTES) {
-    // spi_stream_tx_blocking(spi_tx, packet_len);
-    spi_stream_tx_dma(tx_buf, SPI_FRAME_PACKET_SIZE_BYTES);
-  }
+  spi_stream_tx_dma(tx_buf, (uint32_t)final_len);
 
 #if MODE != RELEASE
   usb_dbg_push_adc_window_4adc(&adc1_buf[half_offset],
@@ -408,6 +399,11 @@ static uint16_t app_read_battery_millivolts(void)
   sense_mv = ((uint32_t)raw_counts * BATT_ADC_VREF_MV) / 4095u;
   sense_mv = (sense_mv * BATT_DIVIDER_NUMERATOR) / BATT_DIVIDER_DENOMINATOR;
   return (uint16_t)sense_mv;
+}
+
+static uint16_t app_get_cached_battery_mv(void)
+{
+  return battery_millivolts_cached;
 }
 
 static uint16_t app_scan_time_domain_clipping(uint32_t half_offset)
@@ -503,7 +499,7 @@ static void app_handle_usb_command(const char *command)
                (unsigned long)adc_pending_mask,
                passthrough_state.enabled ? "on" : "off",
                (unsigned)passthrough_state.mic_index,
-               (unsigned)app_read_battery_millivolts(),
+               (unsigned)app_get_cached_battery_mv(),
                (unsigned long)app_get_tim6_trigger_hz(),
                (unsigned long)clip_window_count,
                (unsigned long)clip_sample_count);
@@ -527,7 +523,7 @@ static void app_handle_usb_command(const char *command)
   }
 
   if (strcmp(command, "battery") == 0) {
-    usb_printf("battery=%umV\r\n", (unsigned)app_read_battery_millivolts());
+    usb_printf("battery=%umV\r\n", (unsigned)app_get_cached_battery_mv());
     return;
   }
 

@@ -87,10 +87,12 @@ size_t spi_stream_build_frame_header(
 
   const size_t header_len = sizeof(hdr);
 
+#if SPI_CHECKSUM_ENABLE
   const size_t checksum_len = SPI_CHECKSUM_SIZE_BYTES;
-
-  const size_t total_len =
-      header_len + payload_len + checksum_len;
+  const size_t total_len = header_len + payload_len + checksum_len;
+#else
+  const size_t total_len = header_len + payload_len;
+#endif
 
   if (dst_cap < total_len)
       return 0;
@@ -134,19 +136,19 @@ size_t spi_stream_finalize_frame(
     size_t dst_cap,
     size_t used_len)
 {
-  uint16_t checksum;
-
   if (!dst)
     return 0;
 
+#if SPI_CHECKSUM_ENABLE
   if (dst_cap < SPI_CHECKSUM_SIZE_BYTES)
     return 0;
-
-  checksum = checksum16_sum_bytes(dst, used_len);
-
+  uint16_t checksum = checksum16_sum_bytes(dst, used_len);
   memcpy(dst + used_len, &checksum, sizeof(checksum));
-
   return used_len + SPI_CHECKSUM_SIZE_BYTES;
+#else
+  (void)dst_cap;
+  return used_len;
+#endif
 }
 
 #elif SPI_MODE == SPI_SINGLE_MIC

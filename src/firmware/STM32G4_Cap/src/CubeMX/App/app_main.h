@@ -33,6 +33,11 @@ extern "C" {
 #define BATT_DIVIDER_NUMERATOR 1u
 #define BATT_DIVIDER_DENOMINATOR 1u
 
+// Cycle-reduction options (see App/OPTIMIZATION_PLAN.md)
+#define SPI_CHECKSUM_ENABLE       0   /* 0 = no checksum (~300k CC/frame saved); host must use header+payload only */
+#define APP_BATTERY_READ_EVERY_N_FRAMES 8u   /* Read battery every N frames; use cached value otherwise (~100k CC saved when N>1) */
+#define APP_CLIP_DETECT_ENABLE    0   /* 0 = skip time-domain clipping scan every frame */
+
 // Configuration defines
 #define SPI_SINGLE_MIC 0
 #define SPI_FULL_FRAME 1

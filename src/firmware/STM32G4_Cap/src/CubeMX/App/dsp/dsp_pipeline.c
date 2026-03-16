@@ -58,9 +58,8 @@ void calculate_fft_cycles_average(float cycles)
     fft_last_cycles = cycles;
 }
 
-// Process raw ADC data to float voltage values for a specific channel 
-// (de-interleaves)
-void process_adc_to_float(uint16_t *adc_raw, float *output, uint8_t ch, 
+// Process raw ADC data to float voltage values for a specific channel (de-interleaves)
+void process_adc_to_float(uint16_t *adc_raw, float *output, uint8_t ch,
                           uint32_t length) {
   for (uint32_t i = 0; i < length; i++) {
       output[i] = (float)adc_raw[i * N_CH_PER_ADC + ch] * adc_scalar;
@@ -83,15 +82,36 @@ void remove_dc_bias(float *data, uint32_t length, float dc_offset)
   }
 }
 
-void apply_fft(arm_rfft_fast_instance_f32 *fft_instance, 
-               float *input, 
-               float *complex_output, 
+/**
+ * Single-pass de-interleave + scale to float, then remove DC in place.
+ * Replaces three separate loops (process_adc_to_float, calculate_dc_offset, remove_dc_bias).
+ */
+static void process_adc_to_float_and_remove_dc(uint16_t *adc_raw, float *output,
+                                               uint8_t ch, uint32_t length)
+{
+  float sum = 0.0f;
+  for (uint32_t i = 0; i < length; i++) {
+    float v = (float)adc_raw[i * N_CH_PER_ADC + ch] * adc_scalar;
+    output[i] = v;
+    sum += v;
+  }
+  const float dc_offset = sum / (float)length;
+  for (uint32_t i = 0; i < length; i++) {
+    output[i] -= dc_offset;
+  }
+}
+
+void apply_fft(arm_rfft_fast_instance_f32 *fft_instance,
+               float *input,
+               float *complex_output,
                uint32_t fft_size) {
 
   // Measure FFT performance using DWT cycle counter
   uint32_t start_cycles = DWT->CYCCNT;
 
   arm_rfft_fast_f32(fft_instance, input, fft_temp_buf, 0);
+  /* Optional optimization: if host accepts CMSIS packed format (512 floats), skip
+   * pack_rfft_complex_bins and write fft_temp_buf directly to SPI; see OPTIMIZATION_PLAN.md */
   pack_rfft_complex_bins(fft_temp_buf, complex_output, fft_size);
 
   uint32_t end_cycles = DWT->CYCCNT;
@@ -142,9 +162,7 @@ void process_adc_channel_pipeline(arm_rfft_fast_instance_f32 *fft_instance,
                                   uint8_t channel_index,
                                   float *fft_output)
 {
-  process_adc_to_float(adc_raw, fft_input_buf, channel_index, FRAME_SIZE);
-  float dc_offset = calculate_dc_offset(fft_input_buf, FRAME_SIZE);
-  remove_dc_bias(fft_input_buf, FRAME_SIZE, dc_offset);
+  process_adc_to_float_and_remove_dc(adc_raw, fft_input_buf, channel_index, FRAME_SIZE);
   apply_fft(fft_instance, fft_input_buf, fft_output, FRAME_SIZE);
 }
 

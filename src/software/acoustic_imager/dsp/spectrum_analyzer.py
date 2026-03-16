@@ -38,6 +38,9 @@ SPECTRUM_CURVE_THICKNESS = 2
 # Subsample curve to reduce polylines cost (step 2 = every 2nd bin)
 CURVE_SUBSAMPLE = 2
 
+# Reusable bar buffer per (h, bar_w) to avoid panel_bg.copy() allocation every frame
+_SPECTRUM_BAR_BUF: dict[tuple[int, int], np.ndarray] = {}
+
 
 def _a_weighting_db(f_hz: np.ndarray) -> np.ndarray:
     """A-weighting in dB per frequency (IEC 61672 / ISO 226 style). f_hz can be a scalar or array."""
@@ -168,7 +171,12 @@ def draw_spectrum_analyzer(
     mag_valid = mag2[valid]
 
     panel_bg = _get_panel_bg(h, bar_w)
-    bar = panel_bg.copy()
+    key_buf = (h, bar_w)
+    bar = _SPECTRUM_BAR_BUF.get(key_buf)
+    if bar is None or bar.shape != (h, bar_w, 3):
+        bar = np.empty((h, bar_w, 3), dtype=np.uint8)
+        _SPECTRUM_BAR_BUF[key_buf] = bar
+    np.copyto(bar, panel_bg)
 
     use_db = mode in ("dB", "dBA")
     draw_curve = True

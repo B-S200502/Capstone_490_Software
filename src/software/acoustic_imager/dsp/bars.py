@@ -27,6 +27,8 @@ class DbSliderState:
     _last_click_y: int = 0
 
 _DB_COLORBAR_CACHE: dict[tuple[int, int, str], np.ndarray] = {}  # (h, w, colormap) -> colormap image
+# Full bar with labels (state is None): (h, w, colormap, db_min, db_max) -> image; avoids putText every frame
+_DB_COLORBAR_FULL_CACHE: dict[tuple[int, int, str, float, float], np.ndarray] = {}
 
 def db_to_y(db: float, h: int, db_min: float, db_max: float) -> int:
     if h <= 1:
@@ -178,41 +180,49 @@ def draw_db_colorbar(
     h = int(frame.shape[0])
     width = int(max(1, width))
 
-    # ---- cached colormap gradient ----
+    # ---- if no slider state: use full bar cache (gradient + labels) to avoid putText every frame ----
+    if state is None:
+        db_min_f = float(db_min)
+        db_max_f = float(db_max)
+        key_full = (h, width, colormap, db_min_f, db_max_f)
+        full_bar = _DB_COLORBAR_FULL_CACHE.get(key_full)
+        if full_bar is None:
+            key = (h, width, colormap)
+            bar_color = _DB_COLORBAR_CACHE.get(key)
+            if bar_color is None:
+                grad = np.linspace(0, 255, h, dtype=np.uint8)[::-1]
+                bar = np.repeat(grad[:, None], width, axis=1)
+                colormap_cv = COLORMAP_DICT.get(colormap, cv2.COLORMAP_MAGMA)
+                bar_color = cv2.applyColorMap(bar, colormap_cv)
+                _DB_COLORBAR_CACHE[key] = bar_color
+            full_bar = bar_color.copy()
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.5
+            font_thickness = 1
+            top_text = f"{db_max_f:.0f} dB"
+            (top_w, top_h), _ = cv2.getTextSize(top_text, font, font_scale, font_thickness)
+            top_x = (width - top_w) // 2
+            top_y = 20
+            cv2.putText(full_bar, top_text, (top_x, top_y), font, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
+            bottom_text = f"{db_min_f:.0f} dB"
+            (bottom_w, bottom_h), _ = cv2.getTextSize(bottom_text, font, font_scale, font_thickness)
+            bottom_x = (width - bottom_w) // 2
+            bottom_y = h - 10
+            cv2.putText(full_bar, bottom_text, (bottom_x, bottom_y), font, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
+            _DB_COLORBAR_FULL_CACHE[key_full] = full_bar
+        frame[:, :width] = full_bar
+        return float(db_min), float(db_max)
+
+    # ---- with slider state: gradient only, then ruler/ticks (no full cache) ----
     key = (h, width, colormap)
     bar_color = _DB_COLORBAR_CACHE.get(key)
     if bar_color is None:
-        grad = np.linspace(0, 255, h, dtype=np.uint8)[::-1]   # top bright
+        grad = np.linspace(0, 255, h, dtype=np.uint8)[::-1]
         bar = np.repeat(grad[:, None], width, axis=1)
         colormap_cv = COLORMAP_DICT.get(colormap, cv2.COLORMAP_MAGMA)
         bar_color = cv2.applyColorMap(bar, colormap_cv)
         _DB_COLORBAR_CACHE[key] = bar_color
-
     frame[:, :width] = bar_color
-
-    # ---- if no slider state, show top/bottom labels centered horizontally ----
-    if state is None:
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.5
-        font_thickness = 1
-
-        # Top label (db_max)
-        top_text = f"{float(db_max):.0f} dB"
-        (top_w, top_h), _ = cv2.getTextSize(top_text, font, font_scale, font_thickness)
-        top_x = (width - top_w) // 2  # Center horizontally
-        top_y = 20
-        #cv2.putText(frame, top_text, (top_x, top_y), font, font_scale, (255, 255, 255), font_thickness + 1, cv2.LINE_AA)
-        cv2.putText(frame, top_text, (top_x, top_y), font, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
-
-        # Bottom label (db_min)
-        bottom_text = f"{float(db_min):.0f} dB"
-        (bottom_w, bottom_h), _ = cv2.getTextSize(bottom_text, font, font_scale, font_thickness)
-        bottom_x = (width - bottom_w) // 2  # Center horizontally
-        bottom_y = h - 10
-        # cv2.putText(frame, bottom_text, (bottom_x, bottom_y), font, font_scale, (0, 0, 0), font_thickness + 1, cv2.LINE_AA)
-        cv2.putText(frame, bottom_text, (bottom_x, bottom_y), font, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
-
-        return float(db_min), float(db_max)
 
     # ---- slider-controlled scaling ----
     # If disabled, keep inputs; if enabled, use state.db_max/span_db

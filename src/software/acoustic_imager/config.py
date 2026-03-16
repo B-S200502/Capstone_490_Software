@@ -179,8 +179,8 @@ N_BINS = SAMPLES_PER_CHANNEL // 2 + 1  # 257
 # dB mapping for heatmap intensity
 REL_DB_MIN = -60.0
 REL_DB_MAX = 0.0
-# Temporal smoothing for HW/LOOP heatmap: retain this fraction of previous frame (0=none, 1=no update)
-HEATMAP_SMOOTH_ALPHA = 0.52
+# Temporal smoothing for HW/LOOP heatmap: retain this fraction of previous frame (0=none, 1=no update). Higher = steadier blob, less flicker as it moves.
+HEATMAP_SMOOTH_ALPHA = 0.75
 # Bandpass power above this gives full heatmap brightness; below scales down (with floor) so heatmap reacts to level (tune to room)
 HEATMAP_LEVEL_REFERENCE = 1e6
 # Minimum heatmap scale so blobs stay visible when quiet (0=can go black, 1=no level scaling)
@@ -344,8 +344,8 @@ SPI_MUSIC_EVERY_N_FRAMES = 2
 # Two-stage 2D MUSIC: coarse grid then small fine patch around peak (faster). 0 = off (use ANGLES_2D_RESOLUTION only).
 SPI_MUSIC_2D_COARSE_RESOLUTION = 21   # coarse grid (e.g. 21x21); 0 = disabled
 SPI_MUSIC_2D_REFINE_HALF_WIDTH = 2   # fine patch half-width in grid steps (e.g. 2 -> 5x5 patch)
-# Covariance averaging: smooth R over this many frames (EMA) before MUSIC; 1 = no averaging, 3–5 = less noisy peaks.
-SPI_COV_AVG_FRAMES = 4
+# Covariance averaging: smooth R over this many frames (EMA) before MUSIC; 1 = no averaging, 3–6 = less noisy peaks, smoother blobs.
+SPI_COV_AVG_FRAMES = 6
 # Only show bins that are directional: lambda_1/sum(eigvals) >= this (0=off). Stricter = less random noise.
 SPI_DIRECTIVITY_MIN = 0.6
 # Only show bin if its MUSIC peak angle is stable: change from last frame <= this deg (0=off). Suppresses jitter.
