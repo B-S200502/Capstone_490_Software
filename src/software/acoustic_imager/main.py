@@ -126,9 +126,39 @@ from acoustic_imager.ui.calibration_suite_modal import (
     handle_calibration_suite_modal_mouse,
     handle_calibration_suite_modal_scroll,
 )
+from acoustic_imager.ui.screen_calibration_modal import (
+    draw_screen_calibration_modal,
+    handle_screen_calibration_modal_click,
+    handle_screen_calibration_modal_mouse,
+    handle_screen_calibration_modal_scroll,
+)
 from acoustic_imager.ui.acoustic_radar_map import draw_radar_map_widget, update_detection_history
 from acoustic_imager.ui.video_recorder import VideoRecorder
 from acoustic_imager.ui.battery_icon import draw_battery_icon_for_view
+
+# Screen calibration: 2x3 affine matrix (acoustic -> display); None if not loaded or disabled
+screen_calibration_matrix: Optional[np.ndarray] = None
+# Screen calibration stability: require source steady for this many seconds and within radius (px)
+SCREEN_CAL_STABILITY_DURATION_S = 5.0
+SCREEN_CAL_STABILITY_RADIUS_PX = 20
+# Minimum dB for peak to count (only strong sources); heatmap value threshold computed at runtime
+SCREEN_CAL_MIN_DB = -5.0
+# Battery: 5.8 V = 0%, 8.4 V = 100%; >= 8.3 V capped at 100%
+BATTERY_V_MIN = 5.8
+BATTERY_V_MAX = 8.4
+BATTERY_V_CAP_100 = 8.3
+
+
+def _battery_mv_to_percent(mv: int) -> int:
+    """Map firmware header battery_mv (mV) to 0–100% for 5.8V–8.4V range; >= 8.3V cap at 100%."""
+    v = mv / 1000.0
+    if v >= BATTERY_V_CAP_100:
+        return 100
+    if v <= BATTERY_V_MIN:
+        return 0
+    span = BATTERY_V_MAX - BATTERY_V_MIN
+    pct = (v - BATTERY_V_MIN) / span * 100.0
+    return int(round(min(100.0, max(0.0, pct))))
 
 # region agent log
 _AGENT_DEBUG_LOG_PATH = "/home/acousticlord/Capstone_490_Software/.cursor/debug-a9e491.log"
@@ -219,7 +249,7 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
     - Bandpass filter dragging (frequency bar handles)
     - Gallery view navigation
     """
-    global video_recorder
+    global video_recorder, screen_calibration_matrix
 
     content_width, content_height, content_offset_x, content_right, h = param
     mx, my = x, y
@@ -285,6 +315,12 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                 state.ui_click_was_on_ui = True
                 return
             if handle_calibration_suite_modal_click(mx, my):
+                state.ui_click_was_on_ui = True
+                return
+
+        # Screen calibration modal
+        if button_state.screen_calibration_modal_open:
+            if handle_screen_calibration_modal_click(mx, my):
                 state.ui_click_was_on_ui = True
                 return
 
@@ -532,6 +568,55 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
             content_left <= state.ui_drag_start_x < content_right
             and content_top <= state.ui_drag_start_y < content_bottom
         )
+        # Screen calibration: tap in content to record (acoustic, display) pair (only when stable 5 s + strong)
+        if (
+            button_state.screen_calibration_active
+            and button_state.screen_calibration_step in (1, 2, 3)
+            and in_content
+            and dist < getattr(config, "UI_SWIPE_THRESHOLD_PX", 40)
+        ):
+            if not button_state.screen_calibration_stable_ready:
+                button_state.screen_calibration_message = (
+                    "Hold source steady 5 s above -5 dB, then tap."
+                )
+                state.ui_last_tap_time = now
+                state.ui_last_tap_x = mx
+                state.ui_last_tap_y = my
+                return
+            ax = button_state.screen_calibration_stable_peak_x
+            ay = button_state.screen_calibration_stable_peak_y
+            tx = float(mx - content_left)
+            ty = float(my)
+            button_state.screen_calibration_points.append((ax, ay, tx, ty))
+            # Reset stability for next point
+            button_state.screen_calibration_stable_ready = False
+            button_state.screen_calibration_stable_since_t = 0.0
+            button_state.screen_calibration_candidate_x = 0.0
+            button_state.screen_calibration_candidate_y = 0.0
+            button_state.screen_calibration_message = ""
+            button_state.screen_calibration_step += 1
+            if button_state.screen_calibration_step == 4:
+                # Compute affine and save
+                pts = button_state.screen_calibration_points
+                if len(pts) == 3:
+                    src_pts = np.array([(p[0], p[1]) for p in pts], dtype=np.float32)
+                    dst_pts = np.array([(p[2], p[3]) for p in pts], dtype=np.float32)
+                    M = cv2.getAffineTransform(src_pts, dst_pts)
+                    cal_path = state.OUTPUT_DIR.parent / "screen_calibration.json"
+                    try:
+                        state.OUTPUT_DIR.parent.mkdir(parents=True, exist_ok=True)
+                        with open(cal_path, "w", encoding="utf-8") as f:
+                            json.dump({"enabled": True, "matrix": M.flatten().tolist()}, f, indent=2)
+                        screen_calibration_matrix = M.copy()
+                    except OSError:
+                        pass
+                button_state.screen_calibration_active = False
+                button_state.screen_calibration_step = 0
+                button_state.screen_calibration_points = []
+            state.ui_last_tap_time = now
+            state.ui_last_tap_x = mx
+            state.ui_last_tap_y = my
+            return
         # Swipe-down from bottom strip (e.g. from bottom HUD area) to hide bottom HUD + menu
         swipe_down_from_bottom = (
             not in_content
@@ -737,6 +822,11 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
             if handle_calibration_suite_modal_mouse(event, mx, my, config.WIDTH, config.HEIGHT):
                 return
 
+        # Screen calibration modal
+        if button_state.screen_calibration_modal_open:
+            if handle_screen_calibration_modal_mouse(event, mx, my, config.WIDTH, config.HEIGHT):
+                return
+
         bar_left = content_right
 
         # Dot drag: follow finger along curve (checked first; we don't set DRAG_ACTIVE for dot drag)
@@ -813,6 +903,11 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
             if handle_calibration_suite_modal_mouse(event, mx, my, config.WIDTH, config.HEIGHT):
                 pass  # consumed
 
+        # Screen calibration modal
+        if button_state.screen_calibration_modal_open:
+            if handle_screen_calibration_modal_mouse(event, mx, my, config.WIDTH, config.HEIGHT):
+                pass  # consumed
+
         # End dot drag (dot stays at last snapped position)
         state.SPECTRUM_CURSOR_DOT_DRAG_ACTIVE = False
 
@@ -855,6 +950,22 @@ def main() -> None:
     state.OUTPUT_DIR = repo_root / "data" / "heatmap_captures"
     state.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     print(f"Output directory: {state.OUTPUT_DIR}")
+
+    # Screen calibration: load from data/screen_calibration.json if present and enabled
+    global screen_calibration_matrix
+    screen_cal_path = repo_root / "data" / "screen_calibration.json"
+    if screen_cal_path.exists():
+        try:
+            with open(screen_cal_path, encoding="utf-8") as f:
+                data = json.load(f)
+            if data.get("enabled") and "matrix" in data and len(data["matrix"]) == 6:
+                screen_calibration_matrix = np.array(data["matrix"], dtype=np.float64).reshape(2, 3)
+            else:
+                screen_calibration_matrix = None
+        except (json.JSONDecodeError, ValueError, OSError):
+            screen_calibration_matrix = None
+    else:
+        screen_calibration_matrix = None
 
     # Radar map tile cache: under main data/ folder (same as heatmap_captures, directional_history)
     config.RADAR_MAP_CACHE_DIR = repo_root / "data" / "map_tiles"
@@ -1036,6 +1147,19 @@ def main() -> None:
             prof.start_frame()
             elapsed = time.time() - start_time
 
+            # ---- Screen calibration reset (clear saved calibration, stop warp) ----
+            if button_state.screen_calibration_reset_requested:
+                try:
+                    if state.OUTPUT_DIR is not None:
+                        cal_path = state.OUTPUT_DIR.parent / "screen_calibration.json"
+                        state.OUTPUT_DIR.parent.mkdir(parents=True, exist_ok=True)
+                        with open(cal_path, "w", encoding="utf-8") as f:
+                            json.dump({"enabled": False, "matrix": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]}, f, indent=2)
+                except (OSError, TypeError, AttributeError):
+                    pass
+                screen_calibration_matrix = None  # cleared so warp is no longer applied
+                button_state.screen_calibration_reset_requested = False
+
             # ---- FPS estimation ----
             now_t = time.perf_counter()
             dt = now_t - last_t
@@ -1124,6 +1248,9 @@ def main() -> None:
 
             source_stats = latest_frame.stats
             fft_data = latest_frame.fft_data if latest_frame.ok else None
+            battery_percent_this_frame = None
+            if source_label == "HW" and getattr(latest_frame, "battery_mv", None) is not None:
+                battery_percent_this_frame = _battery_mv_to_percent(latest_frame.battery_mv)
 
             # Fallback to last known data if current read failed
             if fft_data is None:
@@ -1731,6 +1858,135 @@ def main() -> None:
                         content_offset_x=content_offset_x,
                     )
 
+            # ---- Screen calibration: current peak + stability + -5 dB threshold ----
+            if (
+                button_state.screen_calibration_active
+                and button_state.screen_calibration_step in (1, 2, 3)
+            ):
+                now_cal = time.time()
+                db_min = float(getattr(config, "REL_DB_MIN", -60.0))
+                db_max = float(getattr(config, "REL_DB_MAX", 0.0))
+                min_heatmap_value = int(
+                    255.0
+                    * (SCREEN_CAL_MIN_DB - db_min)
+                    / max(1e-9, (db_max - db_min))
+                )
+                min_heatmap_value = max(0, min(255, min_heatmap_value))
+                cx = int(button_state.crosshair_x)
+                cy = int(button_state.crosshair_y)
+                use_crosshair = (
+                    button_state.crosshairs_enabled
+                    and button_state.crosshair_visible
+                    and 0 <= cx < content_width
+                    and 0 <= cy < content_height
+                    and int(heatmap_left[cy, cx]) >= 12
+                )
+                if use_crosshair:
+                    cur_px, cur_py = cx, cy
+                else:
+                    flat = np.asarray(heatmap_left).flatten()
+                    idx = int(np.argmax(flat))
+                    cur_py, cur_px = np.unravel_index(idx, heatmap_left.shape)
+                button_state.screen_calibration_last_peak_x = float(cur_px)
+                button_state.screen_calibration_last_peak_y = float(cur_py)
+                peak_val = int(heatmap_left[cur_py, cur_px])
+                if peak_val < min_heatmap_value:
+                    button_state.screen_calibration_stable_since_t = 0.0
+                    button_state.screen_calibration_stable_ready = False
+                    button_state.screen_calibration_message = (
+                        "Hold 20 kHz source steady (strong signal) for 5 s, then tap."
+                    )
+                else:
+                    cand_x = button_state.screen_calibration_candidate_x
+                    cand_y = button_state.screen_calibration_candidate_y
+                    dist = ((cur_px - cand_x) ** 2 + (cur_py - cand_y) ** 2) ** 0.5
+                    if dist > SCREEN_CAL_STABILITY_RADIUS_PX or (
+                        button_state.screen_calibration_stable_since_t == 0.0
+                        and (cand_x == 0.0 and cand_y == 0.0)
+                    ):
+                        button_state.screen_calibration_candidate_x = float(cur_px)
+                        button_state.screen_calibration_candidate_y = float(cur_py)
+                        button_state.screen_calibration_stable_since_t = now_cal
+                        button_state.screen_calibration_stable_ready = False
+                        button_state.screen_calibration_message = (
+                            f"Hold steady... {int(SCREEN_CAL_STABILITY_DURATION_S)} s"
+                        )
+                    else:
+                        if button_state.screen_calibration_stable_since_t <= 0.0:
+                            button_state.screen_calibration_stable_since_t = now_cal
+                        elapsed = now_cal - button_state.screen_calibration_stable_since_t
+                        if elapsed >= SCREEN_CAL_STABILITY_DURATION_S:
+                            button_state.screen_calibration_stable_peak_x = (
+                                button_state.screen_calibration_candidate_x
+                            )
+                            button_state.screen_calibration_stable_peak_y = (
+                                button_state.screen_calibration_candidate_y
+                            )
+                            button_state.screen_calibration_stable_ready = True
+                            button_state.screen_calibration_message = (
+                                "Ready – tap where you see the sound."
+                            )
+                        else:
+                            button_state.screen_calibration_stable_ready = False
+                            remaining = int(
+                                SCREEN_CAL_STABILITY_DURATION_S - elapsed + 0.99
+                            )
+                            button_state.screen_calibration_message = (
+                                f"Hold steady... {remaining} s"
+                            )
+
+            # ---- Screen calibration: warp content region so display matches user calibration ----
+            if screen_calibration_matrix is not None:
+                x0 = content_offset_x
+                x1 = content_offset_x + content_width
+                content_rect = output_frame[0:content_height, x0:x1, :].copy()
+                M_inv = cv2.invertAffineTransform(screen_calibration_matrix)
+                warped = cv2.warpAffine(content_rect, M_inv, (content_width, content_height))
+                output_frame[0:content_height, x0:x1, :] = warped
+
+            # ---- Screen calibration overlay ----
+            if (
+                button_state.screen_calibration_active
+                and button_state.screen_calibration_step in (1, 2, 3)
+            ):
+                step = button_state.screen_calibration_step
+                msg = (
+                    f"Position {step}/3: "
+                    + (
+                        button_state.screen_calibration_message
+                        or "Place 20 kHz source, then tap where you see it."
+                    )
+                )
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                (tw, th), _ = cv2.getTextSize(msg, font, 0.5, 1)
+                bar_h = th + 16
+                bar_y = content_height - bar_h - 8
+                cv2.rectangle(
+                    output_frame,
+                    (content_offset_x, bar_y),
+                    (content_offset_x + content_width, bar_y + bar_h),
+                    (40, 40, 40),
+                    -1,
+                )
+                cv2.rectangle(
+                    output_frame,
+                    (content_offset_x, bar_y),
+                    (content_offset_x + content_width, bar_y + bar_h),
+                    (180, 180, 180),
+                    1,
+                    cv2.LINE_AA,
+                )
+                cv2.putText(
+                    output_frame,
+                    msg,
+                    (content_offset_x + (content_width - tw) // 2, bar_y + bar_h - 8),
+                    font,
+                    0.5,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
+
             # ---- Draw debug info ----
             if button_state.debug_enabled:
                 # Collect debug text lines (abbreviated to save space)
@@ -1868,7 +2124,7 @@ def main() -> None:
                 fps_mode=button_state.fps_mode,
                 frame_bytes=config.FRAME_BYTES,
                 offset_y=state.ui_top_hud_offset,
-                battery_percent=None,  # placeholder until live data
+                battery_percent=battery_percent_this_frame,
                 time_remaining_sec=None,  # from battery hardware when available
                 wifi_connection_name=wifi_ssid or None,
                 ip_address=ip_addr or None,
@@ -1911,6 +2167,10 @@ def main() -> None:
             if button_state.calibration_suite_modal_open:
                 draw_calibration_suite_modal(output_frame)
 
+            # Screen calibration modal
+            if button_state.screen_calibration_modal_open:
+                draw_screen_calibration_modal(output_frame)
+
             # ---- Draw gallery view if open ----
             if button_state.gallery_open:
                 draw_gallery_view(output_frame, state.OUTPUT_DIR)
@@ -1920,7 +2180,7 @@ def main() -> None:
 
             # ---- Battery icon (in time HUD pill when main view; gallery draws its own) ----
             if button_state.gallery_open:
-                draw_battery_icon_for_view(output_frame, percent=None)  # None = placeholder until live data
+                draw_battery_icon_for_view(output_frame, percent=battery_percent_this_frame)
 
             prof.mark("ui")
 
@@ -1985,6 +2245,12 @@ def main() -> None:
                 button_state.firmware_flash_status = ""
             elif key == 27 and button_state.calibration_suite_modal_open:
                 button_state.calibration_suite_modal_open = False
+            elif key == 27 and button_state.screen_calibration_modal_open:
+                button_state.screen_calibration_modal_open = False
+            elif key == 27 and button_state.screen_calibration_active:
+                button_state.screen_calibration_active = False
+                button_state.screen_calibration_step = 0
+                button_state.screen_calibration_points = []
             elif key == ord("c"):
                 # Reset magnetometer calibration extrema (use during heading tests)
                 HUD.mag_x_min = HUD.mag_x_max = None

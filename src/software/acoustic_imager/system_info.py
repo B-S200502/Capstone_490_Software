@@ -34,6 +34,12 @@ def get_system_network_info(ticks: int = 0) -> Tuple[str, str, str]:
     return _CACHE
 
 
+def invalidate_system_network_cache() -> None:
+    """Force the next get_system_network_info() to refetch (e.g. after disconnect)."""
+    global _CACHE
+    _CACHE = None
+
+
 def _get_hostname() -> str:
     """System hostname (e.g. 'acousticlord' on Pi)."""
     try:

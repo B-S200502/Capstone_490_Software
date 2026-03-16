@@ -216,6 +216,7 @@ class SPIManager:
                 frame_id=int(lf.frame_id),
                 ok=bool(lf.ok),
                 stats=stats_copy,
+                battery_mv=getattr(lf, "battery_mv", None),
             )
         return out
 
@@ -351,7 +352,7 @@ class SPIManager:
         tx = bytes(size)
         r = self._spi.xfer3(tx)
         rx = bytes(r)
-        ok, frame_counter, fft_data, why = self._mic_proto.parse_full_frame(rx)
+        ok, frame_counter, fft_data, battery_mv, why = self._mic_proto.parse_full_frame(rx)
         stats = self._get_stats()
         if not ok or fft_data is None:
             stats.bad_parse += 1
@@ -366,6 +367,7 @@ class SPIManager:
             frame_id=self._seq_seen,
             ok=True,
             stats=stats,
+            battery_mv=battery_mv,
         )
 
     def _read_one_fw_mic(self) -> Optional[LatestFrame]:

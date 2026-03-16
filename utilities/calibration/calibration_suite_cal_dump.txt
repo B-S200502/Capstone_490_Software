@@ -2,42 +2,69 @@
 STEP_PROGRESS 0 7
 [0] Silence check (env quiet enough for gain cal)...
 SILENCE_START 1.5
-  max_total_power=4.007e+02 threshold=1.000e+09 frames=17 -> PASS
+  max_total_power=3.910e+01 threshold=1.000e+09 frames=18 -> PASS
   FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
-  parse_full_frame: magic 0xBD3C5F78 != expected 0xAABBCCDD, buf[:8]=785f3cbdbd653d50
-  parse_full_frame: magic 0xF6F6F6F6 != expected 0xAABBCCDD, buf[:8]=f6f6f6f6f6f6f6f6
-  parse_full_frame: magic 0xBF5BBCA4 != expected 0xAABBCCDD, buf[:8]=a4bc5bbfd03e5f6f
-  parse_full_frame: magic 0x9F9F9F9F != expected 0xAABBCCDD, buf[:8]=9f9f9f9f9f9f9f9f
-  parse_full_frame: magic 0xBE1398EE != expected 0xAABBCCDD, buf[:8]=ee9813bebb6ecdbc
-  parse_full_frame: magic 0x8C8C8C8C != expected 0xAABBCCDD, buf[:8]=8c8c8c8c8c8c8c8c
-  parse_full_frame: magic 0xCABE36AF != expected 0xAABBCCDD, buf[:8]=af36beca51b3bc0a
-  parse_full_frame: magic 0x74747474 != expected 0xAABBCCDD, buf[:8]=7474747474747474
-  parse_full_frame: magic 0x00003ADC != expected 0xAABBCCDD, buf[:8]=dc3a000000000445
-  parse_full_frame: magic 0x99999999 != expected 0xAABBCCDD, buf[:8]=9999999999999999
-  parse_full_frame: magic 0x216A12BC != expected 0xAABBCCDD, buf[:8]=bc126a213e5400d8
-  parse_full_frame: magic 0x1C1C1C1C != expected 0xAABBCCDD, buf[:8]=1c1c1c1c1c1c1c1c
-  parse_full_frame: magic 0x3C3D68ED != expected 0xAABBCCDD, buf[:8]=ed683d3cc581db3c
-  parse_full_frame: magic 0x77777777 != expected 0xAABBCCDD, buf[:8]=7777777777777777
-  parse_full_frame: magic 0xDBC419BE != expected 0xAABBCCDD, buf[:8]=be19c4db3ef33cc9
-  parse_full_frame: magic 0xD0D0D0D0 != expected 0xAABBCCDD, buf[:8]=d0d0d0d0d0d0d0d0
-  parse_full_frame: magic 0x4023BD1E != expected 0xAABBCCDD, buf[:8]=1ebd2340bfbd1754
-  parse_full_frame: magic 0x4E4E4E4E != expected 0xAABBCCDD, buf[:8]=4e4e4e4e4e4e4e4e
-  parse_full_frame: magic 0xEC99BC62 != expected 0xAABBCCDD, buf[:8]=62bc99eceabb5da3
-  parse_full_frame: magic 0x8B8B8B8B != expected 0xAABBCCDD, buf[:8]=8b8b8b8b8b8b8b8b
-  parse_full_frame: magic 0x3D8CBF30 != expected 0xAABBCCDD, buf[:8]=30bf8c3dbed3133c
-  parse_full_frame: magic 0x88888888 != expected 0xAABBCCDD, buf[:8]=8888888888888888
-  parse_full_frame: magic 0x3B256EAB != expected 0xAABBCCDD, buf[:8]=ab6e253bf4d317bd
-  parse_full_frame: magic 0x9F9F9F9F != expected 0xAABBCCDD, buf[:8]=9f9f9f9f9f9f9f9f
-  parse_full_frame: magic 0xE6933D62 != expected 0xAABBCCDD, buf[:8]=623d93e6bcbccb21
-  parse_full_frame: magic 0xC1C1C1C1 != expected 0xAABBCCDD, buf[:8]=c1c1c1c1c1c1c1c1
-  parse_full_frame: magic 0x9992BCDC != expected 0xAABBCCDD, buf[:8]=dcbc929988bca5e0
+  parse_full_frame: magic 0xA4977E52 != expected 0xAABBCCDD, buf[:8]=527e97a4458895c1
+  parse_full_frame: magic 0x4D4D4D4D != expected 0xAABBCCDD, buf[:8]=4d4d4d4d4d4d4d4d
+  parse_full_frame: magic 0xBBBD02E6 != expected 0xAABBCCDD, buf[:8]=e602bdbbc7800ebc
+  parse_full_frame: magic 0x0B0B0B0B != expected 0xAABBCCDD, buf[:8]=0b0b0b0b0b0b0b0b
+  parse_full_frame: magic 0x595871BE != expected 0xAABBCCDD, buf[:8]=be715859bead3918
+  parse_full_frame: magic 0x0B0B0B0B != expected 0xAABBCCDD, buf[:8]=0b0b0b0b0b0b0b0b
+  parse_full_frame: magic 0x0B0B0B0B != expected 0xAABBCCDD, buf[:8]=0b0b0b0b0b0b0b0b
+  parse_full_frame: magic 0xFD94B46F != expected 0xAABBCCDD, buf[:8]=6fb494fdea58961b
+  parse_full_frame: magic 0xE9E9E9E9 != expected 0xAABBCCDD, buf[:8]=e9e9e9e9e9e9e9e9
+  parse_full_frame: magic 0x6BA1DFBD != expected 0xAABBCCDD, buf[:8]=bddfa16bbc9138cf
+  parse_full_frame: magic 0xD9D9D9D9 != expected 0xAABBCCDD, buf[:8]=d9d9d9d9d9d9d9d9
+  parse_full_frame: magic 0xBB733AD3 != expected 0xAABBCCDD, buf[:8]=d33a73bb507ad3ba
+  parse_full_frame: magic 0xFBFBFBFB != expected 0xAABBCCDD, buf[:8]=fbfbfbfbfbfbfbfb
+  parse_full_frame: magic 0x00003A0D != expected 0xAABBCCDD, buf[:8]=0d3a0000000033e6
+  parse_full_frame: magic 0x12121212 != expected 0xAABBCCDD, buf[:8]=1212121212121212
+  parse_full_frame: magic 0x49BCC104 != expected 0xAABBCCDD, buf[:8]=04c1bc4932193e24
+  parse_full_frame: magic 0x0B0B0B0B != expected 0xAABBCCDD, buf[:8]=0b0b0b0b0b0b0b0b
+  parse_full_frame: magic 0xBF433C67 != expected 0xAABBCCDD, buf[:8]=673c43bf25bcea08
   parse_full_frame: magic 0x44444444 != expected 0xAABBCCDD, buf[:8]=4444444444444444
-  parse_full_frame: magic 0x883E7569 != expected 0xAABBCCDD, buf[:8]=69753e88af043ebe
-  parse_full_frame: magic 0x63636363 != expected 0xAABBCCDD, buf[:8]=6363636363636363
-  parse_full_frame: magic 0x1225303C != expected 0xAABBCCDD, buf[:8]=3c302512bc9eb526
-  parse_full_frame: magic 0x1B1B1B1B != expected 0xAABBCCDD, buf[:8]=1b1b1b1b1b1b1b1b
-  parse_full_frame: magic 0xBC4052A1 != expected 0xAABBCCDD, buf[:8]=a15240bcbd3ab1bb
-  parse_full_frame: magic 0xFCFCFCFC != expected 0xAABBCCDD, buf[:8]=fcfcfcfcfcfcfcfc
+  parse_full_frame: magic 0x6CF0793C != expected 0xAABBCCDD, buf[:8]=3c79f06cbcfec8e8
+  parse_full_frame: magic 0x49494949 != expected 0xAABBCCDD, buf[:8]=4949494949494949
+  parse_full_frame: magic 0xE4ADBBAA != expected 0xAABBCCDD, buf[:8]=aabbade444bd1bc4
+  parse_full_frame: magic 0x02020202 != expected 0xAABBCCDD, buf[:8]=0202020202020202
+  parse_full_frame: magic 0xB784CB5B != expected 0xAABBCCDD, buf[:8]=5bcb84b7c077f837
+  parse_full_frame: magic 0x8A8A8A8A != expected 0xAABBCCDD, buf[:8]=8a8a8a8a8a8a8a8a
+  parse_full_frame: magic 0x8A8A8A8A != expected 0xAABBCCDD, buf[:8]=8a8a8a8a8a8a8a8a
+  parse_full_frame: magic 0x693D03CC != expected 0xAABBCCDD, buf[:8]=cc033d694aee3be1
+  parse_full_frame: magic 0x8A8A8A8A != expected 0xAABBCCDD, buf[:8]=8a8a8a8a8a8a8a8a
+  parse_full_frame: magic 0xA1007B44 != expected 0xAABBCCDD, buf[:8]=447b00a1bdbbbd20
+  parse_full_frame: magic 0xF5F5F5F5 != expected 0xAABBCCDD, buf[:8]=f5f5f5f5f5f5f5f5
+  parse_full_frame: magic 0xCBC331BB != expected 0xAABBCCDD, buf[:8]=bb31c3cbbc326334
+  parse_full_frame: magic 0xEEEEEEEE != expected 0xAABBCCDD, buf[:8]=eeeeeeeeeeeeeeee
+  parse_full_frame: magic 0x1EA83CC2 != expected 0xAABBCCDD, buf[:8]=c23ca81e6d3ce437
+  parse_full_frame: magic 0x69696969 != expected 0xAABBCCDD, buf[:8]=6969696969696969
+  parse_full_frame: magic 0x0000BAE7 != expected 0xAABBCCDD, buf[:8]=e7ba00000000e1f6
+  parse_full_frame: magic 0x92929292 != expected 0xAABBCCDD, buf[:8]=9292929292929292
+  parse_full_frame: magic 0x599527CD != expected 0xAABBCCDD, buf[:8]=cd2795591b8a1410
+  parse_full_frame: magic 0x83838383 != expected 0xAABBCCDD, buf[:8]=8383838383838383
+  parse_full_frame: magic 0xB7FCBC92 != expected 0xAABBCCDD, buf[:8]=92bcfcb79a3bb744
+  parse_full_frame: magic 0x6A6A6A6A != expected 0xAABBCCDD, buf[:8]=6a6a6a6a6a6a6a6a
+  parse_full_frame: magic 0xB6D93491 != expected 0xAABBCCDD, buf[:8]=9134d9b653cf4eb6
+  parse_full_frame: magic 0xABABABAB != expected 0xAABBCCDD, buf[:8]=abababababababab
+  parse_full_frame: magic 0x37373737 != expected 0xAABBCCDD, buf[:8]=3737373737373737
+  parse_full_frame: magic 0x7E3B2268 != expected 0xAABBCCDD, buf[:8]=68223b7eb06b3cca
+  parse_full_frame: magic 0x91919191 != expected 0xAABBCCDD, buf[:8]=9191919191919191
+  parse_full_frame: magic 0x559D4AC9 != expected 0xAABBCCDD, buf[:8]=c94a9d55d70b1c86
+  parse_full_frame: magic 0xF5F5F5F5 != expected 0xAABBCCDD, buf[:8]=f5f5f5f5f5f5f5f5
+  parse_full_frame: magic 0x2C49EFBC != expected 0xAABBCCDD, buf[:8]=bcef492cbddaf437
+  parse_full_frame: magic 0x15151515 != expected 0xAABBCCDD, buf[:8]=1515151515151515
+  parse_full_frame: magic 0xBB662B6C != expected 0xAABBCCDD, buf[:8]=6c2b66bbd37649bb
+  parse_full_frame: magic 0xA8A8A8A8 != expected 0xAABBCCDD, buf[:8]=a8a8a8a8a8a8a8a8
+  parse_full_frame: magic 0x7FD692BC != expected 0xAABBCCDD, buf[:8]=bc92d67f3cc84094
+  parse_full_frame: magic 0x58585858 != expected 0xAABBCCDD, buf[:8]=5858585858585858
+  parse_full_frame: magic 0x782188BC != expected 0xAABBCCDD, buf[:8]=bc882178bc357c21
+  parse_full_frame: magic 0x96969696 != expected 0xAABBCCDD, buf[:8]=9696969696969696
+  parse_full_frame: magic 0x913C0539 != expected 0xAABBCCDD, buf[:8]=39053c913a243cdb
+  parse_full_frame: magic 0xF5F5F5F5 != expected 0xAABBCCDD, buf[:8]=f5f5f5f5f5f5f5f5
+  parse_full_frame: magic 0x33451A9A != expected 0xAABBCCDD, buf[:8]=9a1a453386b82133
+  parse_full_frame: magic 0xC5C5C5C5 != expected 0xAABBCCDD, buf[:8]=c5c5c5c5c5c5c5c5
+  parse_full_frame: magic 0xB2AA3357 != expected 0xAABBCCDD, buf[:8]=5733aab2a93190dc
+  parse_full_frame: magic 0x1D1D1D1D != expected 0xAABBCCDD, buf[:8]=1d1d1d1d1d1d1d1d
   OK
 STEP_PROGRESS 1 7
 [1] Pin monitor (ribbon cable, 5 runs)...
@@ -118,7 +145,7 @@ STEP_PROGRESS 2 7
     HW geometry: x_coords_hw, y_coords_hw (source: config.py), length 16
 
   Validate OK: config matches calibration_test.md
-  Geometry OK (config.py valid; array_geometry not checked)
+  Geometry OK (config.py matches array_geometry)
 STEP_PROGRESS 3 7
 [3] SPI devices...
   === Boot config (SPI enabled?) ===
@@ -128,12 +155,15 @@ STEP_PROGRESS 3 7
   7:#dtparam=i2s=on
   8:dtparam=spi=on
   11:dtparam=audio=on
-  52:dtparam=uart0=on
+  56:dtoverlay=spi1-3cs
 
   === SPI device nodes ===
-  crw-rw---- 1 root spi 153, 0 Mar 15 14:04 /dev/spidev0.0
-  crw-rw---- 1 root spi 153, 1 Mar 15 14:04 /dev/spidev0.1
-  crw-rw---- 1 root spi 153, 2 Mar 15 14:04 /dev/spidev10.0
+  crw-rw---- 1 root spi 153, 0 Mar 15 22:24 /dev/spidev0.0
+  crw-rw---- 1 root spi 153, 1 Mar 15 22:24 /dev/spidev0.1
+  crw-rw---- 1 root spi 153, 5 Mar 15 22:24 /dev/spidev1.0
+  crw-rw---- 1 root spi 153, 2 Mar 15 22:24 /dev/spidev10.0
+  crw-rw---- 1 root spi 153, 4 Mar 15 22:24 /dev/spidev1.1
+  crw-rw---- 1 root spi 153, 3 Mar 15 22:24 /dev/spidev1.2
 
   === Kernel SPI modules ===
   spidev                 49152  0
@@ -142,6 +172,7 @@ STEP_PROGRESS 3 7
   spi_dw                 49152  1 spi_dw_mmio
 
   === dmesg (SPI) ===
+  [    1.791574] systemd[1]: Hostname set to <BasemsPi5>.
 STEP_PROGRESS 4 7
 [4] Parsing (magic probe) & frame rate...
   Probing /dev/spidev0.0, frame_size=32801, sync=False
@@ -149,177 +180,746 @@ STEP_PROGRESS 4 7
   ------------------------------------------------------------
   mode=0 lsbfirst=False: magic@[0x0] BE no bit_rev no
   mode=0 lsbfirst=True: lsbfirst not supported
-  mode=1 lsbfirst=False: magic no BE no bit_rev no
+  mode=1 lsbfirst=False: magic@[0x7522] BE no bit_rev no
   mode=1 lsbfirst=True: lsbfirst not supported
-  mode=2 lsbfirst=False: magic@[0x1394] BE no bit_rev no
+  mode=2 lsbfirst=False: magic no BE no bit_rev no
   mode=2 lsbfirst=True: lsbfirst not supported
   mode=3 lsbfirst=False: magic no BE no bit_rev no
   mode=3 lsbfirst=True: lsbfirst not supported
   ------------------------------------------------------------
   At least one setting saw magic (LE/BE/bit_rev). Consider aligning config to that.
   SPI_MAX_SPEED_HZ = 30000000
-  FPS = 27.4  frames_ok = 42  bad_parse = 19  bad_crc = 0
-  OK
+  FPS = 6.6  frames_ok = 10  bad_parse = 103  bad_crc = 0
+  OK (magic + frames seen; FPS < 15 — run with app stopped and on Pi with GPIO for higher FPS)
 STEP_PROGRESS 5 7
 [5] Metrics (gain normalization)...
-  --- Per-mic levels (LOW gain, averaged over 5 frames) ---
-    Total power (sum of squared L2 per mic): 1.168211e+02
-    Max mic L2: 6.181386e+00  Min mic L2: 1.031646e+00
-    Ratio max/min: 5.99
+  --- Per-mic levels (LOW gain, averaged over 4 frames) ---
+    Total power (sum of squared L2 per mic): 2.350124e+00
+    Max mic L2: 7.514032e-01  Min mic L2: 2.014192e-03
+    Ratio max/min: 373.05
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   2.807471e+00   -3.4 dB    0.454     2.20
-      1   ADC1   1.065074e+00   -7.6 dB    0.172     5.80
-      2   ADC1   1.171692e+00   -7.2 dB    0.190     5.28
-      3   ADC1   1.031646e+00   -7.8 dB    0.167     5.99
-      4   ADC2   1.837498e+00   -5.3 dB    0.297     3.36
-      5   ADC2   1.040440e+00   -7.7 dB    0.168     5.94
-      6   ADC2   1.436788e+00   -6.3 dB    0.232     4.30
-      7   ADC2   1.376759e+00   -6.5 dB    0.223     4.49
-      8   ADC3   1.938857e+00   -5.0 dB    0.314     3.19
-      9   ADC3   1.041048e+00   -7.7 dB    0.168     5.94
-     10   ADC3   2.019663e+00   -4.9 dB    0.327     3.06
-     11   ADC3   2.499105e+00   -3.9 dB    0.404     2.47
-     12   ADC4   6.181386e+00   +0.0 dB    1.000     1.00
-     13   ADC4   3.715115e+00   -2.2 dB    0.601     1.66
-     14   ADC4   3.067673e+00   -3.0 dB    0.496     2.02
-     15   ADC4   4.512112e+00   -1.4 dB    0.730     1.37
+      0   ADC1   3.915127e-01   -2.8 dB    0.521     1.92
+      1   ADC1   7.714336e-03   -19.9 dB    0.010     97.40
+      2   ADC1   2.885370e-01   -4.2 dB    0.384     2.60
+      3   ADC1   3.049758e-01   -3.9 dB    0.406     2.46
+      4   ADC2   3.855427e-01   -2.9 dB    0.513     1.95
+      5   ADC2   6.192979e-01   -0.8 dB    0.824     1.21
+      6   ADC2   2.827531e-01   -4.2 dB    0.376     2.66
+      7   ADC2   3.285751e-01   -3.6 dB    0.437     2.29
+      8   ADC3   7.514032e-01   +0.0 dB    1.000     1.00
+      9   ADC3   4.358947e-01   -2.4 dB    0.580     1.72
+     10   ADC3   2.828828e-01   -4.2 dB    0.376     2.66
+     11   ADC3   4.449319e-01   -2.3 dB    0.592     1.69
+     12   ADC4   4.137614e-01   -2.6 dB    0.551     1.82
+     13   ADC4   4.236251e-02   -12.5 dB    0.056     17.74
+     14   ADC4   2.014192e-03   -25.7 dB    0.003     100+
+     15   ADC4   3.079600e-01   -3.9 dB    0.410     2.44
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -6.5 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -6.5 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -5.4 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -1.7 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -7.7 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -2.9 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -2.2 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -11.2 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 2, 3, 4, 5, 6, 7,
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 13, 14]
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
   --- Per-mic levels (HIGH gain, averaged over 5 frames) ---
-    Total power (sum of squared L2 per mic): 1.219057e+03
-    Max mic L2: 2.075460e+01  Min mic L2: 9.264182e-01
-    Ratio max/min: 22.40
+    Total power (sum of squared L2 per mic): 3.498185e+01
+    Max mic L2: 5.369135e+00  Min mic L2: 2.819622e-03
+    Ratio max/min: 1904.20
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   4.116679e+00   -7.0 dB    0.198     5.04
-      1   ADC1   9.264182e-01   -13.5 dB    0.045     22.40
-      2   ADC1   2.323459e+00   -9.5 dB    0.112     8.93
-      3   ADC1   1.480013e+00   -11.5 dB    0.071     14.02
-      4   ADC2   3.138919e+00   -8.2 dB    0.151     6.61
-      5   ADC2   1.452809e+00   -11.5 dB    0.070     14.29
-      6   ADC2   2.498098e+00   -9.2 dB    0.120     8.31
-      7   ADC2   2.279663e+00   -9.6 dB    0.110     9.10
-      8   ADC3   3.761936e+00   -7.4 dB    0.181     5.52
-      9   ADC3   2.392579e+00   -9.4 dB    0.115     8.67
-     10   ADC3   8.917907e+00   -3.7 dB    0.430     2.33
-     11   ADC3   1.168525e+01   -2.5 dB    0.563     1.78
-     12   ADC4   2.075460e+01   +0.0 dB    1.000     1.00
-     13   ADC4   8.078879e+00   -4.1 dB    0.389     2.57
-     14   ADC4   1.127741e+01   -2.6 dB    0.543     1.84
-     15   ADC4   1.763831e+01   -0.7 dB    0.850     1.18
+      0   ADC1   1.444889e+00   -5.7 dB    0.269     3.72
+      1   ADC1   2.190368e-02   -23.9 dB    0.004     100+
+      2   ADC1   4.215875e-01   -11.1 dB    0.079     12.74
+      3   ADC1   5.900074e-01   -9.6 dB    0.110     9.10
+      4   ADC2   7.488851e-01   -8.6 dB    0.139     7.17
+      5   ADC2   6.587649e-01   -9.1 dB    0.123     8.15
+      6   ADC2   4.270806e-01   -11.0 dB    0.080     12.57
+      7   ADC2   7.855489e-01   -8.3 dB    0.146     6.83
+      8   ADC3   8.615925e-01   -7.9 dB    0.160     6.23
+      9   ADC3   5.369135e+00   +0.0 dB    1.000     1.00
+     10   ADC3   3.634904e-01   -11.7 dB    0.068     14.77
+     11   ADC3   5.199451e-01   -10.1 dB    0.097     10.33
+     12   ADC4   5.905033e-01   -9.6 dB    0.110     9.09
+     13   ADC4   9.771995e-03   -27.4 dB    0.002     100+
+     14   ADC4   2.819622e-03   -32.8 dB    0.001     100+
+     15   ADC4   5.023043e-01   -10.3 dB    0.094     10.69
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -10.4 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -9.6 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -5.7 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -1.9 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -12.6 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -9.3 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -7.4 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -20.0 dB
 
     Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [0, 1, 2, 3, 4, 5, 6,
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
-    Wrote SPI_MIC_GAIN to /home/acousticgod/Capstone_490_Software/src/software/acoustic_imag
+    Wrote SPI_MIC_GAIN to /home/basempi/Capstone_490_Software/src/software/acoustic_imager/c
     Restart the acoustic imager for changes to take effect.
   FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
-  /home/acousticgod/Capstone_490_Software/utilities/calibration/metrics_debug.py:83: Runtime
+  parse_full_frame: magic 0x4F3BAC76 != expected 0xAABBCCDD, buf[:8]=76ac3b4f0236bc60
+  parse_full_frame: magic 0x1F1F1F1F != expected 0xAABBCCDD, buf[:8]=1f1f1f1f1f1f1f1f
+  parse_full_frame: magic 0x39DFBCA2 != expected 0xAABBCCDD, buf[:8]=a2bcdf39e03c3d73
+  parse_full_frame: magic 0xADADADAD != expected 0xAABBCCDD, buf[:8]=adadadadadadadad
+  parse_full_frame: magic 0xADADADAD != expected 0xAABBCCDD, buf[:8]=adadadadadadadad
+  parse_full_frame: magic 0xB8AA3D7D != expected 0xAABBCCDD, buf[:8]=7d3daab86840b3b8
+  parse_full_frame: magic 0x53535353 != expected 0xAABBCCDD, buf[:8]=5353535353535353
+  parse_full_frame: magic 0x00003B04 != expected 0xAABBCCDD, buf[:8]=043b000000002837
+  parse_full_frame: magic 0x0D0D0D0D != expected 0xAABBCCDD, buf[:8]=0d0d0d0d0d0d0d0d
+  parse_full_frame: magic 0x0153013A != expected 0xAABBCCDD, buf[:8]=3a0153013c0397a7
+  parse_full_frame: magic 0x08080808 != expected 0xAABBCCDD, buf[:8]=0808080808080808
+  parse_full_frame: magic 0xB5AA2A3A != expected 0xAABBCCDD, buf[:8]=3a2aaab5bce5b7ac
+  parse_full_frame: magic 0xB1B1B1B1 != expected 0xAABBCCDD, buf[:8]=b1b1b1b1b1b1b1b1
+  parse_full_frame: magic 0x322DBB8A != expected 0xAABBCCDD, buf[:8]=8abb2d321d3c442e
+  parse_full_frame: magic 0xCDCDCDCD != expected 0xAABBCCDD, buf[:8]=cdcdcdcdcdcdcdcd
+  parse_full_frame: magic 0x34F8BD96 != expected 0xAABBCCDD, buf[:8]=96bdf834a43df676
+  parse_full_frame: magic 0x4A4A4A4A != expected 0xAABBCCDD, buf[:8]=4a4a4a4a4a4a4a4a
+  parse_full_frame: magic 0x5BC2BD20 != expected 0xAABBCCDD, buf[:8]=20bdc25b45bcd14c
+  parse_full_frame: magic 0x29292929 != expected 0xAABBCCDD, buf[:8]=2929292929292929
+  parse_full_frame: magic 0x30030FBB != expected 0xAABBCCDD, buf[:8]=bb0f0330b96d4c0a
+  parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
+  parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
+  parse_full_frame: magic 0x6C6EBA4E != expected 0xAABBCCDD, buf[:8]=4eba6e6c973caa0f
+  parse_full_frame: magic 0x9E9E9E9E != expected 0xAABBCCDD, buf[:8]=9e9e9e9e9e9e9e9e
+  parse_full_frame: magic 0x5E3A3C94 != expected 0xAABBCCDD, buf[:8]=943c3a5ea23cbe5f
+  parse_full_frame: magic 0xE3E3E3E3 != expected 0xAABBCCDD, buf[:8]=e3e3e3e3e3e3e3e3
+  parse_full_frame: magic 0x28E0873C != expected 0xAABBCCDD, buf[:8]=3c87e0283c6604ef
+  parse_full_frame: magic 0xB2B2B2B2 != expected 0xAABBCCDD, buf[:8]=b2b2b2b2b2b2b2b2
+  parse_full_frame: magic 0x231EAC3C != expected 0xAABBCCDD, buf[:8]=3cac1e23bd064142
+  parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+  parse_full_frame: magic 0xA8223C9E != expected 0xAABBCCDD, buf[:8]=9e3c22a880bbf6cb
+  parse_full_frame: magic 0xA6A6A6A6 != expected 0xAABBCCDD, buf[:8]=a6a6a6a6a6a6a6a6
+  parse_full_frame: magic 0xD29C0ABB != expected 0xAABBCCDD, buf[:8]=bb0a9cd2bcb2d926
+  parse_full_frame: magic 0xC2C2C2C2 != expected 0xAABBCCDD, buf[:8]=c2c2c2c2c2c2c2c2
+  parse_full_frame: magic 0xB88072D9 != expected 0xAABBCCDD, buf[:8]=d97280b8f264c9ba
+  parse_full_frame: magic 0x01010101 != expected 0xAABBCCDD, buf[:8]=0101010101010101
+  parse_full_frame: magic 0xC0063ADC != expected 0xAABBCCDD, buf[:8]=dc3a06c0b73afa74
+  parse_full_frame: magic 0xF6F6F6F6 != expected 0xAABBCCDD, buf[:8]=f6f6f6f6f6f6f6f6
+  parse_full_frame: magic 0x867AEB3B != expected 0xAABBCCDD, buf[:8]=3beb7a86ba831dd8
+  parse_full_frame: magic 0xA2A2A2A2 != expected 0xAABBCCDD, buf[:8]=a2a2a2a2a2a2a2a2
+  parse_full_frame: magic 0xB1B1B1B1 != expected 0xAABBCCDD, buf[:8]=b1b1b1b1b1b1b1b1
+  parse_full_frame: magic 0x3C308BF0 != expected 0xAABBCCDD, buf[:8]=f08b303c81d7bbba
+  parse_full_frame: magic 0x0C0C0C0C != expected 0xAABBCCDD, buf[:8]=0c0c0c0c0c0c0c0c
+  parse_full_frame: magic 0x00003B04 != expected 0xAABBCCDD, buf[:8]=043b000000002a79
+  parse_full_frame: magic 0x5B5B5B5B != expected 0xAABBCCDD, buf[:8]=5b5b5b5b5b5b5b5b
+  parse_full_frame: magic 0x96D43BD0 != expected 0xAABBCCDD, buf[:8]=d03bd4965e3ca1e7
+  parse_full_frame: magic 0x31313131 != expected 0xAABBCCDD, buf[:8]=3131313131313131
+  parse_full_frame: magic 0x9F03B9E0 != expected 0xAABBCCDD, buf[:8]=e0b9039fcb3afb23
+  parse_full_frame: magic 0x0B0B0B0B != expected 0xAABBCCDD, buf[:8]=0b0b0b0b0b0b0b0b
+  parse_full_frame: magic 0x36BD43F4 != expected 0xAABBCCDD, buf[:8]=f443bd3667a3bb57
+  parse_full_frame: magic 0xE0E0E0E0 != expected 0xAABBCCDD, buf[:8]=e0e0e0e0e0e0e0e0
+  parse_full_frame: magic 0x00003A8B != expected 0xAABBCCDD, buf[:8]=8b3a000000000256
+  parse_full_frame: magic 0x2B2B2B2B != expected 0xAABBCCDD, buf[:8]=2b2b2b2b2b2b2b2b
+  parse_full_frame: magic 0x5296BBD6 != expected 0xAABBCCDD, buf[:8]=d6bb9652aabc7d6f
+  parse_full_frame: magic 0x38383838 != expected 0xAABBCCDD, buf[:8]=3838383838383838
+  parse_full_frame: magic 0x2BBC3880 != expected 0xAABBCCDD, buf[:8]=8038bc2b1a386dd3
+  parse_full_frame: magic 0xE1E1E1E1 != expected 0xAABBCCDD, buf[:8]=e1e1e1e1e1e1e1e1
+  parse_full_frame: magic 0xD9D9D9D9 != expected 0xAABBCCDD, buf[:8]=d9d9d9d9d9d9d9d9
+  parse_full_frame: magic 0x69BC0827 != expected 0xAABBCCDD, buf[:8]=2708bc6960efba4e
+  parse_full_frame: magic 0xAAAAAAAA != expected 0xAABBCCDD, buf[:8]=aaaaaaaaaaaaaaaa
+  parse_full_frame: magic 0x2D0DF338 != expected 0xAABBCCDD, buf[:8]=38f30d2d390c30ec
+  parse_full_frame: magic 0x53535353 != expected 0xAABBCCDD, buf[:8]=5353535353535353
+  parse_full_frame: magic 0xBC2A95AE != expected 0xAABBCCDD, buf[:8]=ae952abc6cc96b3b
+  parse_full_frame: magic 0xD2D2D2D2 != expected 0xAABBCCDD, buf[:8]=d2d2d2d2d2d2d2d2
+  parse_full_frame: magic 0xFB853D93 != expected 0xAABBCCDD, buf[:8]=933d85fb19bdfcf0
+  parse_full_frame: magic 0x1C1C1C1C != expected 0xAABBCCDD, buf[:8]=1c1c1c1c1c1c1c1c
+  parse_full_frame: magic 0x5478B03B != expected 0xAABBCCDD, buf[:8]=3bb07854b71a0eb4
+  parse_full_frame: magic 0x54545454 != expected 0xAABBCCDD, buf[:8]=5454545454545454
+  parse_full_frame: magic 0xBC40E12E != expected 0xAABBCCDD, buf[:8]=2ee140bca935dd3c
+  parse_full_frame: magic 0x8F8F8F8F != expected 0xAABBCCDD, buf[:8]=8f8f8f8f8f8f8f8f
+  parse_full_frame: magic 0xA1FEBC89 != expected 0xAABBCCDD, buf[:8]=89bcfea19b3b44de
+  parse_full_frame: magic 0xCDCDCDCD != expected 0xAABBCCDD, buf[:8]=cdcdcdcdcdcdcdcd
+  parse_full_frame: magic 0x7D6F89BC != expected 0xAABBCCDD, buf[:8]=bc896f7dbb24c048
+  parse_full_frame: magic 0x86868686 != expected 0xAABBCCDD, buf[:8]=8686868686868686
+  parse_full_frame: magic 0xD274033C != expected 0xAABBCCDD, buf[:8]=3c0374d2bbb45956
+  parse_full_frame: magic 0xC3C3C3C3 != expected 0xAABBCCDD, buf[:8]=c3c3c3c3c3c3c3c3
+  parse_full_frame: magic 0xE08BF539 != expected 0xAABBCCDD, buf[:8]=39f58be03b3a2fb5
+  parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+  parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+  parse_full_frame: magic 0xD87EB13D != expected 0xAABBCCDD, buf[:8]=3db17ed83bd0f8e2
+  parse_full_frame: magic 0x14141414 != expected 0xAABBCCDD, buf[:8]=1414141414141414
+  parse_full_frame: magic 0x12DA3C18 != expected 0xAABBCCDD, buf[:8]=183cda12253cac4f
+  parse_full_frame: magic 0x09090909 != expected 0xAABBCCDD, buf[:8]=0909090909090909
+  parse_full_frame: magic 0xDC3CB83E != expected 0xAABBCCDD, buf[:8]=3eb83cdc883e3b9c
+  parse_full_frame: magic 0xA5A5A5A5 != expected 0xAABBCCDD, buf[:8]=a5a5a5a5a5a5a5a5
+  parse_full_frame: magic 0xA63C962E != expected 0xAABBCCDD, buf[:8]=2e963ca61d333ddf
+  parse_full_frame: magic 0x68686868 != expected 0xAABBCCDD, buf[:8]=6868686868686868
+  parse_full_frame: magic 0x83BCE425 != expected 0xAABBCCDD, buf[:8]=25e4bc8307afbb29
+  parse_full_frame: magic 0x98989898 != expected 0xAABBCCDD, buf[:8]=9898989898989898
+  parse_full_frame: magic 0xF6323D26 != expected 0xAABBCCDD, buf[:8]=263d32f699bc732d
+  parse_full_frame: magic 0x9F9F9F9F != expected 0xAABBCCDD, buf[:8]=9f9f9f9f9f9f9f9f
+  parse_full_frame: magic 0x3A353E14 != expected 0xAABBCCDD, buf[:8]=143e353a193db9b2
+  parse_full_frame: magic 0x2F2F2F2F != expected 0xAABBCCDD, buf[:8]=2f2f2f2f2f2f2f2f
+  parse_full_frame: magic 0x3ADFF657 != expected 0xAABBCCDD, buf[:8]=57f6df3a94e4853a
+  parse_full_frame: magic 0x15151515 != expected 0xAABBCCDD, buf[:8]=1515151515151515
+  parse_full_frame: magic 0xB2B2B2B2 != expected 0xAABBCCDD, buf[:8]=b2b2b2b2b2b2b2b2
+  parse_full_frame: magic 0xB98E473B != expected 0xAABBCCDD, buf[:8]=3b478eb93c1d9fcf
+  parse_full_frame: magic 0xD8D8D8D8 != expected 0xAABBCCDD, buf[:8]=d8d8d8d8d8d8d8d8
+  parse_full_frame: magic 0xB33B8842 != expected 0xAABBCCDD, buf[:8]=42883bb3213d3a05
+  parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+  parse_full_frame: magic 0xF8A62B3A != expected 0xAABBCCDD, buf[:8]=3a2ba6f8bbf3018b
+  parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+  parse_full_frame: magic 0xC6753BE3 != expected 0xAABBCCDD, buf[:8]=e33b75c6bcbd539d
+  parse_full_frame: magic 0x3A3A3A3A != expected 0xAABBCCDD, buf[:8]=3a3a3a3a3a3a3a3a
+  parse_full_frame: magic 0xF8521E3C != expected 0xAABBCCDD, buf[:8]=3c1e52f83b8becad
+  parse_full_frame: magic 0x9A9A9A9A != expected 0xAABBCCDD, buf[:8]=9a9a9a9a9a9a9a9a
+  parse_full_frame: magic 0xBCB76CE9 != expected 0xAABBCCDD, buf[:8]=e96cb7bcc88e153d
+  parse_full_frame: magic 0x3F3F3F3F != expected 0xAABBCCDD, buf[:8]=3f3f3f3f3f3f3f3f
+  parse_full_frame: magic 0xB5BD0B27 != expected 0xAABBCCDD, buf[:8]=270bbdb5c459bc1e
+  parse_full_frame: magic 0x32323232 != expected 0xAABBCCDD, buf[:8]=3232323232323232
+  parse_full_frame: magic 0x0000BA9E != expected 0xAABBCCDD, buf[:8]=9eba00000000fdbf
+  parse_full_frame: magic 0xA6A6A6A6 != expected 0xAABBCCDD, buf[:8]=a6a6a6a6a6a6a6a6
+  parse_full_frame: magic 0xB3B3B3B3 != expected 0xAABBCCDD, buf[:8]=b3b3b3b3b3b3b3b3
+  parse_full_frame: magic 0xEABA9F73 != expected 0xAABBCCDD, buf[:8]=739fbaea34e0bc18
+  parse_full_frame: magic 0x6D6D6D6D != expected 0xAABBCCDD, buf[:8]=6d6d6d6d6d6d6d6d
+  parse_full_frame: magic 0xBC7085BC != expected 0xAABBCCDD, buf[:8]=bc8570bcd8b4c3bb
+  parse_full_frame: magic 0xAAAAAAAA != expected 0xAABBCCDD, buf[:8]=aaaaaaaaaaaaaaaa
+  parse_full_frame: magic 0x00003B04 != expected 0xAABBCCDD, buf[:8]=043b00000000e297
+  parse_full_frame: magic 0xA6A6A6A6 != expected 0xAABBCCDD, buf[:8]=a6a6a6a6a6a6a6a6
+  parse_full_frame: magic 0x333CDE6E != expected 0xAABBCCDD, buf[:8]=6ede3c3327c2bc12
+  parse_full_frame: magic 0xF3F3F3F3 != expected 0xAABBCCDD, buf[:8]=f3f3f3f3f3f3f3f3
+  parse_full_frame: magic 0xC426BCCC != expected 0xAABBCCDD, buf[:8]=ccbc26c4273d380a
+  parse_full_frame: magic 0x95959595 != expected 0xAABBCCDD, buf[:8]=9595959595959595
+  parse_full_frame: magic 0xBDA1B7DB != expected 0xAABBCCDD, buf[:8]=dbb7a1bd1358783e
+  parse_full_frame: magic 0x86868686 != expected 0xAABBCCDD, buf[:8]=8686868686868686
+  parse_full_frame: magic 0x9B258E3C != expected 0xAABBCCDD, buf[:8]=3c8e259b3bf465ba
+  parse_full_frame: magic 0x9A9A9A9A != expected 0xAABBCCDD, buf[:8]=9a9a9a9a9a9a9a9a
+  parse_full_frame: magic 0xBC5EDA3B != expected 0xAABBCCDD, buf[:8]=3bda5ebc01e8783b
+  parse_full_frame: magic 0xAEAEAEAE != expected 0xAABBCCDD, buf[:8]=aeaeaeaeaeaeaeae
+  parse_full_frame: magic 0x00003A32 != expected 0xAABBCCDD, buf[:8]=323a00000000b8ae
+  parse_full_frame: magic 0x87878787 != expected 0xAABBCCDD, buf[:8]=8787878787878787
+  parse_full_frame: magic 0xBD11A9E1 != expected 0xAABBCCDD, buf[:8]=e1a911bdb5e8883d
+  parse_full_frame: magic 0xC7C7C7C7 != expected 0xAABBCCDD, buf[:8]=c7c7c7c7c7c7c7c7
+  parse_full_frame: magic 0xC7C7C7C7 != expected 0xAABBCCDD, buf[:8]=c7c7c7c7c7c7c7c7
+  parse_full_frame: magic 0x3C9A9AE2 != expected 0xAABBCCDD, buf[:8]=e29a9a3c5298e6bb
+  parse_full_frame: magic 0x19191919 != expected 0xAABBCCDD, buf[:8]=1919191919191919
+  parse_full_frame: magic 0x44BCC5F9 != expected 0xAABBCCDD, buf[:8]=f9c5bc446924bda2
+  parse_full_frame: magic 0x10101010 != expected 0xAABBCCDD, buf[:8]=1010101010101010
+  parse_full_frame: magic 0x000039AF != expected 0xAABBCCDD, buf[:8]=af39000000001228
+  parse_full_frame: magic 0x28282828 != expected 0xAABBCCDD, buf[:8]=2828282828282828
+  parse_full_frame: magic 0x723D976B != expected 0xAABBCCDD, buf[:8]=6b973d72a464bd6e
+  parse_full_frame: magic 0x2C2C2C2C != expected 0xAABBCCDD, buf[:8]=2c2c2c2c2c2c2c2c
+  parse_full_frame: magic 0x88BEE73B != expected 0xAABBCCDD, buf[:8]=3be7be883b700217
+  parse_full_frame: magic 0x13131313 != expected 0xAABBCCDD, buf[:8]=1313131313131313
+  parse_full_frame: magic 0x0000B9E4 != expected 0xAABBCCDD, buf[:8]=e4b90000000031fc
+  parse_full_frame: magic 0x25252525 != expected 0xAABBCCDD, buf[:8]=2525252525252525
+  parse_full_frame: magic 0xB7278B1F != expected 0xAABBCCDD, buf[:8]=1f8b27b745692fb6
+  parse_full_frame: magic 0x22222222 != expected 0xAABBCCDD, buf[:8]=2222222222222222
+  /home/basempi/Capstone_490_Software/utilities/calibration/metrics_debug.py:83: RuntimeWarn
     scale = np.where(mag > _FFT_MAG_CAP, _FFT_MAG_CAP / (mag + 1e-30), 1.0)
+  parse_full_frame: magic 0xBD2949A3 != expected 0xAABBCCDD, buf[:8]=a34929bd4f01323d
+  parse_full_frame: magic 0x11111111 != expected 0xAABBCCDD, buf[:8]=1111111111111111
+  parse_full_frame: magic 0x11111111 != expected 0xAABBCCDD, buf[:8]=1111111111111111
+  parse_full_frame: magic 0xE9BC075D != expected 0xAABBCCDD, buf[:8]=5d07bce98dadbb54
+  parse_full_frame: magic 0xA3A3A3A3 != expected 0xAABBCCDD, buf[:8]=a3a3a3a3a3a3a3a3
+  parse_full_frame: magic 0x48A2BCFB != expected 0xAABBCCDD, buf[:8]=fbbca248163dae1d
+  parse_full_frame: magic 0x80808080 != expected 0xAABBCCDD, buf[:8]=8080808080808080
+  parse_full_frame: magic 0xCCBBBA9A != expected 0xAABBCCDD, buf[:8]=9ababbcce717bced
+  parse_full_frame: magic 0x5A5A5A5A != expected 0xAABBCCDD, buf[:8]=5a5a5a5a5a5a5a5a
+  parse_full_frame: magic 0x14A5B63B != expected 0xAABBCCDD, buf[:8]=3bb6a5143c4324cf
+  parse_full_frame: magic 0x5C5C5C5C != expected 0xAABBCCDD, buf[:8]=5c5c5c5c5c5c5c5c
+  parse_full_frame: magic 0xC0A9E63C != expected 0xAABBCCDD, buf[:8]=3ce6a9c03b177897
+  parse_full_frame: magic 0x03030303 != expected 0xAABBCCDD, buf[:8]=0303030303030303
+  parse_full_frame: magic 0x2C37BC69 != expected 0xAABBCCDD, buf[:8]=69bc372c15bdae29
+  parse_full_frame: magic 0xD7D7D7D7 != expected 0xAABBCCDD, buf[:8]=d7d7d7d7d7d7d7d7
+  parse_full_frame: magic 0x9E57F7BB != expected 0xAABBCCDD, buf[:8]=bbf7579e3caeb06b
+  parse_full_frame: magic 0x97979797 != expected 0xAABBCCDD, buf[:8]=9797979797979797
+  parse_full_frame: magic 0xF0CD733B != expected 0xAABBCCDD, buf[:8]=3b73cdf03aacabf3
+  parse_full_frame: magic 0x0E0E0E0E != expected 0xAABBCCDD, buf[:8]=0e0e0e0e0e0e0e0e
+  parse_full_frame: magic 0x62D37CBC != expected 0xAABBCCDD, buf[:8]=bc7cd362ba953e03
+  parse_full_frame: magic 0xE3E3E3E3 != expected 0xAABBCCDD, buf[:8]=e3e3e3e3e3e3e3e3
+  parse_full_frame: magic 0xDD6DBCFD != expected 0xAABBCCDD, buf[:8]=fdbc6ddd713d95f1
+  parse_full_frame: magic 0x6B6B6B6B != expected 0xAABBCCDD, buf[:8]=6b6b6b6b6b6b6b6b
+  parse_full_frame: magic 0xDABD1D57 != expected 0xAABBCCDD, buf[:8]=571dbddae31cbb1b
+  parse_full_frame: magic 0x0F0F0F0F != expected 0xAABBCCDD, buf[:8]=0f0f0f0f0f0f0f0f
+  parse_full_frame: magic 0xC8E7BB86 != expected 0xAABBCCDD, buf[:8]=86bbe7c8acbcfd84
+  parse_full_frame: magic 0x5C5C5C5C != expected 0xAABBCCDD, buf[:8]=5c5c5c5c5c5c5c5c
+  parse_full_frame: magic 0x9322E83D != expected 0xAABBCCDD, buf[:8]=3de82293bcaca540
+  parse_full_frame: magic 0xE1E1E1E1 != expected 0xAABBCCDD, buf[:8]=e1e1e1e1e1e1e1e1
+  parse_full_frame: magic 0xE1E1E1E1 != expected 0xAABBCCDD, buf[:8]=e1e1e1e1e1e1e1e1
+  parse_full_frame: magic 0xE22CB784 != expected 0xAABBCCDD, buf[:8]=84b72ce21a882c3e
+  parse_full_frame: magic 0x1D1D1D1D != expected 0xAABBCCDD, buf[:8]=1d1d1d1d1d1d1d1d
+  parse_full_frame: magic 0x4AA9863C != expected 0xAABBCCDD, buf[:8]=3c86a94a3c8e1f30
+  parse_full_frame: magic 0x20202020 != expected 0xAABBCCDD, buf[:8]=2020202020202020
+  parse_full_frame: magic 0xC6F53C9C != expected 0xAABBCCDD, buf[:8]=9c3cf5c6443cab57
+  parse_full_frame: magic 0x3F3F3F3F != expected 0xAABBCCDD, buf[:8]=3f3f3f3f3f3f3f3f
+  parse_full_frame: magic 0x00003959 != expected 0xAABBCCDD, buf[:8]=593900000000b37c
+  parse_full_frame: magic 0x41414141 != expected 0xAABBCCDD, buf[:8]=4141414141414141
+  parse_full_frame: magic 0xAFDACBBA != expected 0xAABBCCDD, buf[:8]=bacbdaaf39946d0c
+  parse_full_frame: magic 0x16161616 != expected 0xAABBCCDD, buf[:8]=1616161616161616
+  parse_full_frame: magic 0x00003B15 != expected 0xAABBCCDD, buf[:8]=153b000000001af5
+  parse_full_frame: magic 0x15151515 != expected 0xAABBCCDD, buf[:8]=1515151515151515
+  parse_full_frame: magic 0x1C21C73D != expected 0xAABBCCDD, buf[:8]=3dc7211cbba827b5
+  parse_full_frame: magic 0x23232323 != expected 0xAABBCCDD, buf[:8]=2323232323232323
+  parse_full_frame: magic 0x399A341C != expected 0xAABBCCDD, buf[:8]=1c349a398a34c3eb
+  parse_full_frame: magic 0x11111111 != expected 0xAABBCCDD, buf[:8]=1111111111111111
+  parse_full_frame: magic 0x11111111 != expected 0xAABBCCDD, buf[:8]=1111111111111111
+  parse_full_frame: magic 0xD19ABC17 != expected 0xAABBCCDD, buf[:8]=17bc9ad1ba3ccf38
+  parse_full_frame: magic 0x10101010 != expected 0xAABBCCDD, buf[:8]=1010101010101010
+  parse_full_frame: magic 0x3D4F4F5E != expected 0xAABBCCDD, buf[:8]=5e4f4f3d12a3e73c
+  parse_full_frame: magic 0x1B1B1B1B != expected 0xAABBCCDD, buf[:8]=1b1b1b1b1b1b1b1b
+  parse_full_frame: magic 0x81E5BDA0 != expected 0xAABBCCDD, buf[:8]=a0bde581d73d7758
+  parse_full_frame: magic 0x1F1F1F1F != expected 0xAABBCCDD, buf[:8]=1f1f1f1f1f1f1f1f
+  parse_full_frame: magic 0xB95104A9 != expected 0xAABBCCDD, buf[:8]=a90451b98aea8eba
+  parse_full_frame: magic 0x3C3C3C3C != expected 0xAABBCCDD, buf[:8]=3c3c3c3c3c3c3c3c
+  parse_full_frame: magic 0x0BBD8B1D != expected 0xAABBCCDD, buf[:8]=1d8bbd0b98fc3d43
+  parse_full_frame: magic 0x8B8B8B8B != expected 0xAABBCCDD, buf[:8]=8b8b8b8b8b8b8b8b
+  parse_full_frame: magic 0xCE16BBCB != expected 0xAABBCCDD, buf[:8]=cbbb16ce983def83
+  parse_full_frame: magic 0x5D5D5D5D != expected 0xAABBCCDD, buf[:8]=5d5d5d5d5d5d5d5d
+  parse_full_frame: magic 0x5D5D5D5D != expected 0xAABBCCDD, buf[:8]=5d5d5d5d5d5d5d5d
+  parse_full_frame: magic 0xE51A92BD != expected 0xAABBCCDD, buf[:8]=bd921ae5bbbb9016
+  parse_full_frame: magic 0x8A8A8A8A != expected 0xAABBCCDD, buf[:8]=8a8a8a8a8a8a8a8a
+  parse_full_frame: magic 0xB4E9219B != expected 0xAABBCCDD, buf[:8]=9b21e9b4dba84134
+  parse_full_frame: magic 0x3A3A3A3A != expected 0xAABBCCDD, buf[:8]=3a3a3a3a3a3a3a3a
+  parse_full_frame: magic 0x143D6D4A != expected 0xAABBCCDD, buf[:8]=4a6d3d148f503d05
+  parse_full_frame: magic 0x51515151 != expected 0xAABBCCDD, buf[:8]=5151515151515151
+  parse_full_frame: magic 0x00003981 != expected 0xAABBCCDD, buf[:8]=813900000000496b
+  parse_full_frame: magic 0xC5C5C5C5 != expected 0xAABBCCDD, buf[:8]=c5c5c5c5c5c5c5c5
+  parse_full_frame: magic 0x0000B76A != expected 0xAABBCCDD, buf[:8]=6ab700000000e3ed
+  parse_full_frame: magic 0xD2D2D2D2 != expected 0xAABBCCDD, buf[:8]=d2d2d2d2d2d2d2d2
+  parse_full_frame: magic 0x384BB85D != expected 0xAABBCCDD, buf[:8]=5db84b3860b9a570
+  parse_full_frame: magic 0xBBBBBBBB != expected 0xAABBCCDD, buf[:8]=bbbbbbbbbbbbbbbb
+  parse_full_frame: magic 0x91BD3A13 != expected 0xAABBCCDD, buf[:8]=133abd913a98bdf0
+  parse_full_frame: magic 0x25252525 != expected 0xAABBCCDD, buf[:8]=2525252525252525
+  parse_full_frame: magic 0x3C006BDE != expected 0xAABBCCDD, buf[:8]=de6b003cdad3763d
+  parse_full_frame: magic 0x65656565 != expected 0xAABBCCDD, buf[:8]=6565656565656565
+  parse_full_frame: magic 0xCDB3BD56 != expected 0xAABBCCDD, buf[:8]=56bdb3cda83b37e9
+  parse_full_frame: magic 0x10101010 != expected 0xAABBCCDD, buf[:8]=1010101010101010
+  parse_full_frame: magic 0x3A503C82 != expected 0xAABBCCDD, buf[:8]=823c503ad6bc14af
+  parse_full_frame: magic 0xEAEAEAEA != expected 0xAABBCCDD, buf[:8]=eaeaeaeaeaeaeaea
+  parse_full_frame: magic 0xEAEAEAEA != expected 0xAABBCCDD, buf[:8]=eaeaeaeaeaeaeaea
+  parse_full_frame: magic 0x9819C32A != expected 0xAABBCCDD, buf[:8]=2ac31998a9bdc3fd
+  parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+  parse_full_frame: magic 0x963DB588 != expected 0xAABBCCDD, buf[:8]=88b53d96a0323ddd
+  parse_full_frame: magic 0xABABABAB != expected 0xAABBCCDD, buf[:8]=abababababababab
+  parse_full_frame: magic 0xF700473C != expected 0xAABBCCDD, buf[:8]=3c4700f73bbbcaab
+  parse_full_frame: magic 0x49494949 != expected 0xAABBCCDD, buf[:8]=4949494949494949
+  parse_full_frame: magic 0x993D58A7 != expected 0xAABBCCDD, buf[:8]=a7583d996805bbe8
+  parse_full_frame: magic 0xA7A7A7A7 != expected 0xAABBCCDD, buf[:8]=a7a7a7a7a7a7a7a7
+  parse_full_frame: magic 0x6B381182 != expected 0xAABBCCDD, buf[:8]=8211386bc62db8fc
+  parse_full_frame: magic 0x84848484 != expected 0xAABBCCDD, buf[:8]=8484848484848484
+  parse_full_frame: magic 0x6C8738A2 != expected 0xAABBCCDD, buf[:8]=a238876c5bb8b285
+  parse_full_frame: magic 0x29292929 != expected 0xAABBCCDD, buf[:8]=2929292929292929
+  parse_full_frame: magic 0xD0053BB1 != expected 0xAABBCCDD, buf[:8]=b13b05d08fbc3d68
+  parse_full_frame: magic 0xE3E3E3E3 != expected 0xAABBCCDD, buf[:8]=e3e3e3e3e3e3e3e3
+  parse_full_frame: magic 0xBE8B6039 != expected 0xAABBCCDD, buf[:8]=39608bbeb7b9b53e
+  parse_full_frame: magic 0x87878787 != expected 0xAABBCCDD, buf[:8]=8787878787878787
+  parse_full_frame: magic 0x8F8F8F8F != expected 0xAABBCCDD, buf[:8]=8f8f8f8f8f8f8f8f
+  parse_full_frame: magic 0xBC1154CD != expected 0xAABBCCDD, buf[:8]=cd5411bc805f5a3b
+  parse_full_frame: magic 0xCBCBCBCB != expected 0xAABBCCDD, buf[:8]=cbcbcbcbcbcbcbcb
+  parse_full_frame: magic 0x3F548E3C != expected 0xAABBCCDD, buf[:8]=3c8e543fbc3e1821
+  parse_full_frame: magic 0xD7D7D7D7 != expected 0xAABBCCDD, buf[:8]=d7d7d7d7d7d7d7d7
+  parse_full_frame: magic 0x10553202 != expected 0xAABBCCDD, buf[:8]=023255103e307971
+  parse_full_frame: magic 0x07070707 != expected 0xAABBCCDD, buf[:8]=0707070707070707
+  parse_full_frame: magic 0xBD223CAC != expected 0xAABBCCDD, buf[:8]=ac3c22bd266208bd
+  parse_full_frame: magic 0x66666666 != expected 0xAABBCCDD, buf[:8]=6666666666666666
+  parse_full_frame: magic 0x3DB81D70 != expected 0xAABBCCDD, buf[:8]=701db83d8d38153c
+  parse_full_frame: magic 0xBABABABA != expected 0xAABBCCDD, buf[:8]=babababababababa
+  parse_full_frame: magic 0x033C0943 != expected 0xAABBCCDD, buf[:8]=43093c03505fbc14
+  parse_full_frame: magic 0xC2C2C2C2 != expected 0xAABBCCDD, buf[:8]=c2c2c2c2c2c2c2c2
+  parse_full_frame: magic 0xBB33BB6A != expected 0xAABBCCDD, buf[:8]=6abb33bb9fbb713f
+  parse_full_frame: magic 0x09090909 != expected 0xAABBCCDD, buf[:8]=0909090909090909
+  parse_full_frame: magic 0xBBAABC8D != expected 0xAABBCCDD, buf[:8]=8dbcaabbdbbcb75b
+  parse_full_frame: magic 0x37373737 != expected 0xAABBCCDD, buf[:8]=3737373737373737
+  parse_full_frame: magic 0xA336150D != expected 0xAABBCCDD, buf[:8]=0d1536a37181b670
+  parse_full_frame: magic 0x1C1C1C1C != expected 0xAABBCCDD, buf[:8]=1c1c1c1c1c1c1c1c
+  parse_full_frame: magic 0xDB35BD03 != expected 0xAABBCCDD, buf[:8]=03bd35dbb33ca545
+  parse_full_frame: magic 0xFCFCFCFC != expected 0xAABBCCDD, buf[:8]=fcfcfcfcfcfcfcfc
+  parse_full_frame: magic 0xADB9AE77 != expected 0xAABBCCDD, buf[:8]=77aeb9ad34ac3859
+  parse_full_frame: magic 0x9E9E9E9E != expected 0xAABBCCDD, buf[:8]=9e9e9e9e9e9e9e9e
+  parse_full_frame: magic 0x9E9E9E9E != expected 0xAABBCCDD, buf[:8]=9e9e9e9e9e9e9e9e
+  parse_full_frame: magic 0x4A3CE85A != expected 0xAABBCCDD, buf[:8]=5ae83c4a39073cd3
+  parse_full_frame: magic 0x63636363 != expected 0xAABBCCDD, buf[:8]=6363636363636363
+  parse_full_frame: magic 0xC35F8930 != expected 0xAABBCCDD, buf[:8]=30895fc330a517b6
+  parse_full_frame: magic 0x85858585 != expected 0xAABBCCDD, buf[:8]=8585858585858585
+  parse_full_frame: magic 0x8A6389BC != expected 0xAABBCCDD, buf[:8]=bc89638abcf636c5
+  parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+  parse_full_frame: magic 0xB249A63E != expected 0xAABBCCDD, buf[:8]=3ea649b2bef5c397
+  parse_full_frame: magic 0x5E5E5E5E != expected 0xAABBCCDD, buf[:8]=5e5e5e5e5e5e5e5e
+  parse_full_frame: magic 0x3BC977D7 != expected 0xAABBCCDD, buf[:8]=d777c93b6d9677bd
+  parse_full_frame: magic 0x10101010 != expected 0xAABBCCDD, buf[:8]=1010101010101010
+  parse_full_frame: magic 0xD7983C46 != expected 0xAABBCCDD, buf[:8]=463c98d7223b46da
+  parse_full_frame: magic 0xD9D9D9D9 != expected 0xAABBCCDD, buf[:8]=d9d9d9d9d9d9d9d9
+  parse_full_frame: magic 0x0E2D063C != expected 0xAABBCCDD, buf[:8]=3c062d0ebcc6eeab
+  parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
+  parse_full_frame: magic 0xAC1CBDC8 != expected 0xAABBCCDD, buf[:8]=c8bd1cacb93c33b1
+  parse_full_frame: magic 0xF7F7F7F7 != expected 0xAABBCCDD, buf[:8]=f7f7f7f7f7f7f7f7
+  parse_full_frame: magic 0xF7F7F7F7 != expected 0xAABBCCDD, buf[:8]=f7f7f7f7f7f7f7f7
+  parse_full_frame: magic 0x55A63140 != expected 0xAABBCCDD, buf[:8]=4031a655530ba4b7
+  parse_full_frame: magic 0x5E5E5E5E != expected 0xAABBCCDD, buf[:8]=5e5e5e5e5e5e5e5e
+  parse_full_frame: magic 0xDF8A10A5 != expected 0xAABBCCDD, buf[:8]=a5108adfa5b09aca
+  parse_full_frame: magic 0xEEEEEEEE != expected 0xAABBCCDD, buf[:8]=eeeeeeeeeeeeeeee
+  parse_full_frame: magic 0xBCE4CD40 != expected 0xAABBCCDD, buf[:8]=40cde4bcb9ab773d
+  parse_full_frame: magic 0xF6F6F6F6 != expected 0xAABBCCDD, buf[:8]=f6f6f6f6f6f6f6f6
+  parse_full_frame: magic 0xBC0706AD != expected 0xAABBCCDD, buf[:8]=ad0607bc74a23ebb
+  parse_full_frame: magic 0xC3C3C3C3 != expected 0xAABBCCDD, buf[:8]=c3c3c3c3c3c3c3c3
+  parse_full_frame: magic 0x3CAC9948 != expected 0xAABBCCDD, buf[:8]=4899ac3cdec1d13b
+  parse_full_frame: magic 0xBABABABA != expected 0xAABBCCDD, buf[:8]=babababababababa
+  parse_full_frame: magic 0xC148BF37 != expected 0xAABBCCDD, buf[:8]=37bf48c1c9bed317
+  parse_full_frame: magic 0x96969696 != expected 0xAABBCCDD, buf[:8]=9696969696969696
+  parse_full_frame: magic 0x517F55BD != expected 0xAABBCCDD, buf[:8]=bd557f513d960e55
+  parse_full_frame: magic 0x29292929 != expected 0xAABBCCDD, buf[:8]=2929292929292929
+  parse_full_frame: magic 0x01710A3C != expected 0xAABBCCDD, buf[:8]=3c0a7101bc2f944b
+  parse_full_frame: magic 0xE5E5E5E5 != expected 0xAABBCCDD, buf[:8]=e5e5e5e5e5e5e5e5
+  parse_full_frame: magic 0x3CE0CB76 != expected 0xAABBCCDD, buf[:8]=76cbe03c9579ffbc
+  parse_full_frame: magic 0xBEBEBEBE != expected 0xAABBCCDD, buf[:8]=bebebebebebebebe
+  parse_full_frame: magic 0x00003A96 != expected 0xAABBCCDD, buf[:8]=963a00000000f441
+  parse_full_frame: magic 0x6C6C6C6C != expected 0xAABBCCDD, buf[:8]=6c6c6c6c6c6c6c6c
   OK
 STEP_PROGRESS 6 7
 [6] Post-gain sanity (ratio check)...
   --- Per-mic levels (LOW gain, latest of 3 frames) ---
-    Total power (sum of squared L2 per mic): 2.933246e+02
-    Max mic L2: 6.534517e+00  Min mic L2: 2.273288e+00
-    Ratio max/min: 2.87
+    Total power (sum of squared L2 per mic): 2.493553e+00
+    Max mic L2: 6.970272e-01  Min mic L2: 2.014861e-03
+    Ratio max/min: 345.94
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   5.760819e+00   -0.5 dB    0.882     1.13
-      1   ADC1   2.641612e+00   -3.9 dB    0.404     2.47
-      2   ADC1   2.804017e+00   -3.7 dB    0.429     2.33
-      3   ADC1   2.273288e+00   -4.6 dB    0.348     2.87
-      4   ADC2   5.011945e+00   -1.2 dB    0.767     1.30
-      5   ADC2   2.422203e+00   -4.3 dB    0.371     2.70
-      6   ADC2   3.228900e+00   -3.1 dB    0.494     2.02
-      7   ADC2   3.218310e+00   -3.1 dB    0.493     2.03
-      8   ADC3   5.199113e+00   -1.0 dB    0.796     1.26
-      9   ADC3   2.701159e+00   -3.8 dB    0.413     2.42
-     10   ADC3   3.918763e+00   -2.2 dB    0.600     1.67
-     11   ADC3   3.606397e+00   -2.6 dB    0.552     1.81
-     12   ADC4   6.534517e+00   +0.0 dB    1.000     1.00
-     13   ADC4   5.961101e+00   -0.4 dB    0.912     1.10
-     14   ADC4   4.922122e+00   -1.2 dB    0.753     1.33
-     15   ADC4   4.817404e+00   -1.3 dB    0.737     1.36
+      0   ADC1   8.181000e-02   -9.3 dB    0.117     8.52
+      1   ADC1   1.022569e-02   -18.3 dB    0.015     68.16
+      2   ADC1   3.279521e-01   -3.3 dB    0.471     2.13
+      3   ADC1   5.080560e-01   -1.4 dB    0.729     1.37
+      4   ADC2   6.499245e-01   -0.3 dB    0.932     1.07
+      5   ADC2   1.501112e-02   -16.7 dB    0.022     46.43
+      6   ADC2   6.970272e-01   +0.0 dB    1.000     1.00
+      7   ADC2   6.043875e-01   -0.6 dB    0.867     1.15
+      8   ADC3   2.977408e-01   -3.7 dB    0.427     2.34
+      9   ADC3   2.336649e-03   -24.7 dB    0.003     100+
+     10   ADC3   3.700218e-01   -2.8 dB    0.531     1.88
+     11   ADC3   5.308387e-01   -1.2 dB    0.762     1.31
+     12   ADC4   3.212925e-01   -3.4 dB    0.461     2.17
+     13   ADC4   2.017863e-03   -25.4 dB    0.003     100+
+     14   ADC4   2.014861e-03   -25.4 dB    0.003     100+
+     15   ADC4   4.865446e-01   -1.6 dB    0.698     1.43
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -3.2 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -2.9 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -2.4 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -0.7 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -8.1 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -4.4 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -8.1 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -13.9 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [3]
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [0, 1, 5, 9, 13, 14]
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
   --- Per-mic levels (HIGH gain, latest of 3 frames) ---
-    Total power (sum of squared L2 per mic): 1.427230e+03
-    Max mic L2: 1.857624e+01  Min mic L2: 1.021501e+00
-    Ratio max/min: 18.19
+    Total power (sum of squared L2 per mic): 2.764297e+02
+    Max mic L2: 1.600587e+01  Min mic L2: 4.024760e-03
+    Ratio max/min: 3976.85
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   9.882798e+00   -2.7 dB    0.532     1.88
-      1   ADC1   1.021501e+00   -12.6 dB    0.055     18.19
-      2   ADC1   3.543691e+00   -7.2 dB    0.191     5.24
-      3   ADC1   5.132055e+00   -5.6 dB    0.276     3.62
-      4   ADC2   7.440969e+00   -4.0 dB    0.401     2.50
-      5   ADC2   2.815906e+00   -8.2 dB    0.152     6.60
-      6   ADC2   4.861257e+00   -5.8 dB    0.262     3.82
-      7   ADC2   7.030591e+00   -4.2 dB    0.378     2.64
-      8   ADC3   7.081741e+00   -4.2 dB    0.381     2.62
-      9   ADC3   5.830660e+00   -5.0 dB    0.314     3.19
-     10   ADC3   9.557707e+00   -2.9 dB    0.515     1.94
-     11   ADC3   1.181366e+01   -2.0 dB    0.636     1.57
-     12   ADC4   1.857624e+01   +0.0 dB    1.000     1.00
-     13   ADC4   7.623535e+00   -3.9 dB    0.410     2.44
-     14   ADC4   1.206963e+01   -1.9 dB    0.650     1.54
-     15   ADC4   1.700975e+01   -0.4 dB    0.916     1.09
+      0   ADC1   2.185202e+00   -8.6 dB    0.137     7.32
+      1   ADC1   4.168484e-01   -15.8 dB    0.026     38.40
+      2   ADC1   1.669477e-01   -19.8 dB    0.010     95.87
+      3   ADC1   2.038717e+00   -8.9 dB    0.127     7.85
+      4   ADC2   1.862236e+00   -9.3 dB    0.116     8.59
+      5   ADC2   4.039221e-03   -36.0 dB    0.000     100+
+      6   ADC2   3.949824e-02   -26.1 dB    0.002     100+
+      7   ADC2   1.738425e+00   -9.6 dB    0.109     9.21
+      8   ADC3   9.134577e-01   -12.4 dB    0.057     17.52
+      9   ADC3   1.600587e+01   +0.0 dB    1.000     1.00
+     10   ADC3   4.744072e-01   -15.3 dB    0.030     33.74
+     11   ADC3   8.155096e-01   -12.9 dB    0.051     19.63
+     12   ADC4   1.096540e+00   -11.6 dB    0.069     14.60
+     13   ADC4   1.864130e-01   -19.3 dB    0.012     85.86
+     14   ADC4   4.024760e-03   -36.0 dB    0.000     100+
+     15   ADC4   1.286630e+00   -10.9 dB    0.080     12.44
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -7.0 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -5.6 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -3.5 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -1.5 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -13.3 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -20.3 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -10.2 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -19.5 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 2, 3, 5, 6, 9]
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [0, 1, 2, 3, 4, 5, 6,
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
   FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
-  /home/acousticgod/Capstone_490_Software/utilities/calibration/metrics_debug.py:83: Runtime
+  parse_full_frame: magic 0xF6F6F6F6 != expected 0xAABBCCDD, buf[:8]=f6f6f6f6f6f6f6f6
+  parse_full_frame: magic 0x8DE9E23C != expected 0xAABBCCDD, buf[:8]=3ce2e98d3ca471af
+  parse_full_frame: magic 0x30303030 != expected 0xAABBCCDD, buf[:8]=3030303030303030
+  parse_full_frame: magic 0x0F6D981C != expected 0xAABBCCDD, buf[:8]=1c986d0f1cdd68ec
+  parse_full_frame: magic 0xF9F9F9F9 != expected 0xAABBCCDD, buf[:8]=f9f9f9f9f9f9f9f9
+  parse_full_frame: magic 0x0000BABD != expected 0xAABBCCDD, buf[:8]=bdba00000000124e
+  parse_full_frame: magic 0x6C6C6C6C != expected 0xAABBCCDD, buf[:8]=6c6c6c6c6c6c6c6c
+  parse_full_frame: magic 0xB70A9B45 != expected 0xAABBCCDD, buf[:8]=459b0ab78dd5e7b6
+  parse_full_frame: magic 0x4F4F4F4F != expected 0xAABBCCDD, buf[:8]=4f4f4f4f4f4f4f4f
+  parse_full_frame: magic 0x5EDCBD07 != expected 0xAABBCCDD, buf[:8]=07bddc5e30bb5a78
+  parse_full_frame: magic 0x98989898 != expected 0xAABBCCDD, buf[:8]=9898989898989898
+  parse_full_frame: magic 0xBD803D20 != expected 0xAABBCCDD, buf[:8]=203d80bd8857f0bc
+  parse_full_frame: magic 0x60606060 != expected 0xAABBCCDD, buf[:8]=6060606060606060
+  parse_full_frame: magic 0xAEEE55BD != expected 0xAABBCCDD, buf[:8]=bd55eeae3b3596fc
+  parse_full_frame: magic 0x61616161 != expected 0xAABBCCDD, buf[:8]=6161616161616161
+  parse_full_frame: magic 0xF23C18C2 != expected 0xAABBCCDD, buf[:8]=c2183cf2331bbbcc
+  parse_full_frame: magic 0x8B8B8B8B != expected 0xAABBCCDD, buf[:8]=8b8b8b8b8b8b8b8b
+  parse_full_frame: magic 0xBC299537 != expected 0xAABBCCDD, buf[:8]=379529bcd380f83b
+  parse_full_frame: magic 0xB5B5B5B5 != expected 0xAABBCCDD, buf[:8]=b5b5b5b5b5b5b5b5
+  parse_full_frame: magic 0x0000BADD != expected 0xAABBCCDD, buf[:8]=ddba00000000cc62
+  parse_full_frame: magic 0x8E8E8E8E != expected 0xAABBCCDD, buf[:8]=8e8e8e8e8e8e8e8e
+  parse_full_frame: magic 0x8E8E8E8E != expected 0xAABBCCDD, buf[:8]=8e8e8e8e8e8e8e8e
+  parse_full_frame: magic 0x00003B04 != expected 0xAABBCCDD, buf[:8]=043b00000000019b
+  parse_full_frame: magic 0x4B4B4B4B != expected 0xAABBCCDD, buf[:8]=4b4b4b4b4b4b4b4b
+  parse_full_frame: magic 0x29BEBC62 != expected 0xAABBCCDD, buf[:8]=62bcbe2963bb7001
+  parse_full_frame: magic 0xD4D4D4D4 != expected 0xAABBCCDD, buf[:8]=d4d4d4d4d4d4d4d4
+  parse_full_frame: magic 0x3C3D3821 != expected 0xAABBCCDD, buf[:8]=21383d3c62474b3c
+  parse_full_frame: magic 0xBCBCBCBC != expected 0xAABBCCDD, buf[:8]=bcbcbcbcbcbcbcbc
+  /home/basempi/Capstone_490_Software/utilities/calibration/metrics_debug.py:83: RuntimeWarn
     scale = np.where(mag > _FFT_MAG_CAP, _FFT_MAG_CAP / (mag + 1e-30), 1.0)
+  parse_full_frame: magic 0xBC8528EA != expected 0xAABBCCDD, buf[:8]=ea2885bc78e246bc
+  parse_full_frame: magic 0x4B4B4B4B != expected 0xAABBCCDD, buf[:8]=4b4b4b4b4b4b4b4b
+  parse_full_frame: magic 0x1628593B != expected 0xAABBCCDD, buf[:8]=3b5928163acd1740
+  parse_full_frame: magic 0x22222222 != expected 0xAABBCCDD, buf[:8]=2222222222222222
+  parse_full_frame: magic 0x58DB3DAF != expected 0xAABBCCDD, buf[:8]=af3ddb5864bd76f3
+  parse_full_frame: magic 0x7E7E7E7E != expected 0xAABBCCDD, buf[:8]=7e7e7e7e7e7e7e7e
+  parse_full_frame: magic 0xF23D0AB2 != expected 0xAABBCCDD, buf[:8]=b20a3df20e0ebe2f
+  parse_full_frame: magic 0xE5E5E5E5 != expected 0xAABBCCDD, buf[:8]=e5e5e5e5e5e5e5e5
+  parse_full_frame: magic 0xE5E5E5E5 != expected 0xAABBCCDD, buf[:8]=e5e5e5e5e5e5e5e5
+  parse_full_frame: magic 0x5698BD3A != expected 0xAABBCCDD, buf[:8]=3abd9856d93d5432
+  parse_full_frame: magic 0xC8C8C8C8 != expected 0xAABBCCDD, buf[:8]=c8c8c8c8c8c8c8c8
+  parse_full_frame: magic 0xDC4A3D28 != expected 0xAABBCCDD, buf[:8]=283d4adc803bffcf
+  parse_full_frame: magic 0x8A8A8A8A != expected 0xAABBCCDD, buf[:8]=8a8a8a8a8a8a8a8a
+  parse_full_frame: magic 0x2925D2B3 != expected 0xAABBCCDD, buf[:8]=b3d225293413012a
+  parse_full_frame: magic 0x86868686 != expected 0xAABBCCDD, buf[:8]=8686868686868686
+  parse_full_frame: magic 0xAF8ABC67 != expected 0xAABBCCDD, buf[:8]=67bc8aaf85bcda38
+  parse_full_frame: magic 0xF5F5F5F5 != expected 0xAABBCCDD, buf[:8]=f5f5f5f5f5f5f5f5
+  parse_full_frame: magic 0x0000B9B5 != expected 0xAABBCCDD, buf[:8]=b5b9000000004920
+  parse_full_frame: magic 0x2C2C2C2C != expected 0xAABBCCDD, buf[:8]=2c2c2c2c2c2c2c2c
+  parse_full_frame: magic 0xDA4024BD != expected 0xAABBCCDD, buf[:8]=bd2440da3df2281e
+  parse_full_frame: magic 0x06060606 != expected 0xAABBCCDD, buf[:8]=0606060606060606
+  parse_full_frame: magic 0x4DD92B3B != expected 0xAABBCCDD, buf[:8]=3b2bd94d3b52c37d
+  parse_full_frame: magic 0xF1F1F1F1 != expected 0xAABBCCDD, buf[:8]=f1f1f1f1f1f1f1f1
+  parse_full_frame: magic 0xF33D1247 != expected 0xAABBCCDD, buf[:8]=47123df32f9fbb96
+  parse_full_frame: magic 0x02020202 != expected 0xAABBCCDD, buf[:8]=0202020202020202
+  parse_full_frame: magic 0x33D2AEBD != expected 0xAABBCCDD, buf[:8]=bdaed233bdb1ecc0
+  parse_full_frame: magic 0x03030303 != expected 0xAABBCCDD, buf[:8]=0303030303030303
+  parse_full_frame: magic 0x03030303 != expected 0xAABBCCDD, buf[:8]=0303030303030303
+  parse_full_frame: magic 0xB7E4713D != expected 0xAABBCCDD, buf[:8]=3d71e4b7bdda2a54
+  parse_full_frame: magic 0xC6C6C6C6 != expected 0xAABBCCDD, buf[:8]=c6c6c6c6c6c6c6c6
+  parse_full_frame: magic 0xEFD8BD34 != expected 0xAABBCCDD, buf[:8]=34bdd8ef38bcabc3
+  parse_full_frame: magic 0x60606060 != expected 0xAABBCCDD, buf[:8]=6060606060606060
+  parse_full_frame: magic 0x0000399B != expected 0xAABBCCDD, buf[:8]=9b39000000008dc8
+  parse_full_frame: magic 0x50505050 != expected 0xAABBCCDD, buf[:8]=5050505050505050
+  parse_full_frame: magic 0x3CD2CFF2 != expected 0xAABBCCDD, buf[:8]=f2cfd23c12f23abd
+  parse_full_frame: magic 0xC7C7C7C7 != expected 0xAABBCCDD, buf[:8]=c7c7c7c7c7c7c7c7
+  parse_full_frame: magic 0xCC563D94 != expected 0xAABBCCDD, buf[:8]=943d56cc43bbcc81
+  parse_full_frame: magic 0x26262626 != expected 0xAABBCCDD, buf[:8]=2626262626262626
+  parse_full_frame: magic 0x73BA214D != expected 0xAABBCCDD, buf[:8]=4d21ba73b8ebb927
+  parse_full_frame: magic 0x10101010 != expected 0xAABBCCDD, buf[:8]=1010101010101010
+  parse_full_frame: magic 0xF23BE5DD != expected 0xAABBCCDD, buf[:8]=dde53bf244c1bd78
+  parse_full_frame: magic 0xFBFBFBFB != expected 0xAABBCCDD, buf[:8]=fbfbfbfbfbfbfbfb
+  parse_full_frame: magic 0xBC4C5BB6 != expected 0xAABBCCDD, buf[:8]=b65b4cbc6e82e7bb
+  parse_full_frame: magic 0xAAAAAAAA != expected 0xAABBCCDD, buf[:8]=aaaaaaaaaaaaaaaa
+  parse_full_frame: magic 0xAAAAAAAA != expected 0xAABBCCDD, buf[:8]=aaaaaaaaaaaaaaaa
+  parse_full_frame: magic 0x861ABCD2 != expected 0xAABBCCDD, buf[:8]=d2bc1a868ebc7e1f
+  parse_full_frame: magic 0xA3A3A3A3 != expected 0xAABBCCDD, buf[:8]=a3a3a3a3a3a3a3a3
+  parse_full_frame: magic 0x053B623D != expected 0xAABBCCDD, buf[:8]=3d623b053bb750b8
+  parse_full_frame: magic 0xA6A6A6A6 != expected 0xAABBCCDD, buf[:8]=a6a6a6a6a6a6a6a6
+  parse_full_frame: magic 0xBD9C0460 != expected 0xAABBCCDD, buf[:8]=60049cbdefb1cf3c
+  parse_full_frame: magic 0x40404040 != expected 0xAABBCCDD, buf[:8]=4040404040404040
+  parse_full_frame: magic 0x06641B3C != expected 0xAABBCCDD, buf[:8]=3c1b64063da64361
+  parse_full_frame: magic 0x35353535 != expected 0xAABBCCDD, buf[:8]=3535353535353535
+  parse_full_frame: magic 0x0000B7BB != expected 0xAABBCCDD, buf[:8]=bbb7000000000bfa
+  parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
+  parse_full_frame: magic 0x68BD94F1 != expected 0xAABBCCDD, buf[:8]=f194bd687808be15
+  parse_full_frame: magic 0x1B1B1B1B != expected 0xAABBCCDD, buf[:8]=1b1b1b1b1b1b1b1b
+  parse_full_frame: magic 0x9E4FD538 != expected 0xAABBCCDD, buf[:8]=38d54f9e3823ea74
+  parse_full_frame: magic 0x4D4D4D4D != expected 0xAABBCCDD, buf[:8]=4d4d4d4d4d4d4d4d
+  parse_full_frame: magic 0x3BC0F9FD != expected 0xAABBCCDD, buf[:8]=fdf9c03b8d9b02bb
+  parse_full_frame: magic 0x0A0A0A0A != expected 0xAABBCCDD, buf[:8]=0a0a0a0a0a0a0a0a
+  parse_full_frame: magic 0x8927BA88 != expected 0xAABBCCDD, buf[:8]=88ba2789583bd3ab
+  parse_full_frame: magic 0x8A8A8A8A != expected 0xAABBCCDD, buf[:8]=8a8a8a8a8a8a8a8a
+  parse_full_frame: magic 0x8A8A8A8A != expected 0xAABBCCDD, buf[:8]=8a8a8a8a8a8a8a8a
+  parse_full_frame: magic 0xBD0AEAAD != expected 0xAABBCCDD, buf[:8]=adea0abd9e104b3d
+  parse_full_frame: magic 0x54545454 != expected 0xAABBCCDD, buf[:8]=5454545454545454
+  parse_full_frame: magic 0xA6E3CCB0 != expected 0xAABBCCDD, buf[:8]=b0cce3a62fd95a8f
+  parse_full_frame: magic 0xD8D8D8D8 != expected 0xAABBCCDD, buf[:8]=d8d8d8d8d8d8d8d8
+  parse_full_frame: magic 0xAED1D2BB != expected 0xAABBCCDD, buf[:8]=bbd2d1aebbfa076b
+  parse_full_frame: magic 0xBCBCBCBC != expected 0xAABBCCDD, buf[:8]=bcbcbcbcbcbcbcbc
+  parse_full_frame: magic 0x87BE07CE != expected 0xAABBCCDD, buf[:8]=ce07be8783d43efd
+  parse_full_frame: magic 0x02020202 != expected 0xAABBCCDD, buf[:8]=0202020202020202
+  parse_full_frame: magic 0xF9D3BC5E != expected 0xAABBCCDD, buf[:8]=5ebcd3f9483d2b02
+  parse_full_frame: magic 0x10101010 != expected 0xAABBCCDD, buf[:8]=1010101010101010
+  parse_full_frame: magic 0x2F553C73 != expected 0xAABBCCDD, buf[:8]=733c552f123ea560
+  parse_full_frame: magic 0x12121212 != expected 0xAABBCCDD, buf[:8]=1212121212121212
+  parse_full_frame: magic 0xCF31BDB4 != expected 0xAABBCCDD, buf[:8]=b4bd31cfff3c1e51
+  parse_full_frame: magic 0xE6E6E6E6 != expected 0xAABBCCDD, buf[:8]=e6e6e6e6e6e6e6e6
+  parse_full_frame: magic 0x4AF73B43 != expected 0xAABBCCDD, buf[:8]=433bf74a33bd2b6d
+  parse_full_frame: magic 0x0B0B0B0B != expected 0xAABBCCDD, buf[:8]=0b0b0b0b0b0b0b0b
+  parse_full_frame: magic 0x54545454 != expected 0xAABBCCDD, buf[:8]=5454545454545454
+  parse_full_frame: magic 0xBA24153C != expected 0xAABBCCDD, buf[:8]=3c1524babb91c500
+  parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+  parse_full_frame: magic 0xE0BCB320 != expected 0xAABBCCDD, buf[:8]=20b3bce047a03df3
+  parse_full_frame: magic 0x41414141 != expected 0xAABBCCDD, buf[:8]=4141414141414141
+  parse_full_frame: magic 0x563AD73C != expected 0xAABBCCDD, buf[:8]=3cd73a563c0b74ae
+  parse_full_frame: magic 0xD2D2D2D2 != expected 0xAABBCCDD, buf[:8]=d2d2d2d2d2d2d2d2
+  parse_full_frame: magic 0x721B7D3C != expected 0xAABBCCDD, buf[:8]=3c7d1b723c967cc8
+  parse_full_frame: magic 0x2B2B2B2B != expected 0xAABBCCDD, buf[:8]=2b2b2b2b2b2b2b2b
+  parse_full_frame: magic 0x69C5F135 != expected 0xAABBCCDD, buf[:8]=35f1c56935d799aa
+  parse_full_frame: magic 0x9D9D9D9D != expected 0xAABBCCDD, buf[:8]=9d9d9d9d9d9d9d9d
+  parse_full_frame: magic 0x72E7BCA2 != expected 0xAABBCCDD, buf[:8]=a2bce7722e3e73d7
+  parse_full_frame: magic 0x87878787 != expected 0xAABBCCDD, buf[:8]=8787878787878787
+  parse_full_frame: magic 0xBB7FF255 != expected 0xAABBCCDD, buf[:8]=55f27fbbb8ca52bc
+  parse_full_frame: magic 0x8F8F8F8F != expected 0xAABBCCDD, buf[:8]=8f8f8f8f8f8f8f8f
+  parse_full_frame: magic 0x28BD76D5 != expected 0xAABBCCDD, buf[:8]=d576bd28416dbef0
+  parse_full_frame: magic 0xA7A7A7A7 != expected 0xAABBCCDD, buf[:8]=a7a7a7a7a7a7a7a7
+  parse_full_frame: magic 0xA7A7A7A7 != expected 0xAABBCCDD, buf[:8]=a7a7a7a7a7a7a7a7
+  parse_full_frame: magic 0x4989D315 != expected 0xAABBCCDD, buf[:8]=15d389499578dbcf
+  parse_full_frame: magic 0x89898989 != expected 0xAABBCCDD, buf[:8]=8989898989898989
+  parse_full_frame: magic 0x6115C817 != expected 0xAABBCCDD, buf[:8]=17c81561479d1372
+  parse_full_frame: magic 0x83838383 != expected 0xAABBCCDD, buf[:8]=8383838383838383
+  parse_full_frame: magic 0x0000BB05 != expected 0xAABBCCDD, buf[:8]=05bb00000000c094
+  parse_full_frame: magic 0x69696969 != expected 0xAABBCCDD, buf[:8]=6969696969696969
+  parse_full_frame: magic 0x00DED73F != expected 0xAABBCCDD, buf[:8]=3fd7de003eaf38a1
+  parse_full_frame: magic 0x18181818 != expected 0xAABBCCDD, buf[:8]=1818181818181818
+  parse_full_frame: magic 0x383DDA08 != expected 0xAABBCCDD, buf[:8]=08da3d389e89bd65
+  parse_full_frame: magic 0xFEFEFEFE != expected 0xAABBCCDD, buf[:8]=fefefefefefefefe
+  parse_full_frame: magic 0xB972049D != expected 0xAABBCCDD, buf[:8]=9d0472b906fece38
+  parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
+  parse_full_frame: magic 0x6A398EBC != expected 0xAABBCCDD, buf[:8]=bc8e396a3dff272d
+  parse_full_frame: magic 0xD1D1D1D1 != expected 0xAABBCCDD, buf[:8]=d1d1d1d1d1d1d1d1
+  parse_full_frame: magic 0xB9227209 != expected 0xAABBCCDD, buf[:8]=097222b93ad14d3a
+  parse_full_frame: magic 0xABABABAB != expected 0xAABBCCDD, buf[:8]=abababababababab
+  parse_full_frame: magic 0xD73CE949 != expected 0xAABBCCDD, buf[:8]=49e93cd7ab82bda0
+  parse_full_frame: magic 0xA9A9A9A9 != expected 0xAABBCCDD, buf[:8]=a9a9a9a9a9a9a9a9
+  parse_full_frame: magic 0xA9A9A9A9 != expected 0xAABBCCDD, buf[:8]=a9a9a9a9a9a9a9a9
+  parse_full_frame: magic 0xFD8ABD94 != expected 0xAABBCCDD, buf[:8]=94bd8afd1337f4d0
+  parse_full_frame: magic 0xC8C8C8C8 != expected 0xAABBCCDD, buf[:8]=c8c8c8c8c8c8c8c8
+  parse_full_frame: magic 0x823C735F != expected 0xAABBCCDD, buf[:8]=5f733c821d87bdcf
+  parse_full_frame: magic 0x5B5B5B5B != expected 0xAABBCCDD, buf[:8]=5b5b5b5b5b5b5b5b
+  parse_full_frame: magic 0xD3F81B3D != expected 0xAABBCCDD, buf[:8]=3d1bf8d3be57967b
+  parse_full_frame: magic 0x59595959 != expected 0xAABBCCDD, buf[:8]=5959595959595959
+  parse_full_frame: magic 0x000039BD != expected 0xAABBCCDD, buf[:8]=bd3900000000244f
+  parse_full_frame: magic 0x80808080 != expected 0xAABBCCDD, buf[:8]=8080808080808080
+  parse_full_frame: magic 0x6EBD3173 != expected 0xAABBCCDD, buf[:8]=7331bd6edf15bd5c
+  parse_full_frame: magic 0xF1F1F1F1 != expected 0xAABBCCDD, buf[:8]=f1f1f1f1f1f1f1f1
+  parse_full_frame: magic 0x3D320478 != expected 0xAABBCCDD, buf[:8]=7804323dd37c2bbe
+  parse_full_frame: magic 0x86868686 != expected 0xAABBCCDD, buf[:8]=8686868686868686
+  parse_full_frame: magic 0x34951E81 != expected 0xAABBCCDD, buf[:8]=811e95340de23734
+  parse_full_frame: magic 0x90909090 != expected 0xAABBCCDD, buf[:8]=9090909090909090
+  parse_full_frame: magic 0x3C80EE57 != expected 0xAABBCCDD, buf[:8]=57ee803c61819e3c
+  parse_full_frame: magic 0x89898989 != expected 0xAABBCCDD, buf[:8]=8989898989898989
+  parse_full_frame: magic 0x491F593E != expected 0xAABBCCDD, buf[:8]=3e591f493dbcc022
+  parse_full_frame: magic 0x66666666 != expected 0xAABBCCDD, buf[:8]=6666666666666666
+  parse_full_frame: magic 0x66666666 != expected 0xAABBCCDD, buf[:8]=6666666666666666
+  parse_full_frame: magic 0x3DE41E46 != expected 0xAABBCCDD, buf[:8]=461ee43df0fc19be
+  parse_full_frame: magic 0x88888888 != expected 0xAABBCCDD, buf[:8]=8888888888888888
+  parse_full_frame: magic 0xB8F75F11 != expected 0xAABBCCDD, buf[:8]=115ff7b81d1416b8
+  parse_full_frame: magic 0x7F7F7F7F != expected 0xAABBCCDD, buf[:8]=7f7f7f7f7f7f7f7f
+  parse_full_frame: magic 0xBC74C5E9 != expected 0xAABBCCDD, buf[:8]=e9c574bc0a0f8abc
+  parse_full_frame: magic 0x85858585 != expected 0xAABBCCDD, buf[:8]=8585858585858585
+  parse_full_frame: magic 0xA3293C24 != expected 0xAABBCCDD, buf[:8]=243c29a3813b2051
+  parse_full_frame: magic 0x9B9B9B9B != expected 0xAABBCCDD, buf[:8]=9b9b9b9b9b9b9b9b
+  parse_full_frame: magic 0x00003392 != expected 0xAABBCCDD, buf[:8]=923300000000857f
+  parse_full_frame: magic 0x01010101 != expected 0xAABBCCDD, buf[:8]=0101010101010101
+  parse_full_frame: magic 0xBAE5D150 != expected 0xAABBCCDD, buf[:8]=50d1e5ba2817debc
+  parse_full_frame: magic 0xE8E8E8E8 != expected 0xAABBCCDD, buf[:8]=e8e8e8e8e8e8e8e8
+  parse_full_frame: magic 0x91783E08 != expected 0xAABBCCDD, buf[:8]=083e7891323ecf48
+  parse_full_frame: magic 0x17171717 != expected 0xAABBCCDD, buf[:8]=1717171717171717
   OK (ratio in output)
-CPU temp: 84.8 C
+CPU temp: 57.3 C
 === Done: 7/7 steps passed ===
 [stderr] FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
-[stderr] parse_full_frame: magic 0x7799BBBB != expected 0xAABBCCDD, buf[:8]=bbbb99775402003e
-[stderr] parse_full_frame: magic 0xF7F7F7F7 != expected 0xAABBCCDD, buf[:8]=f7f7f7f7f7f7f7f7
-[stderr] parse_full_frame: magic 0xF7F7F7F7 != expected 0xAABBCCDD, buf[:8]=f7f7f7f7f7f7f7f7
-[stderr] parse_full_frame: magic 0xBE3E287C != expected 0xAABBCCDD, buf[:8]=7c283ebe6a3fa3bd
-[stderr] parse_full_frame: magic 0x9E9E9E9E != expected 0xAABBCCDD, buf[:8]=9e9e9e9e9e9e9e9e
-[stderr] parse_full_frame: magic 0x53BFEE1E != expected 0xAABBCCDD, buf[:8]=1eeebf5344f7bfb4
-[stderr] parse_full_frame: magic 0xBFBFBFBF != expected 0xAABBCCDD, buf[:8]=bfbfbfbfbfbfbfbf
-[stderr] parse_full_frame: magic 0x7660BCDF != expected 0xAABBCCDD, buf[:8]=dfbc607633bd7a8d
-[stderr] parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
-[stderr] parse_full_frame: magic 0x8D7CEDBD != expected 0xAABBCCDD, buf[:8]=bded7c8dbe49d2f5
-[stderr] parse_full_frame: magic 0xA5A5A5A5 != expected 0xAABBCCDD, buf[:8]=a5a5a5a5a5a5a5a5
-[stderr] parse_full_frame: magic 0x00003A47 != expected 0xAABBCCDD, buf[:8]=473a00000000469d
-[stderr] parse_full_frame: magic 0x85858585 != expected 0xAABBCCDD, buf[:8]=8585858585858585
-[stderr] parse_full_frame: magic 0x0F803C08 != expected 0xAABBCCDD, buf[:8]=083c800f34bbeb98
-[stderr] parse_full_frame: magic 0x4C4C4C4C != expected 0xAABBCCDD, buf[:8]=4c4c4c4c4c4c4c4c
-[stderr] parse_full_frame: magic 0x0000003A != expected 0xAABBCCDD, buf[:8]=3a00000000e84199
+[stderr] parse_full_frame: magic 0x0074B1B1 != expected 0xAABBCCDD, buf[:8]=b1b1740000000051
+[stderr] parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+[stderr] parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+[stderr] parse_full_frame: magic 0x34ED3C40 != expected 0xAABBCCDD, buf[:8]=403ced341d3cad86
+[stderr] parse_full_frame: magic 0x8E8E8E8E != expected 0xAABBCCDD, buf[:8]=8e8e8e8e8e8e8e8e
+[stderr] parse_full_frame: magic 0xBBC7BB36 != expected 0xAABBCCDD, buf[:8]=36bbc7bbd7f241bb
+[stderr] parse_full_frame: magic 0x3D3D3D3D != expected 0xAABBCCDD, buf[:8]=3d3d3d3d3d3d3d3d
+[stderr] parse_full_frame: magic 0x3BF8B034 != expected 0xAABBCCDD, buf[:8]=34b0f83ba408913d
+[stderr] parse_full_frame: magic 0x34343434 != expected 0xAABBCCDD, buf[:8]=3434343434343434
+[stderr] parse_full_frame: magic 0x114CBAB8 != expected 0xAABBCCDD, buf[:8]=b8ba4c1139eda635
+[stderr] parse_full_frame: magic 0x7E7E7E7E != expected 0xAABBCCDD, buf[:8]=7e7e7e7e7e7e7e7e
+[stderr] parse_full_frame: magic 0xBEBCA988 != expected 0xAABBCCDD, buf[:8]=88a9bcbe5e8fbc2c
+[stderr] parse_full_frame: magic 0x95959595 != expected 0xAABBCCDD, buf[:8]=9595959595959595
+[stderr] parse_full_frame: magic 0xA7F8B2BB != expected 0xAABBCCDD, buf[:8]=bbb2f8a73a7bc210
+[stderr] parse_full_frame: magic 0x79797979 != expected 0xAABBCCDD, buf[:8]=7979797979797979
+[stderr] parse_full_frame: magic 0xB93BE232 != expected 0xAABBCCDD, buf[:8]=32e23bb96c553c5c
+[stderr] parse_full_frame: magic 0xAAAAAAAA != expected 0xAABBCCDD, buf[:8]=aaaaaaaaaaaaaaaa
+[stderr] parse_full_frame: magic 0xAAAAAAAA != expected 0xAABBCCDD, buf[:8]=aaaaaaaaaaaaaaaa
+[stderr] parse_full_frame: magic 0x881B2B8F != expected 0xAABBCCDD, buf[:8]=8f2b1b880e770fc0
+[stderr] parse_full_frame: magic 0x56565656 != expected 0xAABBCCDD, buf[:8]=5656565656565656
+[stderr] parse_full_frame: magic 0x0000BABE != expected 0xAABBCCDD, buf[:8]=beba000000007956
+[stderr] parse_full_frame: magic 0xF3F3F3F3 != expected 0xAABBCCDD, buf[:8]=f3f3f3f3f3f3f3f3
+[stderr] parse_full_frame: magic 0x8CC3B6A3 != expected 0xAABBCCDD, buf[:8]=a3b6c38cee37fb64
+[stderr] parse_full_frame: magic 0x02020202 != expected 0xAABBCCDD, buf[:8]=0202020202020202
+[stderr] parse_full_frame: magic 0x5E3D542C != expected 0xAABBCCDD, buf[:8]=2c543d5ea92c3dfc
+[stderr] parse_full_frame: magic 0x4B4B4B4B != expected 0xAABBCCDD, buf[:8]=4b4b4b4b4b4b4b4b
+[stderr] parse_full_frame: magic 0xDCB72CAE != expected 0xAABBCCDD, buf[:8]=ae2cb7dcbb5eb8dd
+[stderr] parse_full_frame: magic 0x18181818 != expected 0xAABBCCDD, buf[:8]=1818181818181818
+[stderr] parse_full_frame: magic 0x3E5936BB != expected 0xAABBCCDD, buf[:8]=bb36593ebd281ba5
+[stderr] parse_full_frame: magic 0xBBBBBBBB != expected 0xAABBCCDD, buf[:8]=bbbbbbbbbbbbbbbb
+[stderr] parse_full_frame: magic 0x44FBB029 != expected 0xAABBCCDD, buf[:8]=29b0fb4489b0c762
+[stderr] parse_full_frame: magic 0x62626262 != expected 0xAABBCCDD, buf[:8]=6262626262626262
+[stderr] parse_full_frame: magic 0x12121212 != expected 0xAABBCCDD, buf[:8]=1212121212121212
+[stderr] parse_full_frame: magic 0x3CB601F0 != expected 0xAABBCCDD, buf[:8]=f001b63c9fc4d53b
+[stderr] parse_full_frame: magic 0xE4E4E4E4 != expected 0xAABBCCDD, buf[:8]=e4e4e4e4e4e4e4e4
+[stderr] parse_full_frame: magic 0x97E720F7 != expected 0xAABBCCDD, buf[:8]=f720e7976ab84b18
+[stderr] parse_full_frame: magic 0x8C8C8C8C != expected 0xAABBCCDD, buf[:8]=8c8c8c8c8c8c8c8c
+[stderr] parse_full_frame: magic 0xBB368EDA != expected 0xAABBCCDD, buf[:8]=da8e36bb23477bbb
+[stderr] parse_full_frame: magic 0xB7B7B7B7 != expected 0xAABBCCDD, buf[:8]=b7b7b7b7b7b7b7b7
+[stderr] parse_full_frame: magic 0x02778BBC != expected 0xAABBCCDD, buf[:8]=bc8b77023c37bf9f
+[stderr] parse_full_frame: magic 0xA9A9A9A9 != expected 0xAABBCCDD, buf[:8]=a9a9a9a9a9a9a9a9
+[stderr] parse_full_frame: magic 0x3D5B07CA != expected 0xAABBCCDD, buf[:8]=ca075b3d2ff5213d
+[stderr] parse_full_frame: magic 0x2F2F2F2F != expected 0xAABBCCDD, buf[:8]=2f2f2f2f2f2f2f2f
+[stderr] parse_full_frame: magic 0x203CA421 != expected 0xAABBCCDD, buf[:8]=21a43c20412cbc06
+[stderr] parse_full_frame: magic 0x16161616 != expected 0xAABBCCDD, buf[:8]=1616161616161616
+[stderr] parse_full_frame: magic 0x000039C4 != expected 0xAABBCCDD, buf[:8]=c439000000008ac6
+[stderr] parse_full_frame: magic 0xEEEEEEEE != expected 0xAABBCCDD, buf[:8]=eeeeeeeeeeeeeeee
+[stderr] parse_full_frame: magic 0x0000BAD9 != expected 0xAABBCCDD, buf[:8]=d9ba0000000027b5
+[stderr] parse_full_frame: magic 0x46464646 != expected 0xAABBCCDD, buf[:8]=4646464646464646
+[stderr] parse_full_frame: magic 0x46464646 != expected 0xAABBCCDD, buf[:8]=4646464646464646
+[stderr] parse_full_frame: magic 0x78DDBD76 != expected 0xAABBCCDD, buf[:8]=76bddd786cbb0dac
+[stderr] parse_full_frame: magic 0x75757575 != expected 0xAABBCCDD, buf[:8]=7575757575757575
+[stderr] parse_full_frame: magic 0x083B9771 != expected 0xAABBCCDD, buf[:8]=71973b0892abbbdc
+[stderr] parse_full_frame: magic 0x48484848 != expected 0xAABBCCDD, buf[:8]=4848484848484848
+[stderr] parse_full_frame: magic 0x7BB87D3C != expected 0xAABBCCDD, buf[:8]=3c7db87b3cb71c56
+[stderr] parse_full_frame: magic 0x80808080 != expected 0xAABBCCDD, buf[:8]=8080808080808080
+[stderr] parse_full_frame: magic 0xD53D2FC8 != expected 0xAABBCCDD, buf[:8]=c82f3dd5201e3d2e
+[stderr] parse_full_frame: magic 0x2C2C2C2C != expected 0xAABBCCDD, buf[:8]=2c2c2c2c2c2c2c2c
+[stderr] parse_full_frame: magic 0x0000BAE4 != expected 0xAABBCCDD, buf[:8]=e4ba00000000677a
+[stderr] parse_full_frame: magic 0xAAAAAAAA != expected 0xAABBCCDD, buf[:8]=aaaaaaaaaaaaaaaa
+[stderr] parse_full_frame: magic 0x3503DF5C != expected 0xAABBCCDD, buf[:8]=5cdf033523120bb4
+[stderr] parse_full_frame: magic 0x04040404 != expected 0xAABBCCDD, buf[:8]=0404040404040404
+[stderr] parse_full_frame: magic 0xCA1ABC15 != expected 0xAABBCCDD, buf[:8]=15bc1aca323c2df4
+[stderr] parse_full_frame: magic 0xA9A9A9A9 != expected 0xAABBCCDD, buf[:8]=a9a9a9a9a9a9a9a9
+[stderr] parse_full_frame: magic 0x64A9BCC7 != expected 0xAABBCCDD, buf[:8]=c7bca9641dbc6681
+[stderr] parse_full_frame: magic 0x20202020 != expected 0xAABBCCDD, buf[:8]=2020202020202020
+[stderr] parse_full_frame: magic 0x18B9F7FE != expected 0xAABBCCDD, buf[:8]=fef7b918e5a83a53
+[stderr] parse_full_frame: magic 0x2A2A2A2A != expected 0xAABBCCDD, buf[:8]=2a2a2a2a2a2a2a2a
+[stderr] parse_full_frame: magic 0xE7819139 != expected 0xAABBCCDD, buf[:8]=399181e73abf420c
+[stderr] parse_full_frame: magic 0x3B3B3B3B != expected 0xAABBCCDD, buf[:8]=3b3b3b3b3b3b3b3b
+[stderr] parse_full_frame: magic 0x3B3B3B3B != expected 0xAABBCCDD, buf[:8]=3b3b3b3b3b3b3b3b
+[stderr] parse_full_frame: magic 0x8A25205E != expected 0xAABBCCDD, buf[:8]=5e20258a8ed1108a
 [stderr] parse_full_frame: magic 0xD6D6D6D6 != expected 0xAABBCCDD, buf[:8]=d6d6d6d6d6d6d6d6
-[stderr] parse_full_frame: magic 0x3B11BD97 != expected 0xAABBCCDD, buf[:8]=97bd113bd1bd5e9c
-[stderr] parse_full_frame: magic 0xA0A0A0A0 != expected 0xAABBCCDD, buf[:8]=a0a0a0a0a0a0a0a0
+[stderr] parse_full_frame: magic 0x79BB29B2 != expected 0xAABBCCDD, buf[:8]=b229bb79a33a3c92
+[stderr] parse_full_frame: magic 0x86868686 != expected 0xAABBCCDD, buf[:8]=8686868686868686
+[stderr] parse_full_frame: magic 0x2F3A8DF2 != expected 0xAABBCCDD, buf[:8]=f28d3a2f2c4fbb10
+[stderr] parse_full_frame: magic 0x17171717 != expected 0xAABBCCDD, buf[:8]=1717171717171717
+[stderr] parse_full_frame: magic 0xBC27A05D != expected 0xAABBCCDD, buf[:8]=5da027bc5a54a2bb
+[stderr] parse_full_frame: magic 0x3C3C3C3C != expected 0xAABBCCDD, buf[:8]=3c3c3c3c3c3c3c3c
+[stderr] parse_full_frame: magic 0x3C9ACDD9 != expected 0xAABBCCDD, buf[:8]=d9cd9a3cf078b93b
+[stderr] parse_full_frame: magic 0x39393939 != expected 0xAABBCCDD, buf[:8]=3939393939393939
+[stderr] parse_full_frame: magic 0xA462C9BC != expected 0xAABBCCDD, buf[:8]=bcc962a4bb36b36a
+[stderr] parse_full_frame: magic 0x2D2D2D2D != expected 0xAABBCCDD, buf[:8]=2d2d2d2d2d2d2d2d
+[stderr] parse_full_frame: magic 0x8A03953D != expected 0xAABBCCDD, buf[:8]=3d95038a3ce396c0
+[stderr] parse_full_frame: magic 0x40404040 != expected 0xAABBCCDD, buf[:8]=4040404040404040
+[stderr] parse_full_frame: magic 0x720C8CAC != expected 0xAABBCCDD, buf[:8]=ac8c0c72ac5879be
+[stderr] parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
+[stderr] parse_full_frame: magic 0xAC365C5D != expected 0xAABBCCDD, buf[:8]=5d5c36acb3794eac
+[stderr] parse_full_frame: magic 0x7C7C7C7C != expected 0xAABBCCDD, buf[:8]=7c7c7c7c7c7c7c7c
+[stderr] parse_full_frame: magic 0x3BAA3A6B != expected 0xAABBCCDD, buf[:8]=6b3aaa3b24bc8f65
+[stderr] parse_full_frame: magic 0xF7F7F7F7 != expected 0xAABBCCDD, buf[:8]=f7f7f7f7f7f7f7f7
+[stderr] parse_full_frame: magic 0xF7F7F7F7 != expected 0xAABBCCDD, buf[:8]=f7f7f7f7f7f7f7f7
+[stderr] parse_full_frame: magic 0x74EC8788 != expected 0xAABBCCDD, buf[:8]=8887ec744e06977c
+[stderr] parse_full_frame: magic 0xB9B9B9B9 != expected 0xAABBCCDD, buf[:8]=b9b9b9b9b9b9b9b9
+[stderr] parse_full_frame: magic 0xBD2789B3 != expected 0xAABBCCDD, buf[:8]=b38927bd09652cbc
+[stderr] parse_full_frame: magic 0x90909090 != expected 0xAABBCCDD, buf[:8]=9090909090909090
+[stderr] parse_full_frame: magic 0x000039D7 != expected 0xAABBCCDD, buf[:8]=d73900000000c93d
+[stderr] parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
+[stderr] parse_full_frame: magic 0x000039B5 != expected 0xAABBCCDD, buf[:8]=b53900000000047f
+[stderr] parse_full_frame: magic 0xABABABAB != expected 0xAABBCCDD, buf[:8]=abababababababab
+[stderr] parse_full_frame: magic 0x41513BA9 != expected 0xAABBCCDD, buf[:8]=a93b51413cbdddc1
+[stderr] parse_full_frame: magic 0x01010101 != expected 0xAABBCCDD, buf[:8]=0101010101010101
+[stderr] parse_full_frame: magic 0xDDCD1F3C != expected 0xAABBCCDD, buf[:8]=3c1fcddd3c93f522
+[stderr] parse_full_frame: magic 0xE9E9E9E9 != expected 0xAABBCCDD, buf[:8]=e9e9e9e9e9e9e9e9

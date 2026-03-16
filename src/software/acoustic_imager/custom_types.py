@@ -18,3 +18,4 @@ class LatestFrame:
     frame_id: int = 0
     ok: bool = False
     stats: SourceStats = field(default_factory=SourceStats)
+    battery_mv: Optional[int] = None  # from firmware header (HW only); mV, e.g. 5800–8400

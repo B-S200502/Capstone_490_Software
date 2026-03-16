@@ -330,7 +330,7 @@ CALIBRATION_NOTE = "Camera left, board right, same heading"
 
 # --- HW heatmap pipeline (gain, MUSIC, directivity, etc.) ---
 # Per-mic gain correction (length N_MICS): boost weak mics; 1.0 = no change. Use metrics_debug.py --live --write-config to tune.
-SPI_MIC_GAIN = (5.04, 22.40, 8.93, 14.02, 6.61, 14.29, 8.31, 9.10, 5.52, 8.67, 2.33, 1.78, 1.00, 2.57, 1.84, 1.18)
+SPI_MIC_GAIN = (3.72, 100.00, 12.74, 9.10, 7.17, 8.15, 12.57, 6.83, 6.23, 1.00, 14.77, 10.33, 9.09, 100.00, 100.00, 10.69)
 # Whole-array gain boost (linear): 2.0 = ~6 dB; use if mics seem low
 SPI_ARRAY_GAIN = 1.0
 # Number of bins to use for heatmap in HW/LOOP: top-K by power within bandpass (replaces fixed SPI_SIM_BINS for live display)

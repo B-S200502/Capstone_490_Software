@@ -163,6 +163,23 @@ class ButtonState:
     firmware_flash_version: str = "v1.0.0"   # placeholder; set when flashing starts
     firmware_flash_status: str = ""   # "" | "flashing" | "success" | "error"
     calibration_suite_modal_open: bool = False
+    # Screen calibration (3-point tap-to-align, like projector calibration)
+    screen_calibration_modal_open: bool = False
+    screen_calibration_active: bool = False   # True while collecting 3 taps after Start
+    screen_calibration_step: int = 0          # 0=idle, 1/2/3=collecting, 4=done
+    screen_calibration_points: List[Tuple[float, float, float, float]] = field(default_factory=list)  # (ax, ay, tx, ty) x3
+    # Updated each frame during calibration so tap handler can read "current" peak (content coords)
+    screen_calibration_last_peak_x: float = 0.0
+    screen_calibration_last_peak_y: float = 0.0
+    # Stability: only accept tap when source has been steady for 5+ s and above -5 dB
+    screen_calibration_stable_peak_x: float = 0.0
+    screen_calibration_stable_peak_y: float = 0.0
+    screen_calibration_stable_ready: bool = False       # True when stable for STABILITY_DURATION_S
+    screen_calibration_stable_since_t: float = 0.0       # time when peak first entered current stable region
+    screen_calibration_candidate_x: float = 0.0          # position we're checking for stability
+    screen_calibration_candidate_y: float = 0.0
+    screen_calibration_message: str = ""                # overlay text e.g. "Hold steady... 3 s" or "Ready – tap"
+    screen_calibration_reset_requested: bool = False  # when True, main.py clears calibration and stops warp
     gain_mode: str = "HIGH"    # LOW or HIGH; drives GAIN_CONTROL (and --gain when launching calibration standalone)
     debug_enabled: bool = True
     radar_ui_enabled: bool = RADAR_UI_DEFAULT

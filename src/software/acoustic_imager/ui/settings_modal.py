@@ -64,10 +64,11 @@ FLASH_FIRMWARE_BTN_H = 44
 def _compute_content_height() -> int:
     """Total height of scrollable content (must match actual drawn layout)."""
     CAL_SUITE_BTN_H = 44
+    SCREEN_CAL_BTN_H = 44
     # Display: label + gap + 3 toggles + gap + heatmap label + gap + color row + section_gap
     display_h = 20 + ITEM_GAP + 3 * (ROW_H + ITEM_GAP) + 6 + ROW_H + ITEM_GAP + (ROW_H - 4) + SECTION_GAP  # 6 = reduced gap before heatmap
-    # Divider + Advanced: section_gap + label + gap + 6 toggles + Calibration Suite button + section_gap
-    advanced_h = SECTION_GAP + 20 + ITEM_GAP + 6 * (ROW_H + ITEM_GAP) + (CAL_SUITE_BTN_H + ITEM_GAP) + SECTION_GAP
+    # Divider + Advanced: section_gap + label + gap + 6 toggles + Calibration Suite + Screen calibration + section_gap
+    advanced_h = SECTION_GAP + 20 + ITEM_GAP + 6 * (ROW_H + ITEM_GAP) + (CAL_SUITE_BTN_H + ITEM_GAP) + (SCREEN_CAL_BTN_H + ITEM_GAP) + SECTION_GAP
     # Divider + Share: section_gap + label + gap + email button + gap + flash label + gap + flash button + bottom padding
     share_h = SECTION_GAP + 20 + ITEM_GAP + 44 + ITEM_GAP + 20 + ITEM_GAP + FLASH_FIRMWARE_BTN_H + CONTENT_BOTTOM_PAD
     return display_h + advanced_h + share_h
@@ -89,11 +90,13 @@ def _update_settings_button_positions(
     hit_x = row_x + row_w - TOGGLE_W - TOGGLE_HIT_EXTRA_LEFT
     color_btn_w = (row_w - 3 * ITEM_GAP) // 4
     email_h = 44
-    # Content y positions (must match _build_settings_content; Calibration Suite after Record)
+    # Content y positions (must match _build_settings_content; Calibration Suite + Screen calibration after Record)
     cal_suite_btn_h = 44
+    screen_cal_btn_h = 44
     y_cam, y_cross, y_color, y_debug, y_radar_dbg, y_radar, y_mapstyle, y_possvc, y_record = 34, 90, 208, 314, 370, 426, 482, 538, 594
     y_calibration_suite = y_record + ROW_H + ITEM_GAP  # after Record Compass History
-    y_email = y_calibration_suite + cal_suite_btn_h + ITEM_GAP + SECTION_GAP + SECTION_GAP + 20 + ITEM_GAP  # after divider + "Setup Email" label
+    y_screen_calibration = y_calibration_suite + cal_suite_btn_h + ITEM_GAP  # after Calibration Suite
+    y_email = y_screen_calibration + screen_cal_btn_h + ITEM_GAP + SECTION_GAP + SECTION_GAP + 20 + ITEM_GAP  # after divider + "Setup Email" label
     y_flash = y_email + email_h + ITEM_GAP + 20 + ITEM_GAP  # after "Update to latest firmware" label
     if "settings_cam" in menu_buttons:
         b = menu_buttons["settings_cam"]
@@ -130,6 +133,10 @@ def _update_settings_button_positions(
         b = menu_buttons["settings_calibration_suite"]
         b.x, b.y = row_x, content_top + y_calibration_suite - scroll_offset
         b.w, b.h = row_w, cal_suite_btn_h
+    if "settings_screen_calibration" in menu_buttons:
+        b = menu_buttons["settings_screen_calibration"]
+        b.x, b.y = row_x, content_top + y_screen_calibration - scroll_offset
+        b.w, b.h = row_w, screen_cal_btn_h
     if "settings_email" in menu_buttons:
         b = menu_buttons["settings_email"]
         b.x = row_x - EMAIL_BTN_HIT_PAD_X
@@ -235,6 +242,15 @@ def _build_settings_content(
     if "settings_calibration_suite" not in menu_buttons:
         menu_buttons["settings_calibration_suite"] = Button(0, 0, row_w, cal_suite_h, "")
     y += cal_suite_h + ITEM_GAP
+    # Screen calibration button
+    screen_cal_h = 44
+    cv2.rectangle(content_canvas, (0, y), (row_w, y + screen_cal_h), MENU_ACTIVE_BLUE, -1, cv2.LINE_AA)
+    cv2.rectangle(content_canvas, (0, y), (row_w, y + screen_cal_h), MENU_ACTIVE_BLUE_LIGHT, 1, cv2.LINE_AA)
+    (tw_sc, _), _ = cv2.getTextSize("Screen calibration", font, 0.52, 1)
+    cv2.putText(content_canvas, "Screen calibration", ((row_w - tw_sc) // 2, y + screen_cal_h // 2 + 6), font, 0.52, text_color, 1, cv2.LINE_AA)
+    if "settings_screen_calibration" not in menu_buttons:
+        menu_buttons["settings_screen_calibration"] = Button(0, 0, row_w, screen_cal_h, "")
+    y += screen_cal_h + ITEM_GAP
     y += SECTION_GAP
     cv2.line(content_canvas, (0, y), (row_w, y), section_color, 1, cv2.LINE_AA)
     y += SECTION_GAP
@@ -512,7 +528,7 @@ def _hit_any_settings_button(x: int, y: int) -> bool:
     """True if (x,y) hits any interactive button in the modal."""
     for k in (
         "settings_close", "settings_scroll_up", "settings_scroll_down", "settings_scrollbar",
-        "settings_flash_firmware", "settings_email", "settings_calibration_suite", "settings_cam", "settings_theme", "settings_crosshairs", "settings_debug",
+        "settings_flash_firmware", "settings_email", "settings_calibration_suite", "settings_screen_calibration", "settings_cam", "settings_theme", "settings_crosshairs", "settings_debug",
         "settings_radar_ui", "settings_map_style", "settings_position_services", "settings_record_compass_history",
         "settings_show_radar_debug",
     ):
@@ -565,6 +581,13 @@ def handle_settings_modal_click(x: int, y: int) -> bool:
         _reset_settings_modal_scroll_state()
         HUD.settings_modal_open = False
         button_state.calibration_suite_modal_open = True
+        return True
+
+    # Screen calibration
+    if "settings_screen_calibration" in menu_buttons and menu_buttons["settings_screen_calibration"].contains(x, y):
+        _reset_settings_modal_scroll_state()
+        HUD.settings_modal_open = False
+        button_state.screen_calibration_modal_open = True
         return True
 
     # Flash Firmware
