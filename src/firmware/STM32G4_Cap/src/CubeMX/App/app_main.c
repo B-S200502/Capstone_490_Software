@@ -202,7 +202,7 @@ void app_loop(void) {
   if ((adc_pending_mask & ADC_READY_HALF_MASK) == ADC_READY_HALF_MASK) {
     adc_pending_mask &= ~ADC_READY_HALF_MASK;
 
-    if (!fft_in_progress && !get_spi_dma_busy()) {
+    if (!fft_in_progress) {
       app_process_synced_window(0u, SPI_FRAME_FLAG_SYNCED_ALL_MICS);
     }
     return;
@@ -211,7 +211,7 @@ void app_loop(void) {
   if ((adc_pending_mask & ADC_READY_FULL_MASK) == ADC_READY_FULL_MASK) {
     adc_pending_mask &= ~ADC_READY_FULL_MASK;
     
-    if (!fft_in_progress && !get_spi_dma_busy()) {
+    if (!fft_in_progress) {
       app_process_synced_window(ADC_DMA_BUF_SIZE / 2u,
                                 (uint16_t)(SPI_FRAME_FLAG_SYNCED_ALL_MICS |
                                            SPI_FRAME_FLAG_SECOND_HALF));
@@ -315,6 +315,25 @@ usb_printf("Raw Battery millivolts: %u mV\r\n", (uint16_t)(battery_millivolts/BA
   // Need to check here if SPI is done transmitting before starting next batch
   // Use pending flag with spi_dma_done flag?
 
+  // Process all mics: FFT + bin average (no per-mic append)
+  for (uint8_t adc = 0; adc < N_ADCS; adc++) {
+    uint16_t *active_half = (uint16_t *)(app_get_adc_buffer(adc) + half_offset);
+
+    for (uint8_t channel = 0; channel < N_CH_PER_ADC; channel++) {
+      uint8_t mic_idx = adc * N_CH_PER_ADC + channel;
+      process_adc_channel_pipeline(&fft_instance,
+                                   active_half,
+                                   channel,
+                                   mic_fft_buffer);
+      update_fft_bin_average(fft_avg[mic_idx], mic_fft_buffer, FRAME_SIZE, FFT_BIN_AVG_BETA);
+    }
+  }
+
+  if (get_spi_dma_busy()) {
+    fft_in_progress = 0u;
+    return;
+  }
+
   uint8_t *tx_buf = spi_dma_get_tx_buffer();
   size_t offset = 0;
   // Fill the header once
@@ -334,20 +353,6 @@ usb_printf("Raw Battery millivolts: %u mV\r\n", (uint16_t)(battery_millivolts/BA
     // Failed to build header, skip this batch
     fft_in_progress = 0u;
     return;
-  }
-
-  // Process all mics: FFT + bin average (no per-mic append)
-  for (uint8_t adc = 0; adc < N_ADCS; adc++) {
-    uint16_t *active_half = (uint16_t *)(app_get_adc_buffer(adc) + half_offset);
-
-    for (uint8_t channel = 0; channel < N_CH_PER_ADC; channel++) {
-      uint8_t mic_idx = adc * N_CH_PER_ADC + channel;
-      process_adc_channel_pipeline(&fft_instance,
-                                   active_half,
-                                   channel,
-                                   mic_fft_buffer);
-      update_fft_bin_average(fft_avg[mic_idx], mic_fft_buffer, FRAME_SIZE, FFT_BIN_AVG_BETA);
-    }
   }
 
   // One full bulk copy of entire payload (fft_avg is contiguous; size is fixed at build time)
