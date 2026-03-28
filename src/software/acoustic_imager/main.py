@@ -74,7 +74,11 @@ from acoustic_imager.dsp.bars import (
     freq_to_y,
     y_to_freq,
 )
-from acoustic_imager.dsp.spectrum_analyzer import draw_spectrum_analyzer, spectrum_closest_curve_point
+from acoustic_imager.dsp.spectrum_ruler import BAR_MARGIN_RIGHT, FREQ_RULER_WIDTH, RULER_HEIGHT
+from acoustic_imager.dsp.spectrum_analyzer import (
+    draw_spectrum_analyzer,
+    spectrum_cursor_x_to_rel_db,
+)
 
 from acoustic_imager.system_info import get_system_network_info
 from acoustic_imager.ui.top_hud import draw_hud, handle_hud_click
@@ -378,17 +382,18 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                     state.ui_click_was_on_ui = True
                     return
 
-        # 5) Bandpass drag: frequency bar
+        # 5) Bandpass drag: frequency bar (y scale matches draw_spectrum_analyzer graph height)
         bar_left = content_right
         if mx >= bar_left and mx < config.WIDTH:
-            y_min = freq_to_y(state.F_MIN_HZ, h, config.F_DISPLAY_MAX)
-            y_max = freq_to_y(state.F_MAX_HZ, h, config.F_DISPLAY_MAX)
+            spectrum_graph_h = max(1, h - RULER_HEIGHT)
+            y_min = freq_to_y(state.F_MIN_HZ, spectrum_graph_h, config.F_DISPLAY_MAX)
+            y_max = freq_to_y(state.F_MAX_HZ, spectrum_graph_h, config.F_DISPLAY_MAX)
             dmin = abs(my - y_min)
             dmax = abs(my - y_max)
             if dmin <= config.DRAG_MARGIN_PX or dmax <= config.DRAG_MARGIN_PX:
                 state.DRAG_TARGET = "min" if dmin <= dmax else "max"
                 state.DRAG_ACTIVE = True
-                f = y_to_freq(my, h, config.F_DISPLAY_MAX)
+                f = y_to_freq(my, spectrum_graph_h, config.F_DISPLAY_MAX)
                 if state.DRAG_TARGET == "min":
                     state.F_MIN_HZ = min(f, state.F_MAX_HZ)
                 else:
@@ -403,10 +408,10 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                 state.DRAG_START_F_MAX = state.F_MAX_HZ
                 state.ui_click_was_on_ui = True
                 return
-            # Spectrum cursor: double-tap toggles cursor; single tap on line places/moves dot; tap in graph moves line
+            # Spectrum cursor: double-tap toggles; tap on line or in graph starts/moves line drag
             bar_w = config.FREQ_BAR_WIDTH
-            graph_left = 8
-            graph_right = bar_w - 5
+            graph_left = FREQ_RULER_WIDTH
+            graph_right = bar_w - BAR_MARGIN_RIGHT
             cursor_x_bar = mx - bar_left
             if graph_left <= cursor_x_bar <= graph_right:
                 now = time.time()
@@ -416,46 +421,34 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                 if is_double_tap:
                     if state.SPECTRUM_CURSOR_X is not None:
                         state.SPECTRUM_CURSOR_X = None
-                        state.SPECTRUM_CURSOR_DOT_ACTIVE = False
-                        state.SPECTRUM_CURSOR_DOT_FREQ = None
-                        state.SPECTRUM_CURSOR_PENDING_TAP_X = None
-                        state.SPECTRUM_CURSOR_PENDING_TAP_Y = None
-                        state.SPECTRUM_CURSOR_DOT_DRAG_ACTIVE = False
-                        state.SPECTRUM_CURSOR_DOT_BAR_X = None
-                        state.SPECTRUM_CURSOR_DOT_BAR_Y = None
                     else:
                         state.SPECTRUM_CURSOR_X = float(np.clip(cursor_x_bar, graph_left, graph_right))
-                        state.SPECTRUM_CURSOR_DOT_ACTIVE = False
                     state.SPECTRUM_CURSOR_LAST_TAP_TIME = 0.0
                     state.ui_click_was_on_ui = True
                     return
-                # Hit-test dot first: press on dot starts drag (dot grows, draggable along curve)
-                dot_hit_radius = 24
-                on_dot = (
-                    state.SPECTRUM_CURSOR_DOT_ACTIVE
-                    and state.SPECTRUM_CURSOR_DOT_BAR_X is not None
-                    and state.SPECTRUM_CURSOR_DOT_BAR_Y is not None
-                )
-                if on_dot:
-                    dot_bx = state.SPECTRUM_CURSOR_DOT_BAR_X
-                    dot_by = state.SPECTRUM_CURSOR_DOT_BAR_Y
-                    if dot_bx is not None and dot_by is not None:
-                        dot_scr_x = bar_left + dot_bx
-                        dist_sq = (mx - dot_scr_x) ** 2 + (my - dot_by) ** 2
-                        if dist_sq <= dot_hit_radius ** 2:
-                            state.SPECTRUM_CURSOR_DOT_DRAG_ACTIVE = True
-                            state.SPECTRUM_CURSOR_PENDING_TAP_X = float(np.clip(cursor_x_bar, graph_left, graph_right))
-                            state.SPECTRUM_CURSOR_PENDING_TAP_Y = int(np.clip(my, 0, h - 1))
-                            state.ui_click_was_on_ui = True
-                            return
                 cursor_line_margin = 16
-                on_red_line = (
+                edge_over_cursor = getattr(
+                    config, "SPECTRUM_BANDPASS_EDGE_OVER_CURSOR_PX", 32
+                )
+                would_grab_red_line = (
                     state.SPECTRUM_CURSOR_X is not None
                     and abs(cursor_x_bar - state.SPECTRUM_CURSOR_X) <= cursor_line_margin
                 )
+                if would_grab_red_line and min(dmin, dmax) <= edge_over_cursor:
+                    state.DRAG_TARGET = "min" if dmin <= dmax else "max"
+                    state.DRAG_ACTIVE = True
+                    f_edge = y_to_freq(my, spectrum_graph_h, config.F_DISPLAY_MAX)
+                    if state.DRAG_TARGET == "min":
+                        state.F_MIN_HZ = min(f_edge, state.F_MAX_HZ)
+                    else:
+                        state.F_MAX_HZ = max(f_edge, state.F_MIN_HZ)
+                    state.ui_click_was_on_ui = True
+                    return
+                on_red_line = would_grab_red_line
                 if on_red_line:
-                    state.SPECTRUM_CURSOR_DOT_ACTIVE = True
-                    state.SPECTRUM_CURSOR_PENDING_TAP_Y = int(np.clip(my, 0, h - 1))
+                    state.SPECTRUM_CURSOR_X = float(np.clip(cursor_x_bar, graph_left, graph_right))
+                    state.DRAG_TARGET = "cursor"
+                    state.DRAG_ACTIVE = True
                     state.SPECTRUM_CURSOR_LAST_TAP_TIME = now
                     state.SPECTRUM_CURSOR_LAST_TAP_X = mx
                     state.SPECTRUM_CURSOR_LAST_TAP_Y = my
@@ -740,23 +733,17 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
 
         bar_left = content_right
 
-        # Dot drag: follow finger along curve (checked first; we don't set DRAG_ACTIVE for dot drag)
-        if state.SPECTRUM_CURSOR_DOT_DRAG_ACTIVE and mx >= bar_left and mx < config.WIDTH:
-            bar_w = config.FREQ_BAR_WIDTH
-            graph_left = 8
-            graph_right = bar_w - 5
-            cursor_x_bar = float(np.clip(mx - bar_left, graph_left, graph_right))
-            state.SPECTRUM_CURSOR_PENDING_TAP_X = cursor_x_bar
-            state.SPECTRUM_CURSOR_PENDING_TAP_Y = int(np.clip(my, 0, h - 1))
-
         # Handle frequency bar dragging
-        elif state.DRAG_ACTIVE and mx >= bar_left and mx < config.WIDTH:
+        if state.DRAG_ACTIVE and mx >= bar_left and mx < config.WIDTH:
             if state.DRAG_TARGET == "box":
                 # Drag the entire box - maintain the frequency range
                 freq_range = state.DRAG_START_F_MAX - state.DRAG_START_F_MIN
 
                 # Convert y offset to frequency offset (swap order to fix inverse scrolling)
-                freq_offset = y_to_freq(my, h, config.F_DISPLAY_MAX) - y_to_freq(state.DRAG_START_Y, h, config.F_DISPLAY_MAX)
+                spectrum_graph_h = max(1, h - RULER_HEIGHT)
+                freq_offset = y_to_freq(my, spectrum_graph_h, config.F_DISPLAY_MAX) - y_to_freq(
+                    state.DRAG_START_Y, spectrum_graph_h, config.F_DISPLAY_MAX
+                )
 
                 # Move both frequencies
                 new_f_min = state.DRAG_START_F_MIN + freq_offset
@@ -774,13 +761,14 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                 state.F_MAX_HZ = new_f_max
             elif state.DRAG_TARGET == "cursor":
                 bar_w = config.FREQ_BAR_WIDTH
-                graph_left = 8
-                graph_right = bar_w - 5
+                graph_left = FREQ_RULER_WIDTH
+                graph_right = bar_w - BAR_MARGIN_RIGHT
                 cursor_x_bar = float(np.clip(mx - bar_left, graph_left, graph_right))
                 state.SPECTRUM_CURSOR_X = cursor_x_bar
             else:
                 # Drag individual handle
-                f = y_to_freq(my, h, config.F_DISPLAY_MAX)
+                spectrum_graph_h = max(1, h - RULER_HEIGHT)
+                f = y_to_freq(my, spectrum_graph_h, config.F_DISPLAY_MAX)
                 if state.DRAG_TARGET == "min":
                     state.F_MIN_HZ = min(f, state.F_MAX_HZ)
                 elif state.DRAG_TARGET == "max":
@@ -813,9 +801,6 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
         if button_state.calibration_suite_modal_open:
             if handle_calibration_suite_modal_mouse(event, mx, my, config.WIDTH, config.HEIGHT):
                 pass  # consumed
-
-        # End dot drag (dot stays at last snapped position)
-        state.SPECTRUM_CURSOR_DOT_DRAG_ACTIVE = False
 
         # End frequency bar drag
         state.DRAG_ACTIVE = False
@@ -1178,10 +1163,11 @@ def main() -> None:
                     sim_freqs = list(getattr(sim_source, "last_sim2_freqs", []))
                 else:
                     sim_freqs = list(config.SIM_SOURCE_FREQS)
-                # Filter sources by bandpass
+                # Filter sources by bandpass and heatmap minimum frequency (anti-DC / low-freq ghosts)
+                f_lo_heatmap = max(float(f_min), float(getattr(config, "HEATMAP_MIN_FREQ_HZ", 0.0)))
                 selected_indices = [
                     i for i, f in enumerate(sim_freqs)
-                    if f_min <= f <= f_max
+                    if f_lo_heatmap <= f <= f_max
                 ]
 
                 if not selected_indices:
@@ -1226,49 +1212,71 @@ def main() -> None:
                         power[row_idx] = p
                         running_max_power = max(running_max_power, p)
 
-                    power_rel = power / (running_max_power + 1e-12)
-                    sim_heatmap_kw = dict(
-                        spec_matrix=spec_matrix,
-                        power_rel=power_rel,
-                        out_width=content_width,
-                        out_height=content_height,
-                        db_min=config.REL_DB_MIN,
-                        db_max=config.REL_DB_MAX,
-                        x_offset_px=getattr(config, "HEATMAP_X_OFFSET_PX", 0),
-                        angle_min_deg=getattr(config, "HEATMAP_ANGLE_MIN_DEG", -90.0),
-                        angle_max_deg=getattr(config, "HEATMAP_ANGLE_MAX_DEG", 90.0),
-                        band_freqs_hz=band_freqs,
-                        f_min_hz=f_min,
-                        f_max_hz=f_max,
-                        projection_mode=sim_proj_mode,
-                        circle_radius_px=getattr(config, "HEATMAP_CIRCLE_RADIUS_PX", 0),
-                        assumed_distance_m=getattr(config, "HEATMAP_ASSUMED_DISTANCE_M", 1.0),
-                        camera_hfov_deg=getattr(config, "HEATMAP_CAMERA_HFOV_DEG", 53.0),
-                        camera_vfov_deg=getattr(config, "HEATMAP_CAMERA_VFOV_DEG", 0.0),
-                    )
-                    if sim_dual_angle and angle_x_deg_sim is not None and angle_y_deg_sim is not None:
-                        sim_heatmap_kw["angle_x_deg"] = angle_x_deg_sim
-                        sim_heatmap_kw["angle_y_deg"] = angle_y_deg_sim
-                    current_blob_state = spectra_to_blob_state(**sim_heatmap_kw)
-                    _reuse = (
-                        getattr(config, "HEATMAP_REUSE_WHEN_STABLE", False)
-                        and current_blob_state is not None
-                        and blob_state_prev is not None
-                        and len(current_blob_state[0]) == len(blob_state_prev[0])
-                        and float(np.max(np.abs(current_blob_state[0] - blob_state_prev[0]))) <= getattr(config, "HEATMAP_REUSE_POSITION_EPS_PX", 1.0)
-                        and float(np.max(np.abs(current_blob_state[1] - blob_state_prev[1]))) <= getattr(config, "HEATMAP_REUSE_POSITION_EPS_PX", 1.0)
-                        and float(np.max(np.abs(current_blob_state[2] - blob_state_prev[2]))) <= getattr(config, "HEATMAP_REUSE_AMP_EPS", 0.04)
-                        and heatmap_reuse_buf is not None
-                        and heatmap_reuse_buf.shape == (content_height, content_width)
-                    )
-                    if _reuse:
-                        heatmap_left = heatmap_reuse_buf
-                        heatmap_reused = True
-                    else:
-                        heatmap_left = spectra_to_heatmap_absolute(**sim_heatmap_kw)
-                        heatmap_reuse_buf = heatmap_left.copy()
-                        if current_blob_state is not None:
-                            blob_state_prev = current_blob_state
+                    sim_skip_heatmap = False
+                    if state.SPECTRUM_CURSOR_X is not None:
+                        eff_db = spectrum_cursor_x_to_rel_db(
+                            state.SPECTRUM_CURSOR_X, config.FREQ_BAR_WIDTH
+                        )
+                        p_db = 10.0 * np.log10(
+                            (power.astype(np.float64) + 1e-20) / (running_max_power + 1e-12)
+                        )
+                        keep = p_db >= eff_db
+                        if not np.any(keep):
+                            heatmap_left = np.zeros((content_height, content_width), dtype=np.uint8)
+                            current_blob_state = None
+                            sim_skip_heatmap = True
+                        else:
+                            spec_matrix = spec_matrix[keep]
+                            power = power[keep]
+                            band_freqs = band_freqs[keep]
+                            if sim_dual_angle and angle_x_deg_sim is not None:
+                                angle_x_deg_sim = angle_x_deg_sim[keep]
+                                angle_y_deg_sim = angle_y_deg_sim[keep]
+
+                    if not sim_skip_heatmap:
+                        power_rel = power / (running_max_power + 1e-12)
+                        sim_heatmap_kw = dict(
+                            spec_matrix=spec_matrix,
+                            power_rel=power_rel,
+                            out_width=content_width,
+                            out_height=content_height,
+                            db_min=config.REL_DB_MIN,
+                            db_max=config.REL_DB_MAX,
+                            x_offset_px=getattr(config, "HEATMAP_X_OFFSET_PX", 0),
+                            angle_min_deg=getattr(config, "HEATMAP_ANGLE_MIN_DEG", -90.0),
+                            angle_max_deg=getattr(config, "HEATMAP_ANGLE_MAX_DEG", 90.0),
+                            band_freqs_hz=band_freqs,
+                            f_min_hz=f_min,
+                            f_max_hz=f_max,
+                            projection_mode=sim_proj_mode,
+                            circle_radius_px=getattr(config, "HEATMAP_CIRCLE_RADIUS_PX", 0),
+                            assumed_distance_m=getattr(config, "HEATMAP_ASSUMED_DISTANCE_M", 1.0),
+                            camera_hfov_deg=getattr(config, "HEATMAP_CAMERA_HFOV_DEG", 53.0),
+                            camera_vfov_deg=getattr(config, "HEATMAP_CAMERA_VFOV_DEG", 0.0),
+                        )
+                        if sim_dual_angle and angle_x_deg_sim is not None and angle_y_deg_sim is not None:
+                            sim_heatmap_kw["angle_x_deg"] = angle_x_deg_sim
+                            sim_heatmap_kw["angle_y_deg"] = angle_y_deg_sim
+                        current_blob_state = spectra_to_blob_state(**sim_heatmap_kw)
+                        _reuse = (
+                            getattr(config, "HEATMAP_REUSE_WHEN_STABLE", False)
+                            and current_blob_state is not None
+                            and blob_state_prev is not None
+                            and len(current_blob_state[0]) == len(blob_state_prev[0])
+                            and float(np.max(np.abs(current_blob_state[0] - blob_state_prev[0]))) <= getattr(config, "HEATMAP_REUSE_POSITION_EPS_PX", 1.0)
+                            and float(np.max(np.abs(current_blob_state[1] - blob_state_prev[1]))) <= getattr(config, "HEATMAP_REUSE_POSITION_EPS_PX", 1.0)
+                            and float(np.max(np.abs(current_blob_state[2] - blob_state_prev[2]))) <= getattr(config, "HEATMAP_REUSE_AMP_EPS", 0.04)
+                            and heatmap_reuse_buf is not None
+                            and heatmap_reuse_buf.shape == (content_height, content_width)
+                        )
+                        if _reuse:
+                            heatmap_left = heatmap_reuse_buf
+                            heatmap_reused = True
+                        else:
+                            heatmap_left = spectra_to_heatmap_absolute(**sim_heatmap_kw)
+                            heatmap_reuse_buf = heatmap_left.copy()
+                            if current_blob_state is not None:
+                                blob_state_prev = current_blob_state
 
             else:  # SPI mode (HW + LOOP): top-K bins by power within bandpass, above noise floor
                 # Per-mic gain correction and whole-array boost, then optional per-mic normalize
@@ -1285,9 +1293,10 @@ def main() -> None:
                     fft_for_heatmap = (fft_corrected / norms[:, np.newaxis]).astype(np.complex64)
                 else:
                     fft_for_heatmap = fft_corrected
+                f_lo_heatmap = max(float(f_min), float(getattr(config, "HEATMAP_MIN_FREQ_HZ", 0.0)))
                 candidate_bins = np.array([
                     b for b in range(config.N_BINS)
-                    if f_min <= float(config.f_axis[b]) <= f_max
+                    if f_lo_heatmap <= float(config.f_axis[b]) <= f_max
                 ], dtype=np.intp)
                 total_bandpass_power = 0.0
                 if len(candidate_bins) == 0:
@@ -1297,7 +1306,13 @@ def main() -> None:
                     total_bandpass_power = float(power_per_bin.sum()) + 1e-12
                     p_max = float(power_per_bin.max()) + 1e-12
                     power_db = 10.0 * np.log10((power_per_bin.astype(np.float64) + 1e-12) / p_max)
-                    above_floor = power_db >= (-config.SPI_NOISE_FLOOR_DB)
+                    if state.SPECTRUM_CURSOR_X is not None:
+                        effective_min_power_db = spectrum_cursor_x_to_rel_db(
+                            state.SPECTRUM_CURSOR_X, config.FREQ_BAR_WIDTH
+                        )
+                    else:
+                        effective_min_power_db = float(-config.SPI_NOISE_FLOOR_DB)
+                    above_floor = power_db >= effective_min_power_db
                     candidate_bins = candidate_bins[above_floor]
                     power_per_bin = power_per_bin[above_floor]
                     K = min(config.SPI_TOP_K_BINS, len(candidate_bins))
@@ -1651,48 +1666,13 @@ def main() -> None:
             else:
                 heatmap_prev = None
 
-            # ---- Process pending spectrum cursor (tap or dot drag): snap to closest point on blue curve ----
-            if state.SPECTRUM_CURSOR_PENDING_TAP_Y is not None and fft_data is not None:
-                use_db = button_state.spectrum_analyzer_mode in ("dB", "dBA")
-                cursor_x_for_snap = (
-                    state.SPECTRUM_CURSOR_PENDING_TAP_X
-                    if state.SPECTRUM_CURSOR_PENDING_TAP_X is not None
-                    else (state.SPECTRUM_CURSOR_X or (config.FREQ_BAR_WIDTH // 2))
-                )
-                curve_x, dot_freq = spectrum_closest_curve_point(
-                    cursor_x_for_snap,
-                    state.SPECTRUM_CURSOR_PENDING_TAP_Y,
-                    config.HEIGHT,
-                    config.F_DISPLAY_MAX,
-                    fft_data,
-                    config.f_axis,
-                    config.FREQ_BAR_WIDTH,
-                    use_db=use_db,
-                    mode=button_state.spectrum_analyzer_mode,
-                )
-                state.SPECTRUM_CURSOR_X = curve_x
-                state.SPECTRUM_CURSOR_DOT_FREQ = dot_freq
-                state.SPECTRUM_CURSOR_PENDING_TAP_X = None
-                state.SPECTRUM_CURSOR_PENDING_TAP_Y = None
-
             # ---- Draw spectrum analyzer (dB scale + curve) and dB colorbar ----
-            spectrum_cursor_dot_bar_pos = []
             draw_spectrum_analyzer(
                 output_frame, fft_data, config.f_axis, f_min, f_max,
                 config.FREQ_BAR_WIDTH, config.F_DISPLAY_MAX,
                 mode=button_state.spectrum_analyzer_mode,
                 spectrum_cursor_x=state.SPECTRUM_CURSOR_X,
-                spectrum_cursor_dot_active=state.SPECTRUM_CURSOR_DOT_ACTIVE,
-                spectrum_cursor_dot_freq=state.SPECTRUM_CURSOR_DOT_FREQ,
-                spectrum_cursor_dot_dragging=state.SPECTRUM_CURSOR_DOT_DRAG_ACTIVE,
-                spectrum_cursor_dot_bar_pos=spectrum_cursor_dot_bar_pos,
             )
-            if len(spectrum_cursor_dot_bar_pos) == 2:
-                state.SPECTRUM_CURSOR_DOT_BAR_X = spectrum_cursor_dot_bar_pos[0]
-                state.SPECTRUM_CURSOR_DOT_BAR_Y = spectrum_cursor_dot_bar_pos[1]
-            else:
-                state.SPECTRUM_CURSOR_DOT_BAR_X = None
-                state.SPECTRUM_CURSOR_DOT_BAR_Y = None
             draw_db_colorbar(output_frame, config.REL_DB_MIN, config.REL_DB_MAX, config.DB_BAR_WIDTH, colormap=button_state.colormap_mode)
             prof.mark("bars")
 
@@ -1761,16 +1741,25 @@ def main() -> None:
                     # Frequency dominant at this location; angle for protractor; SIM: distance from closest source
                     distance_to_source_m = None
                     angle_deg = None
+                    angle_deg_heatmap = None
                     if spec_matrix is not None and band_freqs.size > 0:
                         n_ang = spec_matrix.shape[1]
                         proj_mode = getattr(config, "HEATMAP_PROJECTION_MODE", "linear")
                         if proj_mode == "camera_circle":
                             center_x = (content_width - 1) / 2.0
                             center_y = (content_height - 1) / 2.0
-                            # Reverse rotation: display angle = DOA + 90°, so DOA = display - 90°
-                            angle_rad = np.arctan2(center_y - ny, nx - center_x)
-                            angle_deg = float(np.degrees(angle_rad - np.pi / 2.0))
-                            angle_idx = int(np.clip(round((angle_deg + 90.0) / 180.0 * (n_ang - 1)), 0, n_ang - 1))
+                            angle_deg_heatmap = float(
+                                np.degrees(np.arctan2(nx - center_x, -(ny - center_y)))
+                            )
+                            angle_idx = int(
+                                np.clip(
+                                    round(
+                                        (angle_deg_heatmap + 90.0) / 180.0 * (n_ang - 1)
+                                    ),
+                                    0,
+                                    n_ang - 1,
+                                )
+                            )
                         elif proj_mode == "camera_plane":
                             cx = (content_width - 1) / 2.0
                             hfov_deg = getattr(config, "HEATMAP_CAMERA_HFOV_DEG", 53.0)
@@ -1779,8 +1768,14 @@ def main() -> None:
                             sin_theta = np.clip((nx - cx) / max(1e-12, fx), -1.0, 1.0)
                             cos_theta = np.sqrt(1.0 - sin_theta * sin_theta)
                             angle_rad = np.arctan2(sin_theta, cos_theta)
-                            angle_deg = float(np.degrees(angle_rad))
-                            angle_idx = int(np.clip(round((angle_deg + 90.0) / 180.0 * (n_ang - 1)), 0, n_ang - 1))
+                            angle_deg_heatmap = float(np.degrees(angle_rad))
+                            angle_idx = int(
+                                np.clip(
+                                    round((angle_deg_heatmap + 90.0) / 180.0 * (n_ang - 1)),
+                                    0,
+                                    n_ang - 1,
+                                )
+                            )
                             # y = frequency: t_y = 1 - ny/(h-1), freq = f_min + t_y*(f_max - f_min)
                             t_y = 1.0 - ny / max(1, content_height - 1)
                             t_y = np.clip(t_y, 0.0, 1.0)
@@ -1795,7 +1790,7 @@ def main() -> None:
                             t_y = np.clip(ny / max(1, content_height - 1), 0.0, 1.0)  # matches flipped y: top=angle_min, bottom=angle_max
                             angle_x_deg = ang_min + t_x * span
                             angle_y_deg = ang_min + t_y * span
-                            angle_deg = float(angle_x_deg)  # primary for protractor / tooltip
+                            angle_deg_heatmap = float(angle_x_deg)
                             angle_idx = int(np.clip(round(t_x * (n_ang - 1)), 0, n_ang - 1))
                             row = int(np.argmax(spec_matrix[:, angle_idx]))
                             f_peak_hz = float(band_freqs[row])
@@ -1805,16 +1800,53 @@ def main() -> None:
                             ang_max = getattr(config, "HEATMAP_ANGLE_MAX_DEG", 90.0)
                             t = (nx - x_off) / max(1, content_width - 1)
                             t = np.clip(t, 0.0, 1.0)
-                            angle_deg = ang_min + t * (ang_max - ang_min)
-                            angle_idx = int(np.clip(round((angle_deg + 90.0) / 180.0 * (n_ang - 1)), 0, n_ang - 1))
+                            angle_deg_heatmap = float(ang_min + t * (ang_max - ang_min))
+                            angle_idx = int(
+                                np.clip(
+                                    round((angle_deg_heatmap + 90.0) / 180.0 * (n_ang - 1)),
+                                    0,
+                                    n_ang - 1,
+                                )
+                            )
                         if proj_mode != "camera_plane":
                             row = int(np.argmax(spec_matrix[:, angle_idx]))
                             f_peak_hz = float(band_freqs[row])
                         if source_label == "SIM":
                             sim_dists = getattr(config, "SIM_SOURCE_DISTANCES_M", None)
                             if sim_dists and len(sim_dists) == len(config.SIM_SOURCE_ANGLES):
-                                closest = int(np.argmin(np.abs(np.array(config.SIM_SOURCE_ANGLES) - angle_deg)))
+                                closest = int(
+                                    np.argmin(
+                                        np.abs(np.array(config.SIM_SOURCE_ANGLES) - angle_deg_heatmap)
+                                    )
+                                )
                                 distance_to_source_m = float(sim_dists[closest])
+                        # Protractor matches on-screen blob when HEATMAP_ROTATE_180 (draw_x/draw_y vs nx/ny)
+                        sx = float(draw_x)
+                        sy = float(draw_y)
+                        dcx = (content_width - 1) / 2.0
+                        dcy = (content_height - 1) / 2.0
+                        if proj_mode == "camera_circle":
+                            angle_deg = float(np.degrees(np.arctan2(sx - dcx, -(sy - dcy))))
+                        elif proj_mode == "camera_plane":
+                            hfov_deg_d = getattr(config, "HEATMAP_CAMERA_HFOV_DEG", 53.0)
+                            hfov_rad_d = np.deg2rad(max(1e-6, float(hfov_deg_d)))
+                            fx_d = (content_width / 2.0) / np.tan(hfov_rad_d / 2.0)
+                            sin_td = np.clip((sx - dcx) / max(1e-12, fx_d), -1.0, 1.0)
+                            cos_td = np.sqrt(1.0 - sin_td * sin_td)
+                            angle_deg = float(np.degrees(np.arctan2(sin_td, cos_td)))
+                        elif proj_mode == "dual_angle":
+                            x_off_d = getattr(config, "HEATMAP_X_OFFSET_PX", 0)
+                            ang_min_d = getattr(config, "HEATMAP_ANGLE_MIN_DEG", -90.0)
+                            ang_max_d = getattr(config, "HEATMAP_ANGLE_MAX_DEG", 90.0)
+                            span_d = max(1e-6, ang_max_d - ang_min_d)
+                            t_xd = np.clip((sx - x_off_d) / max(1, content_width - 1), 0.0, 1.0)
+                            angle_deg = float(ang_min_d + t_xd * span_d)
+                        else:
+                            x_off_d = getattr(config, "HEATMAP_X_OFFSET_PX", 0)
+                            ang_min_d = getattr(config, "HEATMAP_ANGLE_MIN_DEG", -90.0)
+                            ang_max_d = getattr(config, "HEATMAP_ANGLE_MAX_DEG", 90.0)
+                            td = np.clip((sx - x_off_d) / max(1, content_width - 1), 0.0, 1.0)
+                            angle_deg = float(ang_min_d + td * (ang_max_d - ang_min_d))
                     else:
                         f_peak_hz = (f_min + f_max) / 2.0
                     draw_crosshairs(

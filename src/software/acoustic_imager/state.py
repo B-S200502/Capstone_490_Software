@@ -329,24 +329,12 @@ DRAG_START_F_MAX: float = 0.0  # Initial F_MAX_HZ when box drag starts
 F_MIN_HZ: float = float(F_MIN_HZ_DEFAULT)
 F_MAX_HZ: float = float(F_MAX_HZ_DEFAULT)
 
-# Spectrum analyzer: draggable red vertical cursor for measuring freq/dB (None = hidden)
+# Spectrum analyzer: draggable red vertical noise-floor cursor (None = hidden)
 SPECTRUM_CURSOR_X: Optional[float] = None
-# Dot + label on curve: only shown after user taps once on the red line
-SPECTRUM_CURSOR_DOT_ACTIVE: bool = False
-# Frequency (Hz) the dot is pinned to (from tap y); stops dot bouncing between bins
-SPECTRUM_CURSOR_DOT_FREQ: Optional[float] = None
 # Double-tap detection for spectrum bar (toggle cursor on/off)
 SPECTRUM_CURSOR_LAST_TAP_TIME: float = 0.0
 SPECTRUM_CURSOR_LAST_TAP_X: int = 0
 SPECTRUM_CURSOR_LAST_TAP_Y: int = 0
-# Tap on line or drag-dot release: main loop snaps to closest curve (set in handler, consumed in main)
-SPECTRUM_CURSOR_PENDING_TAP_X: Optional[float] = None
-SPECTRUM_CURSOR_PENDING_TAP_Y: Optional[int] = None
-# Dot position in bar coords (from last draw) for hit-test; None until dot has been drawn
-SPECTRUM_CURSOR_DOT_BAR_X: Optional[float] = None
-SPECTRUM_CURSOR_DOT_BAR_Y: Optional[float] = None
-# True while user is dragging the dot along the curve
-SPECTRUM_CURSOR_DOT_DRAG_ACTIVE: bool = False
 
 
 # ===============================================================

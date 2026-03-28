@@ -2,90 +2,24 @@
 STEP_PROGRESS 0 7
 [0] Silence check (env quiet enough for gain cal)...
 SILENCE_START 1.5
-  max_total_power=4.893e+02 threshold=1.000e+09 frames=9 -> PASS
+  max_total_power=2.033e+02 threshold=1.000e+09 frames=24 -> PASS
   FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
-  parse_full_frame: magic 0xDF3E0E86 != expected 0xAABBCCDD, buf[:8]=860e3edf08c7bd20
-  parse_full_frame: magic 0xEBEBEBEB != expected 0xAABBCCDD, buf[:8]=ebebebebebebebeb
-  parse_full_frame: magic 0xBC8ECDBD != expected 0xAABBCCDD, buf[:8]=bdcd8ebcbd1371c5
-  parse_full_frame: magic 0x72727272 != expected 0xAABBCCDD, buf[:8]=7272727272727272
-  parse_full_frame: magic 0x8F3D1BEE != expected 0xAABBCCDD, buf[:8]=ee1b3d8ff9cabc50
-  parse_full_frame: magic 0xBF683C12 != expected 0xAABBCCDD, buf[:8]=123c68bf745b9bbf
-  parse_full_frame: magic 0xCCCCCCCC != expected 0xAABBCCDD, buf[:8]=cccccccccccccccc
-  parse_full_frame: magic 0xBBA2B846 != expected 0xAABBCCDD, buf[:8]=46b8a2bb4c71073d
-  parse_full_frame: magic 0xA1A1A1A1 != expected 0xAABBCCDD, buf[:8]=a1a1a1a1a1a1a1a1
-  parse_full_frame: magic 0xBC96A765 != expected 0xAABBCCDD, buf[:8]=65a796bc3c2e9f3b
-  parse_full_frame: magic 0xDCDCDCDC != expected 0xAABBCCDD, buf[:8]=dcdcdcdcdcdcdcdc
-  parse_full_frame: magic 0xBC1F3DB8 != expected 0xAABBCCDD, buf[:8]=b83d1fbc3255803b
-  parse_full_frame: magic 0xF9084B3C != expected 0xAABBCCDD, buf[:8]=3c4b08f9bc175a8b
-  parse_full_frame: magic 0x52525252 != expected 0xAABBCCDD, buf[:8]=5252525252525252
-  parse_full_frame: magic 0xB0C0EC3D != expected 0xAABBCCDD, buf[:8]=3decc0b0bdcbb78f
-  parse_full_frame: magic 0xBBBBBBBB != expected 0xAABBCCDD, buf[:8]=bbbbbbbbbbbbbbbb
-  parse_full_frame: magic 0x467C39C9 != expected 0xAABBCCDD, buf[:8]=c9397c462dbc5687
-  parse_full_frame: magic 0x6611BD10 != expected 0xAABBCCDD, buf[:8]=10bd1166f83d57bd
-  parse_full_frame: magic 0xB1B1B1B1 != expected 0xAABBCCDD, buf[:8]=b1b1b1b1b1b1b1b1
-  parse_full_frame: magic 0x48C8398C != expected 0xAABBCCDD, buf[:8]=8c39c848f43cb02d
-  parse_full_frame: magic 0xD8D8D8D8 != expected 0xAABBCCDD, buf[:8]=d8d8d8d8d8d8d8d8
-  parse_full_frame: magic 0x213BC237 != expected 0xAABBCCDD, buf[:8]=37c23b2123efbb06
-  parse_full_frame: magic 0x90909090 != expected 0xAABBCCDD, buf[:8]=9090909090909090
-  parse_full_frame: magic 0xCB3FBDC3 != expected 0xAABBCCDD, buf[:8]=c3bd3fcb863cbf43
-  parse_full_frame: magic 0x11F6BAA6 != expected 0xAABBCCDD, buf[:8]=a6baf61111be98cb
-  parse_full_frame: magic 0x0E0E0E0E != expected 0xAABBCCDD, buf[:8]=0e0e0e0e0e0e0e0e
-  parse_full_frame: magic 0xFCF839AC != expected 0xAABBCCDD, buf[:8]=ac39f8fca73c8b0e
-  parse_full_frame: magic 0x54545454 != expected 0xAABBCCDD, buf[:8]=5454545454545454
-  parse_full_frame: magic 0x3C2A162A != expected 0xAABBCCDD, buf[:8]=2a162a3c41bd6b3c
-  parse_full_frame: magic 0x07070707 != expected 0xAABBCCDD, buf[:8]=0707070707070707
-  parse_full_frame: magic 0x80BC2511 != expected 0xAABBCCDD, buf[:8]=1125bc805d793d1a
-  parse_full_frame: magic 0xBD0BF011 != expected 0xAABBCCDD, buf[:8]=11f00bbda50871bc
-  parse_full_frame: magic 0xDADADADA != expected 0xAABBCCDD, buf[:8]=dadadadadadadada
-  parse_full_frame: magic 0xF73D777A != expected 0xAABBCCDD, buf[:8]=7a773df79207bea7
-  parse_full_frame: magic 0x50505050 != expected 0xAABBCCDD, buf[:8]=5050505050505050
-  parse_full_frame: magic 0xE9BD1FD8 != expected 0xAABBCCDD, buf[:8]=d81fbde96a17bda2
-  parse_full_frame: magic 0xBC2ACA6B != expected 0xAABBCCDD, buf[:8]=6bca2abca782fb3c
-  parse_full_frame: magic 0x13131313 != expected 0xAABBCCDD, buf[:8]=1313131313131313
-  parse_full_frame: magic 0x8303BC04 != expected 0xAABBCCDD, buf[:8]=04bc0383d03d13ad
-  parse_full_frame: magic 0xE8E8E8E8 != expected 0xAABBCCDD, buf[:8]=e8e8e8e8e8e8e8e8
-  parse_full_frame: magic 0x0BA8FABC != expected 0xAABBCCDD, buf[:8]=bcfaa80b3a32352a
-  parse_full_frame: magic 0xBD4CCD36 != expected 0xAABBCCDD, buf[:8]=36cd4cbda3d7833b
-  parse_full_frame: magic 0x1D1D1D1D != expected 0xAABBCCDD, buf[:8]=1d1d1d1d1d1d1d1d
-  parse_full_frame: magic 0xE726BB28 != expected 0xAABBCCDD, buf[:8]=28bb26e74e3c6d77
-  parse_full_frame: magic 0x8E8E8E8E != expected 0xAABBCCDD, buf[:8]=8e8e8e8e8e8e8e8e
-  parse_full_frame: magic 0x80679BBD != expected 0xAABBCCDD, buf[:8]=bd9b6780bc65d6a6
-  parse_full_frame: magic 0xCF1FBAB7 != expected 0xAABBCCDD, buf[:8]=b7ba1fcf403d71f8
-  parse_full_frame: magic 0x42424242 != expected 0xAABBCCDD, buf[:8]=4242424242424242
-  parse_full_frame: magic 0xBD1F3D1A != expected 0xAABBCCDD, buf[:8]=1a3d1fbd4ad1bb3b
-  parse_full_frame: magic 0xBBBBBBBB != expected 0xAABBCCDD, buf[:8]=bbbbbbbbbbbbbbbb
-  parse_full_frame: magic 0x6E3E9FEE != expected 0xAABBCCDD, buf[:8]=ee9f3e6eace6bd57
-  parse_full_frame: magic 0x71717171 != expected 0xAABBCCDD, buf[:8]=7171717171717171
-  parse_full_frame: magic 0x691E3BDB != expected 0xAABBCCDD, buf[:8]=db3b1e69c9bddedf
-  parse_full_frame: magic 0x28282828 != expected 0xAABBCCDD, buf[:8]=2828282828282828
-  parse_full_frame: magic 0xBC668BCC != expected 0xAABBCCDD, buf[:8]=cc8b66bc1f6698bc
-  parse_full_frame: magic 0xBE31BDAF != expected 0xAABBCCDD, buf[:8]=afbd31be25be8cd1
-  parse_full_frame: magic 0x40404040 != expected 0xAABBCCDD, buf[:8]=4040404040404040
-  parse_full_frame: magic 0xBBB92FB2 != expected 0xAABBCCDD, buf[:8]=b22fb9bb7d9f03ba
-  parse_full_frame: magic 0x1D1D1D1D != expected 0xAABBCCDD, buf[:8]=1d1d1d1d1d1d1d1d
-  parse_full_frame: magic 0x24BBD142 != expected 0xAABBCCDD, buf[:8]=42d1bb241d79bc77
-  parse_full_frame: magic 0xAFAFAFAF != expected 0xAABBCCDD, buf[:8]=afafafafafafafaf
-  parse_full_frame: magic 0x10BD13C9 != expected 0xAABBCCDD, buf[:8]=c913bd10b0c8bcff
-  parse_full_frame: magic 0x5C493CB0 != expected 0xAABBCCDD, buf[:8]=b03c495c6dbc0afb
-  parse_full_frame: magic 0x9C9C9C9C != expected 0xAABBCCDD, buf[:8]=9c9c9c9c9c9c9c9c
-  parse_full_frame: magic 0x1B3CD5F4 != expected 0xAABBCCDD, buf[:8]=f4d53c1bc714bbad
-  parse_full_frame: magic 0x52525252 != expected 0xAABBCCDD, buf[:8]=5252525252525252
-  parse_full_frame: magic 0x514A32BE != expected 0xAABBCCDD, buf[:8]=be324a51bddae32a
-  parse_full_frame: magic 0x6E3B2CE3 != expected 0xAABBCCDD, buf[:8]=e32c3b6eb18abac9
-  parse_full_frame: magic 0x82828282 != expected 0xAABBCCDD, buf[:8]=8282828282828282
-  parse_full_frame: magic 0xBCE5EAE2 != expected 0xAABBCCDD, buf[:8]=e2eae5bc6913103d
-  parse_full_frame: magic 0xBABABABA != expected 0xAABBCCDD, buf[:8]=babababababababa
-  parse_full_frame: magic 0x3052B63C != expected 0xAABBCCDD, buf[:8]=3cb652303d84441f
-  parse_full_frame: magic 0x37BC30DA != expected 0xAABBCCDD, buf[:8]=da30bc37448f3d1e
-  parse_full_frame: magic 0x98989898 != expected 0xAABBCCDD, buf[:8]=9898989898989898
-  parse_full_frame: magic 0x4F56BD08 != expected 0xAABBCCDD, buf[:8]=08bd564f4abc0bbc
-  parse_full_frame: magic 0x83838383 != expected 0xAABBCCDD, buf[:8]=8383838383838383
-  parse_full_frame: magic 0x4C5FBA93 != expected 0xAABBCCDD, buf[:8]=93ba5f4ce4bd9b1e
-  parse_full_frame: magic 0x3C84483D != expected 0xAABBCCDD, buf[:8]=3d48843c744f5f3c
-  parse_full_frame: magic 0x67676767 != expected 0xAABBCCDD, buf[:8]=6767676767676767
-  parse_full_frame: magic 0xCE973D09 != expected 0xAABBCCDD, buf[:8]=093d97ced63cda7f
-  parse_full_frame: magic 0x9C9C9C9C != expected 0xAABBCCDD, buf[:8]=9c9c9c9c9c9c9c9c
-  parse_full_frame: magic 0x3D21F145 != expected 0xAABBCCDD, buf[:8]=45f1213dc9ab463d
+  parse_full_frame: magic 0x08BE0C9A != expected 0xAABBCCDD, buf[:8]=9a0cbe089cd6be5a
+  parse_full_frame: magic 0xD9D9D9D9 != expected 0xAABBCCDD, buf[:8]=d9d9d9d9d9d9d9d9
+  parse_full_frame: magic 0x0C3BA86D != expected 0xAABBCCDD, buf[:8]=6da83b0c90483df9
+  parse_full_frame: magic 0x024FBA5D != expected 0xAABBCCDD, buf[:8]=5dba4f02d3bda68a
+  parse_full_frame: magic 0xE5E5E5E5 != expected 0xAABBCCDD, buf[:8]=e5e5e5e5e5e5e5e5
+  parse_full_frame: magic 0xDF743C8D != expected 0xAABBCCDD, buf[:8]=8d3c74dfaf3d92e9
+  parse_full_frame: magic 0x3DA8CC78 != expected 0xAABBCCDD, buf[:8]=78cca83d5603b7bd
+  parse_full_frame: magic 0xD2D2D2D2 != expected 0xAABBCCDD, buf[:8]=d2d2d2d2d2d2d2d2
+  parse_full_frame: magic 0xC031BB5D != expected 0xAABBCCDD, buf[:8]=5dbb31c075bcc8eb
+  parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
+  parse_full_frame: magic 0x8C5D293C != expected 0xAABBCCDD, buf[:8]=3c295d8cbcc10c24
+  parse_full_frame: magic 0xF43E32FB != expected 0xAABBCCDD, buf[:8]=fb323ef47194bd17
+  parse_full_frame: magic 0x8C8C8C8C != expected 0xAABBCCDD, buf[:8]=8c8c8c8c8c8c8c8c
+  parse_full_frame: magic 0x549D39F3 != expected 0xAABBCCDD, buf[:8]=f3399d548cbc1db8
+  parse_full_frame: magic 0x85858585 != expected 0xAABBCCDD, buf[:8]=8585858585858585
+  parse_full_frame: magic 0x3BE727C1 != expected 0xAABBCCDD, buf[:8]=c127e73b0f220abd
   OK
 STEP_PROGRESS 1 7
 [1] Pin monitor (ribbon cable, 5 runs)...
@@ -98,7 +32,7 @@ STEP_PROGRESS 1 7
   20         -      GND                        -
   23         11     SCK                        0
   24         8      NSS (SPI0 CE0)             1
-  21         9      MISO                       1
+  21         9      MISO                       0
   19         10     MOSI                       0
   25         -      GND                        -
   28         1      NRST                       1
@@ -179,9 +113,9 @@ STEP_PROGRESS 3 7
   52:dtparam=uart0=on
 
   === SPI device nodes ===
-  crw-rw---- 1 root spi 153, 0 Mar 26 12:53 /dev/spidev0.0
-  crw-rw---- 1 root spi 153, 1 Mar 26 12:53 /dev/spidev0.1
-  crw-rw---- 1 root spi 153, 2 Mar 26 12:53 /dev/spidev10.0
+  crw-rw---- 1 root spi 153, 0 Mar 28 11:22 /dev/spidev0.0
+  crw-rw---- 1 root spi 153, 1 Mar 28 11:22 /dev/spidev0.1
+  crw-rw---- 1 root spi 153, 2 Mar 28 11:22 /dev/spidev10.0
 
   === Kernel SPI modules ===
   spidev                 49152  0
@@ -190,10 +124,6 @@ STEP_PROGRESS 3 7
   spi_dw                 49152  1 spi_dw_mmio
 
   === dmesg (SPI) ===
-  [ 2478.927161] spidev spi0.0: setup: unsupported mode bits 8
-  [ 2478.941083] spidev spi0.0: setup: unsupported mode bits 8
-  [ 2478.953349] spidev spi0.0: setup: unsupported mode bits 8
-  [ 2478.965365] spidev spi0.0: setup: unsupported mode bits 8
 STEP_PROGRESS 4 7
 [4] Parsing (magic probe) & frame rate...
   Probing /dev/spidev0.0, frame_size=32801, sync=False
@@ -201,7 +131,7 @@ STEP_PROGRESS 4 7
   ------------------------------------------------------------
   mode=0 lsbfirst=False: magic@[0x0] BE no bit_rev no
   mode=0 lsbfirst=True: lsbfirst not supported
-  mode=1 lsbfirst=False: magic@[0x6000] BE no bit_rev no
+  mode=1 lsbfirst=False: magic no BE no bit_rev no
   mode=1 lsbfirst=True: lsbfirst not supported
   mode=2 lsbfirst=False: magic no BE no bit_rev no
   mode=2 lsbfirst=True: lsbfirst not supported
@@ -210,70 +140,73 @@ STEP_PROGRESS 4 7
   ------------------------------------------------------------
   At least one setting saw magic (LE/BE/bit_rev). Consider aligning config to that.
   SPI_MAX_SPEED_HZ = 30000000
-  FPS = 17.2  frames_ok = 26  bad_parse = 65  bad_crc = 0
+  FPS = 26.0  frames_ok = 39  bad_parse = 36  bad_crc = 0
   OK
 STEP_PROGRESS 5 7
 [5] Metrics (gain normalization)...
   --- Per-mic levels (LOW gain, averaged over 5 frames) ---
-    Total power (sum of squared L2 per mic): 1.586673e+02
-    Max mic L2: 4.474532e+00  Min mic L2: 1.292773e+00
-    Ratio max/min: 3.46
+    Total power (sum of squared L2 per mic): 2.644290e+01
+    Max mic L2: 4.145576e+00  Min mic L2: 2.014161e-03
+    Ratio max/min: 2058.22
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   2.783911e+00   -2.1 dB    0.622     1.61
-      1   ADC1   1.628704e+00   -4.4 dB    0.364     2.75
-      2   ADC1   2.631850e+00   -2.3 dB    0.588     1.70
-      3   ADC1   2.478874e+00   -2.6 dB    0.554     1.81
-      4   ADC2   4.138907e+00   -0.3 dB    0.925     1.08
-      5   ADC2   2.828317e+00   -2.0 dB    0.632     1.58
-      6   ADC2   2.759146e+00   -2.1 dB    0.617     1.62
-      7   ADC2   3.199713e+00   -1.5 dB    0.715     1.40
-      8   ADC3   4.374019e+00   -0.1 dB    0.978     1.02
-      9   ADC3   4.243702e+00   -0.2 dB    0.948     1.05
-     10   ADC3   2.798355e+00   -2.0 dB    0.625     1.60
-     11   ADC3   3.195260e+00   -1.5 dB    0.714     1.40
-     12   ADC4   4.474532e+00   +0.0 dB    1.000     1.00
-     13   ADC4   1.292773e+00   -5.4 dB    0.289     3.46
-     14   ADC4   2.683870e+00   -2.2 dB    0.600     1.67
-     15   ADC4   2.852126e+00   -2.0 dB    0.637     1.57
+      0   ADC1   4.145576e+00   +0.0 dB    1.000     1.00
+      1   ADC1   7.918393e-03   -27.2 dB    0.002     100+
+      2   ADC1   6.623890e-01   -8.0 dB    0.160     6.26
+      3   ADC1   6.478984e-01   -8.1 dB    0.156     6.40
+      4   ADC2   9.804887e-01   -6.3 dB    0.237     4.23
+      5   ADC2   4.793866e-01   -9.4 dB    0.116     8.65
+      6   ADC2   8.295973e-01   -7.0 dB    0.200     5.00
+      7   ADC2   8.447873e-01   -6.9 dB    0.204     4.91
+      8   ADC3   1.033243e+00   -6.0 dB    0.249     4.01
+      9   ADC3   1.218228e+00   -5.3 dB    0.294     3.40
+     10   ADC3   6.796274e-01   -7.9 dB    0.164     6.10
+     11   ADC3   8.604026e-01   -6.8 dB    0.208     4.82
+     12   ADC4   1.032920e+00   -6.0 dB    0.249     4.01
+     13   ADC4   2.014161e-03   -33.1 dB    0.000     100+
+     14   ADC4   6.599880e-01   -8.0 dB    0.159     6.28
+     15   ADC4   7.409876e-01   -7.5 dB    0.179     5.59
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -2.8 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -1.5 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -1.0 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -2.4 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -10.8 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -7.4 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -6.5 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -13.7 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [13]
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 2, 3, 4, 5, 6, 7,
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
   --- Per-mic levels (HIGH gain, averaged over 5 frames) ---
-    Total power (sum of squared L2 per mic): 7.418221e+02
-    Max mic L2: 1.036294e+01  Min mic L2: 3.719089e+00
-    Ratio max/min: 2.79
+    Total power (sum of squared L2 per mic): 2.908007e+02
+    Max mic L2: 1.039675e+01  Min mic L2: 1.128857e+00
+    Ratio max/min: 9.21
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   6.968248e+00   -1.7 dB    0.672     1.49
-      1   ADC1   1.036294e+01   +0.0 dB    1.000     1.00
-      2   ADC1   4.169390e+00   -4.0 dB    0.402     2.49
-      3   ADC1   3.719089e+00   -4.5 dB    0.359     2.79
-      4   ADC2   9.005023e+00   -0.6 dB    0.869     1.15
-      5   ADC2   1.025010e+01   -0.0 dB    0.989     1.01
-      6   ADC2   4.165004e+00   -4.0 dB    0.402     2.49
-      7   ADC2   4.953430e+00   -3.2 dB    0.478     2.09
-      8   ADC3   9.305800e+00   -0.5 dB    0.898     1.11
-      9   ADC3   7.346749e+00   -1.5 dB    0.709     1.41
-     10   ADC3   4.193443e+00   -3.9 dB    0.405     2.47
-     11   ADC3   4.675484e+00   -3.5 dB    0.451     2.22
-     12   ADC4   8.777307e+00   -0.7 dB    0.847     1.18
-     13   ADC4   5.542522e+00   -2.7 dB    0.535     1.87
-     14   ADC4   4.164944e+00   -4.0 dB    0.402     2.49
-     15   ADC4   4.636359e+00   -3.5 dB    0.447     2.24
+      0   ADC1   1.039675e+01   +0.0 dB    1.000     1.00
+      1   ADC1   8.075553e+00   -1.1 dB    0.777     1.29
+      2   ADC1   1.543990e+00   -8.3 dB    0.149     6.73
+      3   ADC1   1.507995e+00   -8.4 dB    0.145     6.89
+      4   ADC2   2.545542e+00   -6.1 dB    0.245     4.08
+      5   ADC2   5.760983e+00   -2.6 dB    0.554     1.80
+      6   ADC2   1.414404e+00   -8.7 dB    0.136     7.35
+      7   ADC2   1.977948e+00   -7.2 dB    0.190     5.26
+      8   ADC3   3.571594e+00   -4.6 dB    0.344     2.91
+      9   ADC3   2.880399e+00   -5.6 dB    0.277     3.61
+     10   ADC3   1.404614e+00   -8.7 dB    0.135     7.40
+     11   ADC3   1.667670e+00   -7.9 dB    0.160     6.23
+     12   ADC4   4.917413e+00   -3.3 dB    0.473     2.11
+     13   ADC4   3.620467e+00   -4.6 dB    0.348     2.87
+     14   ADC4   1.128857e+00   -9.6 dB    0.109     9.21
+     15   ADC4   1.698286e+00   -7.9 dB    0.163     6.12
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -2.5 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -2.0 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -2.3 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -2.7 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -4.4 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -6.1 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -6.7 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -6.3 dB
+
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [2, 3, 4, 6, 7, 8, 9,
+    Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
     Wrote SPI_MIC_GAIN to /home/acousticgod/Capstone_490_Software/src/software/acoustic_imag
     Restart the acoustic imager for changes to take effect.
@@ -282,135 +215,106 @@ STEP_PROGRESS 5 7
 STEP_PROGRESS 6 7
 [6] Post-gain sanity (ratio check)...
   --- Per-mic levels (LOW gain, latest of 3 frames) ---
-    Total power (sum of squared L2 per mic): 2.902922e+02
-    Max mic L2: 6.250423e+00  Min mic L2: 7.022111e-01
-    Ratio max/min: 8.90
+    Total power (sum of squared L2 per mic): 9.616584e+01
+    Max mic L2: 4.192663e+00  Min mic L2: 3.003266e-02
+    Ratio max/min: 139.60
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   4.360452e+00   -1.6 dB    0.698     1.43
-      1   ADC1   3.807615e+00   -2.2 dB    0.609     1.64
-      2   ADC1   3.304913e+00   -2.8 dB    0.529     1.89
-      3   ADC1   3.065094e+00   -3.1 dB    0.490     2.04
-      4   ADC2   5.309592e+00   -0.7 dB    0.849     1.18
-      5   ADC2   6.250423e+00   +0.0 dB    1.000     1.00
-      6   ADC2   3.466476e+00   -2.6 dB    0.555     1.80
-      7   ADC2   3.868506e+00   -2.1 dB    0.619     1.62
-      8   ADC3   5.257516e+00   -0.8 dB    0.841     1.19
-      9   ADC3   5.553134e+00   -0.5 dB    0.888     1.13
-     10   ADC3   3.364246e+00   -2.7 dB    0.538     1.86
-     11   ADC3   4.044954e+00   -1.9 dB    0.647     1.55
-     12   ADC4   5.309067e+00   -0.7 dB    0.849     1.18
-     13   ADC4   7.022111e-01   -9.5 dB    0.112     8.90
-     14   ADC4   3.506838e+00   -2.5 dB    0.561     1.78
-     15   ADC4   3.884115e+00   -2.1 dB    0.621     1.61
+      0   ADC1   4.192663e+00   +0.0 dB    1.000     1.00
+      1   ADC1   8.686035e-02   -16.8 dB    0.021     48.27
+      2   ADC1   1.644741e+00   -4.1 dB    0.392     2.55
+      3   ADC1   1.717818e+00   -3.9 dB    0.410     2.44
+      4   ADC2   2.541328e+00   -2.2 dB    0.606     1.65
+      5   ADC2   2.905647e+00   -1.6 dB    0.693     1.44
+      6   ADC2   1.793979e+00   -3.7 dB    0.428     2.34
+      7   ADC2   2.071854e+00   -3.1 dB    0.494     2.02
+      8   ADC3   2.911322e+00   -1.6 dB    0.694     1.44
+      9   ADC3   3.956240e+00   -0.3 dB    0.944     1.06
+     10   ADC3   1.750622e+00   -3.8 dB    0.418     2.39
+     11   ADC3   2.124505e+00   -3.0 dB    0.507     1.97
+     12   ADC4   3.457823e+00   -0.8 dB    0.825     1.21
+     13   ADC4   3.003266e-02   -21.4 dB    0.007     100+
+     14   ADC4   1.644385e+00   -4.1 dB    0.392     2.55
+     15   ADC4   2.035794e+00   -3.1 dB    0.486     2.06
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -2.4 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -1.3 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -1.5 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -3.7 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -6.2 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -2.6 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -2.1 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -7.4 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [13]
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 13]
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
   --- Per-mic levels (HIGH gain, latest of 3 frames) ---
-    Total power (sum of squared L2 per mic): 4.665285e+03
-    Max mic L2: 3.231320e+01  Min mic L2: 5.899041e+00
-    Ratio max/min: 5.48
+    Total power (sum of squared L2 per mic): 6.103460e+02
+    Max mic L2: 1.466289e+01  Min mic L2: 1.509620e+00
+    Ratio max/min: 9.71
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   3.231320e+01   +0.0 dB    1.000     1.00
-      1   ADC1   2.271033e+01   -1.5 dB    0.703     1.42
-      2   ADC1   6.578595e+00   -6.9 dB    0.204     4.91
-      3   ADC1   5.899041e+00   -7.4 dB    0.183     5.48
-      4   ADC2   1.460583e+01   -3.4 dB    0.452     2.21
-      5   ADC2   2.955758e+01   -0.4 dB    0.915     1.09
-      6   ADC2   6.891578e+00   -6.7 dB    0.213     4.69
-      7   ADC2   7.679072e+00   -6.2 dB    0.238     4.21
-      8   ADC3   1.345327e+01   -3.8 dB    0.416     2.40
-      9   ADC3   2.639886e+01   -0.9 dB    0.817     1.22
-     10   ADC3   7.680730e+00   -6.2 dB    0.238     4.21
-     11   ADC3   7.708025e+00   -6.2 dB    0.239     4.19
-     12   ADC4   1.350458e+01   -3.8 dB    0.418     2.39
-     13   ADC4   2.341352e+01   -1.4 dB    0.725     1.38
-     14   ADC4   7.236926e+00   -6.5 dB    0.224     4.47
-     15   ADC4   7.390915e+00   -6.4 dB    0.229     4.37
+      0   ADC1   1.466289e+01   +0.0 dB    1.000     1.00
+      1   ADC1   1.300233e+01   -0.5 dB    0.887     1.13
+      2   ADC1   2.190458e+00   -8.3 dB    0.149     6.69
+      3   ADC1   2.218129e+00   -8.2 dB    0.151     6.61
+      4   ADC2   4.198698e+00   -5.4 dB    0.286     3.49
+      5   ADC2   8.770374e+00   -2.2 dB    0.598     1.67
+      6   ADC2   2.290448e+00   -8.1 dB    0.156     6.40
+      7   ADC2   2.338387e+00   -8.0 dB    0.159     6.27
+      8   ADC3   5.035193e+00   -4.6 dB    0.343     2.91
+      9   ADC3   1.950928e+00   -8.8 dB    0.133     7.52
+     10   ADC3   2.017306e+00   -8.6 dB    0.138     7.27
+     11   ADC3   2.335675e+00   -8.0 dB    0.159     6.28
+     12   ADC4   6.743576e+00   -3.4 dB    0.460     2.17
+     13   ADC4   4.402210e+00   -5.2 dB    0.300     3.33
+     14   ADC4   1.509620e+00   -9.9 dB    0.103     9.71
+     15   ADC4   2.342127e+00   -8.0 dB    0.160     6.26
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -4.0 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -4.2 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -4.3 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -4.5 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -4.2 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -5.9 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -7.5 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -6.6 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [2, 3, 6, 7, 10, 11, 1
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [2, 3, 4, 6, 7, 8, 9,
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
   FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
   OK (ratio in output)
-CPU temp: 56.2 C
+CPU temp: 59.5 C
 === Done: 7/7 steps passed ===
 [stderr] FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
-[stderr] parse_full_frame: magic 0x7882FEFF != expected 0xAABBCCDD, buf[:8]=fffe82786b488878
-[stderr] parse_full_frame: magic 0x61616161 != expected 0xAABBCCDD, buf[:8]=6161616161616161
-[stderr] parse_full_frame: magic 0xD90BE13C != expected 0xAABBCCDD, buf[:8]=3ce10bd93c27ce0b
-[stderr] parse_full_frame: magic 0xBD94A3A5 != expected 0xAABBCCDD, buf[:8]=a5a394bdfb1e0b3e
-[stderr] parse_full_frame: magic 0x38383838 != expected 0xAABBCCDD, buf[:8]=3838383838383838
-[stderr] parse_full_frame: magic 0x96D0C73D != expected 0xAABBCCDD, buf[:8]=3dc7d0963c3e6426
-[stderr] parse_full_frame: magic 0x0A0A0A0A != expected 0xAABBCCDD, buf[:8]=0a0a0a0a0a0a0a0a
-[stderr] parse_full_frame: magic 0xCC16BCC4 != expected 0xAABBCCDD, buf[:8]=c4bc16cc94bd34ae
-[stderr] parse_full_frame: magic 0xD7D7D7D7 != expected 0xAABBCCDD, buf[:8]=d7d7d7d7d7d7d7d7
-[stderr] parse_full_frame: magic 0x1BF13994 != expected 0xAABBCCDD, buf[:8]=9439f11b1dbd3d50
-[stderr] parse_full_frame: magic 0x4D4D4D4D != expected 0xAABBCCDD, buf[:8]=4d4d4d4d4d4d4d4d
-[stderr] parse_full_frame: magic 0xA6BC5518 != expected 0xAABBCCDD, buf[:8]=1855bca679693cb5
-[stderr] parse_full_frame: magic 0xC4B3D83C != expected 0xAABBCCDD, buf[:8]=3cd8b3c43bbd15c8
-[stderr] parse_full_frame: magic 0x67676767 != expected 0xAABBCCDD, buf[:8]=6767676767676767
-[stderr] parse_full_frame: magic 0xEA5770BC != expected 0xAABBCCDD, buf[:8]=bc7057eabc3dbdda
-[stderr] parse_full_frame: magic 0x9A9A9A9A != expected 0xAABBCCDD, buf[:8]=9a9a9a9a9a9a9a9a
-[stderr] parse_full_frame: magic 0x35DB043D != expected 0xAABBCCDD, buf[:8]=3d04db35bddaa385
-[stderr] parse_full_frame: magic 0x8A75393C != expected 0xAABBCCDD, buf[:8]=3c39758ad7bceb3b
-[stderr] parse_full_frame: magic 0x80808080 != expected 0xAABBCCDD, buf[:8]=8080808080808080
-[stderr] parse_full_frame: magic 0xED3C9869 != expected 0xAABBCCDD, buf[:8]=69983ced8067bcab
-[stderr] parse_full_frame: magic 0xD4D4D4D4 != expected 0xAABBCCDD, buf[:8]=d4d4d4d4d4d4d4d4
-[stderr] parse_full_frame: magic 0xD33D395C != expected 0xAABBCCDD, buf[:8]=5c393dd308c8bc70
-[stderr] parse_full_frame: magic 0x313C50CA != expected 0xAABBCCDD, buf[:8]=ca503c31a9183d91
-[stderr] parse_full_frame: magic 0x23232323 != expected 0xAABBCCDD, buf[:8]=2323232323232323
-[stderr] parse_full_frame: magic 0x1F23BD12 != expected 0xAABBCCDD, buf[:8]=12bd231f7cbd58f2
-[stderr] parse_full_frame: magic 0x5F5F5F5F != expected 0xAABBCCDD, buf[:8]=5f5f5f5f5f5f5f5f
-[stderr] parse_full_frame: magic 0xBB9FDAB1 != expected 0xAABBCCDD, buf[:8]=b1da9fbbfcf0883c
-[stderr] parse_full_frame: magic 0x68686868 != expected 0xAABBCCDD, buf[:8]=6868686868686868
-[stderr] parse_full_frame: magic 0x54683BB4 != expected 0xAABBCCDD, buf[:8]=b43b685498395074
-[stderr] parse_full_frame: magic 0x6B3711BB != expected 0xAABBCCDD, buf[:8]=bb11376b3d66e4e1
-[stderr] parse_full_frame: magic 0xB9B9B9B9 != expected 0xAABBCCDD, buf[:8]=b9b9b9b9b9b9b9b9
-[stderr] parse_full_frame: magic 0x9B3D0B5D != expected 0xAABBCCDD, buf[:8]=5d0b3d9be1c2bc2f
-[stderr] parse_full_frame: magic 0x67676767 != expected 0xAABBCCDD, buf[:8]=6767676767676767
-[stderr] parse_full_frame: magic 0x0284BD3E != expected 0xAABBCCDD, buf[:8]=3ebd84020abde912
-[stderr] parse_full_frame: magic 0x68433D4D != expected 0xAABBCCDD, buf[:8]=4d3d4368453d7bbb
-[stderr] parse_full_frame: magic 0x01010101 != expected 0xAABBCCDD, buf[:8]=0101010101010101
-[stderr] parse_full_frame: magic 0xDEBC5C75 != expected 0xAABBCCDD, buf[:8]=755cbcde73543624
-[stderr] parse_full_frame: magic 0xA7A7A7A7 != expected 0xAABBCCDD, buf[:8]=a7a7a7a7a7a7a7a7
-[stderr] parse_full_frame: magic 0x39BCA59C != expected 0xAABBCCDD, buf[:8]=9ca5bc3916973ca3
-[stderr] parse_full_frame: magic 0xBEF7BD85 != expected 0xAABBCCDD, buf[:8]=85bdf7be143cccfa
-[stderr] parse_full_frame: magic 0xCECECECE != expected 0xAABBCCDD, buf[:8]=cececececececece
-[stderr] parse_full_frame: magic 0x509FBD23 != expected 0xAABBCCDD, buf[:8]=23bd9f50bb3bf69c
-[stderr] parse_full_frame: magic 0x2F2F2F2F != expected 0xAABBCCDD, buf[:8]=2f2f2f2f2f2f2f2f
-[stderr] parse_full_frame: magic 0xD04F398C != expected 0xAABBCCDD, buf[:8]=8c394fd0adbb8c2e
-[stderr] parse_full_frame: magic 0xE7E7E7E7 != expected 0xAABBCCDD, buf[:8]=e7e7e7e7e7e7e7e7
-[stderr] parse_full_frame: magic 0x75C24D3D != expected 0xAABBCCDD, buf[:8]=3d4dc2753c79230c
-[stderr] parse_full_frame: magic 0x863D503B != expected 0xAABBCCDD, buf[:8]=3b503d86ba824412
-[stderr] parse_full_frame: magic 0x37373737 != expected 0xAABBCCDD, buf[:8]=3737373737373737
-[stderr] parse_full_frame: magic 0x39F98C77 != expected 0xAABBCCDD, buf[:8]=778cf939923f9d3c
-[stderr] parse_full_frame: magic 0x74747474 != expected 0xAABBCCDD, buf[:8]=7474747474747474
-[stderr] parse_full_frame: magic 0xBD435391 != expected 0xAABBCCDD, buf[:8]=915343bda831033c
-[stderr] parse_full_frame: magic 0xCC3CE23C != expected 0xAABBCCDD, buf[:8]=3ce23ccc73fd3cb0
-[stderr] parse_full_frame: magic 0x0F0F0F0F != expected 0xAABBCCDD, buf[:8]=0f0f0f0f0f0f0f0f
-[stderr] parse_full_frame: magic 0x8CBD8ECB != expected 0xAABBCCDD, buf[:8]=cb8ebd8c393ebd88
-[stderr] parse_full_frame: magic 0x1C1C1C1C != expected 0xAABBCCDD, buf[:8]=1c1c1c1c1c1c1c1c
-[stderr] parse_full_frame: magic 0xF1BC3C85 != expected 0xAABBCCDD, buf[:8]=853cbcf101bdade6
-[stderr] parse_full_frame: magic 0xDCDCDCDC != expected 0xAABBCCDD, buf[:8]=dcdcdcdcdcdcdcdc
-[stderr] parse_full_frame: magic 0xDF273C04 != expected 0xAABBCCDD, buf[:8]=043c27dfae3b42ba
-[stderr] parse_full_frame: magic 0xABABABAB != expected 0xAABBCCDD, buf[:8]=abababababababab
-[stderr] parse_full_frame: magic 0xC2BB97F2 != expected 0xAABBCCDD, buf[:8]=f297bbc285423cbc
-[stderr] parse_full_frame: magic 0xA5053B60 != expected 0xAABBCCDD, buf[:8]=603b05a5063cd1e7
-[stderr] parse_full_frame: magic 0xBCBCBCBC != expected 0xAABBCCDD, buf[:8]=bcbcbcbcbcbcbcbc
-[stderr] parse_full_frame: magic 0x28BB8DA0 != expected 0xAABBCCDD, buf[:8]=a08dbb285386bc41
+[stderr] parse_full_frame: magic 0x79A3F0F1 != expected 0xAABBCCDD, buf[:8]=f1f0a3798d97b876
+[stderr] parse_full_frame: magic 0x46464646 != expected 0xAABBCCDD, buf[:8]=4646464646464646
+[stderr] parse_full_frame: magic 0xD35C3AC7 != expected 0xAABBCCDD, buf[:8]=c73a5cd32dbdcdb7
+[stderr] parse_full_frame: magic 0xF6F6F6F6 != expected 0xAABBCCDD, buf[:8]=f6f6f6f6f6f6f6f6
+[stderr] parse_full_frame: magic 0x6BBC12F4 != expected 0xAABBCCDD, buf[:8]=f412bc6b40fabbcb
+[stderr] parse_full_frame: magic 0x3DBC8F8D != expected 0xAABBCCDD, buf[:8]=8d8fbc3d608eb964
+[stderr] parse_full_frame: magic 0x14141414 != expected 0xAABBCCDD, buf[:8]=1414141414141414
+[stderr] parse_full_frame: magic 0x90C5BA71 != expected 0xAABBCCDD, buf[:8]=71bac590f83a0be2
+[stderr] parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
+[stderr] parse_full_frame: magic 0xE33CD501 != expected 0xAABBCCDD, buf[:8]=01d53ce346a0bc4f
+[stderr] parse_full_frame: magic 0x1D1D1D1D != expected 0xAABBCCDD, buf[:8]=1d1d1d1d1d1d1d1d
+[stderr] parse_full_frame: magic 0x3C7BBAD7 != expected 0xAABBCCDD, buf[:8]=d7ba7b3c2456953c
+[stderr] parse_full_frame: magic 0x7DA7AB3D != expected 0xAABBCCDD, buf[:8]=3daba77d3d559fa4
+[stderr] parse_full_frame: magic 0x34343434 != expected 0xAABBCCDD, buf[:8]=3434343434343434
+[stderr] parse_full_frame: magic 0x8B2BBDD3 != expected 0xAABBCCDD, buf[:8]=d3bd2b8b29beccf8
+[stderr] parse_full_frame: magic 0x27272727 != expected 0xAABBCCDD, buf[:8]=2727272727272727
+[stderr] parse_full_frame: magic 0x493C83AF != expected 0xAABBCCDD, buf[:8]=af833c4964eebc5a
+[stderr] parse_full_frame: magic 0x66803DE9 != expected 0xAABBCCDD, buf[:8]=e93d806697bd003b
 [stderr] parse_full_frame: magic 0x0C0C0C0C != expected 0xAABBCCDD, buf[:8]=0c0c0c0c0c0c0c0c
-[stderr] parse_full_frame: magic 0xF6E6BAA9 != expected 0xAABBCCDD, buf[:8]=a9bae6f6393d497f
+[stderr] parse_full_frame: magic 0x3D06FB16 != expected 0xAABBCCDD, buf[:8]=16fb063dab297fbc
+[stderr] parse_full_frame: magic 0x16161616 != expected 0xAABBCCDD, buf[:8]=1616161616161616
+[stderr] parse_full_frame: magic 0x33B62F3E != expected 0xAABBCCDD, buf[:8]=3e2fb633bcc3f685
+[stderr] parse_full_frame: magic 0x6D66BABA != expected 0xAABBCCDD, buf[:8]=baba666dc83b7ca7
+[stderr] parse_full_frame: magic 0xCDCDCDCD != expected 0xAABBCCDD, buf[:8]=cdcdcdcdcdcdcdcd
+[stderr] parse_full_frame: magic 0x316304BD != expected 0xAABBCCDD, buf[:8]=bd046331bdc507e5
+[stderr] parse_full_frame: magic 0xFEFEFEFE != expected 0xAABBCCDD, buf[:8]=fefefefefefefefe
+[stderr] parse_full_frame: magic 0x14CC38E4 != expected 0xAABBCCDD, buf[:8]=e438cc14003dcb83
+[stderr] parse_full_frame: magic 0xDEDEDEDE != expected 0xAABBCCDD, buf[:8]=dededededededede
+[stderr] parse_full_frame: magic 0xDF783CE1 != expected 0xAABBCCDD, buf[:8]=e13c78df96bc6cca
+[stderr] parse_full_frame: magic 0x3CBE91D1 != expected 0xAABBCCDD, buf[:8]=d191be3ce67bcc3b
+[stderr] parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+[stderr] parse_full_frame: magic 0x9068BC99 != expected 0xAABBCCDD, buf[:8]=99bc68901d3afe01
+[stderr] parse_full_frame: magic 0xBABABABA != expected 0xAABBCCDD, buf[:8]=babababababababa
+[stderr] parse_full_frame: magic 0x3C765089 != expected 0xAABBCCDD, buf[:8]=8950763c9f58ee3b
+[stderr] parse_full_frame: magic 0xBEBEBEBE != expected 0xAABBCCDD, buf[:8]=bebebebebebebebe
+[stderr] parse_full_frame: magic 0x7C0D3CAE != expected 0xAABBCCDD, buf[:8]=ae3c0d7cacbb8a4d

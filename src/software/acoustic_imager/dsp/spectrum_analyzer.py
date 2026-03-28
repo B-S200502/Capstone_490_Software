@@ -4,7 +4,7 @@ Spectrum analyzer overlay: frequency bar with smooth spectrum curve.
 Three modes (MENU: SPECTRUM: dB / NORM / dBA):
 - dB: amplitude in dB (relative to peak), bottom ruler, spectrum curve, bandpass overlay.
 - NORM: normalized amplitude (power^0.4), linear 0-100% ruler, spectrum curve, bandpass overlay.
-- dBA: A-weighted dB, same scale as dB with "dBA" labels on ruler and cursor.
+- dBA: A-weighted dB, same scale as dB with "dBA" labels on ruler and vertical noise-floor cursor.
 
 Uses the same FFT data as the beamforming pipeline.
 """
@@ -63,50 +63,21 @@ def _a_weighting_db(f_hz: np.ndarray) -> np.ndarray:
 
 # Red vertical cursor for measuring freq/dB (drawn on top of bandpass)
 SPECTRUM_CURSOR_COLOR_BGR = (0, 0, 255)
+# Below-noise (right of cursor) bar/curve tint — matches heatmap floor semantics
+SPECTRUM_NOISE_FLOOR_GREY_BGR = (100, 100, 108)
 
 
-def spectrum_closest_curve_point(
-    cursor_x_bar: float,
-    tap_y: int,
-    h: int,
-    f_display_max: float,
-    fft_data: np.ndarray,
-    f_axis: np.ndarray,
-    bar_w: int,
-    use_db: bool = True,
-    mode: str = "dB",
-) -> tuple[float, float]:
+def spectrum_cursor_x_to_rel_db(cursor_x_bar: float, bar_w: int) -> float:
     """
-    Find the point on the blue spectrum curve closest to (cursor_x_bar, tap_y).
-    Returns (curve_x_bar, dot_freq_hz) so the dot always lands on the curve.
-    mode: "dB" | "NORM" | "dBA" (use_db True for dB and dBA).
+    Map spectrum bar x (0..bar_w in bar-local coords) to relative dB vs peak, same linear scale as the dB ruler:
+    FREQ_RULER_WIDTH -> REL_DB_MAX (0 dB), bar_w - BAR_MARGIN_RIGHT -> REL_DB_MIN (-60 dB).
     """
-    mag2 = np.sum(np.abs(fft_data) ** 2, axis=0).real
-    valid = f_axis <= f_display_max
-    f_valid = f_axis[valid]
-    mag_valid = mag2[valid]
-    graph_left = FREQ_RULER_WIDTH
-    graph_right = bar_w - BAR_MARGIN_RIGHT
-    graph_width = max(1, graph_right - graph_left)
-    graph_h_safe = max(1, h)
-    if mag_valid.size == 0:
-        return (float((graph_left + graph_right) // 2), 0.0)
-    if use_db:
-        ref = float(np.max(mag_valid)) + 1e-20
-        mag_db = 10.0 * np.log10((mag_valid.astype(np.float64) + 1e-20) / ref)
-        if mode == "dBA":
-            mag_db = mag_db + _a_weighting_db(f_valid)
-        db_span = SPECTRUM_DB_MAX - SPECTRUM_DB_MIN
-        frac = np.clip((mag_db - SPECTRUM_DB_MIN) / db_span, 0.0, 1.0)
-    else:
-        mag_norm = mag_valid / (float(np.max(mag_valid)) + 1e-12)
-        frac = (mag_norm ** 0.4).astype(np.float64)
-    x_curve = np.clip(graph_right - frac * graph_width, graph_left, graph_right).astype(np.float64)
-    y_curve = (graph_h_safe - 1) - (f_valid.astype(np.float64) / f_display_max) * (graph_h_safe - 1)
-    y_curve = np.clip(y_curve, 0, graph_h_safe - 1)
-    dist_sq = (x_curve - cursor_x_bar) ** 2 + (y_curve - float(tap_y)) ** 2
-    idx = int(np.argmin(dist_sq))
-    return (float(np.clip(x_curve[idx], graph_left, graph_right)), float(f_valid[idx]))
+    gl = float(FREQ_RULER_WIDTH)
+    gr = float(bar_w - BAR_MARGIN_RIGHT)
+    gw = max(1.0, gr - gl)
+    cx = float(np.clip(cursor_x_bar, gl, gr))
+    frac = (cx - gl) / gw
+    return float(REL_DB_MAX + frac * (REL_DB_MIN - REL_DB_MAX))
 
 
 def spectrum_curve_x_at_y(
@@ -153,10 +124,6 @@ def draw_spectrum_analyzer(
     f_display_max: float,
     mode: str = "dB",
     spectrum_cursor_x: Optional[float] = None,
-    spectrum_cursor_dot_active: bool = False,
-    spectrum_cursor_dot_freq: Optional[float] = None,
-    spectrum_cursor_dot_dragging: bool = False,
-    spectrum_cursor_dot_bar_pos: Optional[list] = None,
 ) -> None:
     """
     Draw the spectrum analyzer bar on the RIGHT side of the frame.
@@ -188,20 +155,14 @@ def draw_spectrum_analyzer(
     use_db = mode in ("dB", "dBA")
     draw_curve = True
     draw_bandpass = True
-    draw_h = h
-    graph_h_safe = max(1, draw_h)
+    graph_h_safe = max(1, graph_h)
     graph_left = FREQ_RULER_WIDTH
     graph_right = bar_w - BAR_MARGIN_RIGHT
     graph_width = max(2, graph_right - graph_left)
 
-    # Cursor readout (freq/dB at vertical line); set inside mag_valid block, drawn after bandpass
     cursor_draw_x: Optional[int] = None
-    dot_draw_x: Optional[int] = None  # when set, dot is drawn here (on curve) instead of on the line
     if spectrum_cursor_x is not None:
         cursor_draw_x = int(round(np.clip(spectrum_cursor_x, graph_left, graph_right)))
-    cursor_draw_y: Optional[int] = None
-    cursor_freq_hz: Optional[float] = None
-    cursor_db_val: Optional[float] = None
 
     if mag_valid.size > 0:
         if use_db:
@@ -233,6 +194,14 @@ def draw_spectrum_analyzer(
             if length_all[i] >= length_per_row[r]:
                 length_per_row[r] = length_all[i]
                 in_band_per_row[r] = in_band[i]
+
+        cx_noise_i: Optional[int] = None
+        if spectrum_cursor_x is not None:
+            cx_noise_i = int(
+                round(float(np.clip(spectrum_cursor_x, graph_left, graph_right)))
+            )
+        grey_bgr = np.array(SPECTRUM_NOISE_FLOOR_GREY_BGR, dtype=np.uint8)
+
         for row in range(graph_h_safe):
             L = length_per_row[row]
             if L <= 0:
@@ -241,10 +210,18 @@ def draw_spectrum_analyzer(
             x1 = graph_right
             t = t_row[row]
             if in_band_per_row[row]:
-                color = ((1 - t) * color_top + t * color_bot).astype(np.uint8)
+                loud_color = ((1 - t) * color_top + t * color_bot).astype(np.uint8)
             else:
-                color = ((1 - t) * dim_top + t * dim_bot).astype(np.uint8)
-            bar[row, x0:x1, :] = color
+                loud_color = ((1 - t) * dim_top + t * dim_bot).astype(np.uint8)
+            if cx_noise_i is None:
+                bar[row, x0:x1, :] = loud_color
+            else:
+                x_left_end = min(cx_noise_i, x1)
+                if x0 < x_left_end:
+                    bar[row, x0:x_left_end, :] = loud_color
+                x_grey_start = max(x0, cx_noise_i)
+                if x_grey_start < x1:
+                    bar[row, x_grey_start:x1, :] = grey_bgr
 
         if draw_curve:
             step = max(1, CURVE_SUBSAMPLE)
@@ -261,52 +238,66 @@ def draw_spectrum_analyzer(
             x_curve = np.clip(graph_right - length_curve, graph_left, graph_right).astype(np.int32)
             pts_arr = np.column_stack((x_curve, y_curve)).astype(np.int32)
             if len(pts_arr) >= 2:
-                cv2.polylines(
-                    bar, [pts_arr], isClosed=False,
-                    color=SPECTRUM_CURVE_BGR, thickness=SPECTRUM_CURVE_THICKNESS, lineType=cv2.LINE_AA
-                )
-
-        # Compute cursor: line position; dot position/readout use pinned dot_freq when set (stops bouncing)
-        if spectrum_cursor_x is not None:
-            cx = float(np.clip(spectrum_cursor_x, graph_left, graph_right))
-            cursor_draw_x = int(round(cx))
-            if spectrum_cursor_dot_freq is not None and spectrum_cursor_dot_active:
-                # Dot pinned to closest curve point: draw at (curve_x, curve_y) for this freq so it stays on the blue curve
-                cursor_freq_hz = float(spectrum_cursor_dot_freq)
-                idx = int(np.argmin(np.abs(f_valid - spectrum_cursor_dot_freq)))
-                cursor_draw_y = int(np.clip((graph_h_safe - 1) - (cursor_freq_hz / f_display_max) * (graph_h_safe - 1), 0, graph_h_safe - 1))
-                curve_x_at_dot = graph_right - frac[idx] * graph_width
-                dot_draw_x = int(np.clip(round(curve_x_at_dot), graph_left, graph_right))
-                cursor_mag = float(mag_valid[idx])
-                ref_cursor = float(np.max(mag_valid)) + 1e-20
-                cursor_db_val = 10.0 * np.log10((cursor_mag + 1e-20) / ref_cursor)
-            else:
-                # No pinned dot: dot follows curve at cursor x (for drag before first tap)
-                # frac 0 = right (0 dB), frac 1 = left (-60 dB), so target_frac = (graph_right - cx) / width
-                target_frac = (graph_right - cx) / max(1, graph_width)
-                target_frac = float(np.clip(target_frac, 0.0, 1.0))
-                idx = int(np.argmin(np.abs(frac - target_frac)))
-                cursor_freq_hz = float(f_valid[idx])
-                cursor_mag = float(mag_valid[idx])
-                ref_cursor = float(np.max(mag_valid)) + 1e-20
-                cursor_db_val = 10.0 * np.log10((cursor_mag + 1e-20) / ref_cursor)
-                cursor_draw_y = int(np.clip((graph_h_safe - 1) - (cursor_freq_hz / f_display_max) * (graph_h_safe - 1), 0, graph_h_safe - 1))
+                if cx_noise_i is None:
+                    cv2.polylines(
+                        bar, [pts_arr], isClosed=False,
+                        color=SPECTRUM_CURVE_BGR, thickness=SPECTRUM_CURVE_THICKNESS, lineType=cv2.LINE_AA
+                    )
+                else:
+                    cxf = float(cx_noise_i)
+                    th = SPECTRUM_CURVE_THICKNESS
+                    for i in range(len(pts_arr) - 1):
+                        x0p, y0p = int(pts_arr[i][0]), int(pts_arr[i][1])
+                        x1p, y1p = int(pts_arr[i + 1][0]), int(pts_arr[i + 1][1])
+                        lo, hi = (x0p, x1p) if x0p <= x1p else (x1p, x0p)
+                        if hi < cxf:
+                            cv2.line(
+                                bar, (x0p, y0p), (x1p, y1p), SPECTRUM_CURVE_BGR, th, cv2.LINE_AA
+                            )
+                        elif lo >= cxf:
+                            cv2.line(
+                                bar, (x0p, y0p), (x1p, y1p), SPECTRUM_NOISE_FLOOR_GREY_BGR, th, cv2.LINE_AA
+                            )
+                        else:
+                            if x1p == x0p:
+                                xm = x0p
+                                ym = min(y0p, y1p)
+                                yM = max(y0p, y1p)
+                                if xm < cxf:
+                                    cv2.line(
+                                        bar, (xm, ym), (xm, yM), SPECTRUM_CURVE_BGR, th, cv2.LINE_AA
+                                    )
+                                else:
+                                    cv2.line(
+                                        bar, (xm, ym), (xm, yM), SPECTRUM_NOISE_FLOOR_GREY_BGR, th, cv2.LINE_AA
+                                    )
+                            else:
+                                tclip = (cxf - float(x0p)) / float(x1p - x0p)
+                                tclip = float(np.clip(tclip, 0.0, 1.0))
+                                yi = int(round(y0p + tclip * (y1p - y0p)))
+                                xi = int(round(cxf))
+                                cv2.line(
+                                    bar, (x0p, y0p), (xi, yi), SPECTRUM_CURVE_BGR, th, cv2.LINE_AA
+                                )
+                                cv2.line(
+                                    bar, (xi, yi), (x1p, y1p), SPECTRUM_NOISE_FLOOR_GREY_BGR, th, cv2.LINE_AA
+                                )
 
     # Bottom dB / NORM ruler first, then frequency scale on the left (strokes only — dB strip shows through below).
     ruler_strip = get_cached_ruler_strip(panel_bg, h, bar_w, mode)
     bar[graph_h:h, :] = ruler_strip
-    draw_freq_ruler_vertical(bar[0:h, 0:FREQ_RULER_WIDTH], h, f_display_max)
+    draw_freq_ruler_vertical(bar[0:graph_h, 0:FREQ_RULER_WIDTH], graph_h, f_display_max)
 
     # ---- Bandpass overlay (sliding window; all modes) ----
     if draw_bandpass:
-        # Use draw_h so overlay aligns with full-height graph (ruler is drawn on top of bottom strip)
-        y_min = int(np.clip(freq_to_y(f_min, draw_h, f_display_max), 0, draw_h - 1))
-        y_max = int(np.clip(freq_to_y(f_max, draw_h, f_display_max), 0, draw_h - 1))
+        # freq_to_y uses graph_h so bandpass aligns with bars/curve and vertical freq ruler
+        y_min = int(np.clip(freq_to_y(f_min, graph_h, f_display_max), 0, graph_h - 1))
+        y_max = int(np.clip(freq_to_y(f_max, graph_h, f_display_max), 0, graph_h - 1))
         label_x = FREQ_RULER_WIDTH + 2
         fmin_khz = float(f_min) / 1000.0
         fmax_khz = float(f_max) / 1000.0
-        y_min_txt = int(np.clip(y_min - 6, 12, h - 6))
-        y_max_txt = int(np.clip(y_max - 6, 12, h - 6))
+        y_min_txt = int(np.clip(y_min - 6, 12, max(13, graph_h - 6)))
+        y_max_txt = int(np.clip(y_max - 6, 12, max(13, graph_h - 6)))
 
         y_top = min(y_min, y_max)
         y_bottom = max(y_min, y_max)
@@ -333,42 +324,16 @@ def draw_spectrum_analyzer(
         cv2.circle(bar, (handle_x, y_min), 7, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.circle(bar, (handle_x, y_max), 7, (255, 255, 255), 1, cv2.LINE_AA)
 
-    # ---- Spectrum cursor (red vertical line; dot + label only when user has tapped on line) ----
-    if spectrum_cursor_dot_bar_pos is not None:
-        spectrum_cursor_dot_bar_pos.clear()
+    # ---- Spectrum cursor: red vertical noise-floor line only (graph region, not dB strip) ----
     if cursor_draw_x is not None:
         cx = cursor_draw_x
-        cv2.line(bar, (cx, 0), (cx, h - 1), SPECTRUM_CURSOR_COLOR_BGR, 2, cv2.LINE_AA)
-    if (
-        spectrum_cursor_dot_active
-        and cursor_freq_hz is not None
-        and cursor_db_val is not None
-        and (dot_draw_x is not None or cursor_draw_x is not None)
-    ):
-        dx = dot_draw_x if dot_draw_x is not None else cursor_draw_x
-        dot_r = 9 if spectrum_cursor_dot_dragging else 6
-        cv2.circle(bar, (dx, cursor_draw_y), dot_r, SPECTRUM_CURSOR_COLOR_BGR, -1, cv2.LINE_AA)
-        cv2.circle(bar, (dx, cursor_draw_y), dot_r, (255, 255, 255), 1, cv2.LINE_AA)
-        if spectrum_cursor_dot_bar_pos is not None:
-            spectrum_cursor_dot_bar_pos[:] = [float(dx), float(cursor_draw_y)]
-        freq_khz = cursor_freq_hz / 1000.0
-        if mode == "dBA":
-            a_at_cursor = float(_a_weighting_db(np.array([cursor_freq_hz]))[0])
-            label_val = cursor_db_val + a_at_cursor
-            label = f"{freq_khz:.1f} kHz  {label_val:.1f} dBA"
-        else:
-            # Show dB in same direction as ruler: left = 0 dB, right = -60 dB
-            db_span = SPECTRUM_DB_MAX - SPECTRUM_DB_MIN
-            label_db = SPECTRUM_DB_MAX - (dx - graph_left) / max(1, graph_width) * db_span
-            label_db = float(np.clip(label_db, SPECTRUM_DB_MIN, SPECTRUM_DB_MAX))
-            label = f"{freq_khz:.1f} kHz  {label_db:.0f} dB"
-        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.35, 1)
-        # Place label above the dot, avoid clipping
-        ly = max(th + 2, cursor_draw_y - 8)
-        lx = dx + 6
-        if lx + tw > bar_w - 2:
-            lx = dx - tw - 6
-        lx = max(2, min(lx, bar_w - tw - 2))
-        cv2.putText(bar, label, (lx, ly), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.line(
+            bar,
+            (cx, 0),
+            (cx, max(0, graph_h - 1)),
+            SPECTRUM_CURSOR_COLOR_BGR,
+            2,
+            cv2.LINE_AA,
+        )
 
     frame[:, bar_left:bar_right, :] = bar

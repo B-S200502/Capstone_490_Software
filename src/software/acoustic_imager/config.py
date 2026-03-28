@@ -144,6 +144,8 @@ MAG_UART_DEVICE = "/dev/ttyS0"
 MAG_UART_BAUD = 9600
 
 DRAG_MARGIN_PX = 18
+# When tap is within red spectrum cursor x-hit, still grab f_min/f_max edge if this close in y (px)
+SPECTRUM_BANDPASS_EDGE_OVER_CURSOR_PX = 32
 
 # UI visibility (swipe/double-tap): hide offsets in px, animation speed, gesture thresholds
 UI_TOP_HUD_HIDE_OFFSET = -200      # top HUD + dropdown panel move fully up off screen (must clear pills + tallest panel, e.g. battery with 6 lines)
@@ -336,13 +338,16 @@ CALIBRATION_NOTE = "Camera left, board right, same heading"
 
 # --- HW heatmap pipeline (gain, MUSIC, directivity, etc.) ---
 # Per-mic gain correction (length N_MICS): boost weak mics; 1.0 = no change. Use metrics_debug.py --live --write-config to tune.
-SPI_MIC_GAIN = (1.49, 1.00, 2.49, 2.79, 1.15, 1.01, 2.49, 2.09, 1.11, 1.41, 2.47, 2.22, 1.18, 1.87, 2.49, 2.24)
+SPI_MIC_GAIN = (1.00, 1.29, 6.73, 6.89, 4.08, 1.80, 7.35, 5.26, 2.91, 3.61, 7.40, 6.23, 2.11, 2.87, 9.21, 6.12)
 # Whole-array gain boost (linear): 2.0 = ~6 dB; use if mics seem low
 SPI_ARRAY_GAIN = 1.0
 # Number of bins to use for heatmap in HW/LOOP: top-K by power within bandpass (replaces fixed SPI_SIM_BINS for live display)
 SPI_TOP_K_BINS = 3
 # Only bins within this many dB of peak (in bandpass) are eligible for heatmap; lower = stricter, less noisy
 SPI_NOISE_FLOOR_DB = 10.0
+# Heatmap never uses bins below this Hz (vs UI bandpass lower edge): excludes DC / very-low leakage from top-K+MUSIC.
+# Set 0.0 to disable (bandpass-only lower bound).
+HEATMAP_MIN_FREQ_HZ = 100.0
 # Number of spatial sources MUSIC assumes per bin (1 = one dominant source e.g. one speaker, 2 = allow one reflection)
 SPI_MUSIC_N_SOURCES = 1
 # Run 2D MUSIC every N frames when dual_angle; 1 = every frame (smoother), 2+ = skip frames for FPS (can flicker).

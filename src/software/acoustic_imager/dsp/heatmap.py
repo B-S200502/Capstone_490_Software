@@ -208,10 +208,9 @@ def _compute_blob_geometry(
         center_x = (w - 1) / 2.0
         center_y = (h - 1) / 2.0
         r = circle_radius_px if circle_radius_px > 0 else min(w, h) * 0.45
-        # Rotate so DOA 0° (forward) is at top of circle instead of right
-        angle_rad_rot = angle_rad + np.pi / 2.0
-        cx_all = (center_x + r * np.cos(angle_rad_rot)).astype(np.float32)
-        cy_all = (center_y - r * np.sin(angle_rad_rot)).astype(np.float32)
+        # θ=0 forward (top), θ=+π/2 right, θ=−π/2 left — same sign convention as linear heatmap x mapping
+        cx_all = (center_x + r * np.sin(angle_rad)).astype(np.float32)
+        cy_all = (center_y - r * np.cos(angle_rad)).astype(np.float32)
         cx_all = np.clip(cx_all, 0.0, float(w - 1))
         cy_all = np.clip(cy_all, 0.0, float(h - 1))
     else:
@@ -524,9 +523,11 @@ PROTRACTOR_BUFFER_PX = 3   # gap from max(dB, kHz) text to protractor left edge
 PROTRACTOR_FILL_BGR = (220, 200, 160)   # light blue-ish
 PROTRACTOR_OUTLINE_BGR = (0, 0, 0)
 PROTRACTOR_ARROW_BGR = (0, 0, 255)      # red arrow
+# Bump when static protractor art changes (invalidates _PROTRACTOR_STATIC_CACHE)
+PROTRACTOR_STATIC_VERSION = 2
 
-# Cache: static protractor (no arrow/text) keyed by (w, h)
-_PROTRACTOR_STATIC_CACHE: dict[tuple[int, int], np.ndarray] = {}
+# Cache: static protractor (no arrow/text) keyed by (version, w, h)
+_PROTRACTOR_STATIC_CACHE: dict[tuple[int, int, int], np.ndarray] = {}
 
 # EMA smoothing for tooltip (alpha = new value weight; 0.35 = smooth)
 _TOOLTIP_EMA_ALPHA = 0.35
@@ -578,7 +579,7 @@ def _tooltip_ema(key: str, raw: float, alpha: float = _TOOLTIP_EMA_ALPHA) -> flo
 
 def _get_static_protractor_base(w: int, h: int) -> np.ndarray:
     """Build or return cached static protractor (semicircle, ticks, center dot) on tooltip BG."""
-    key = (w, h)
+    key = (PROTRACTOR_STATIC_VERSION, w, h)
     if key in _PROTRACTOR_STATIC_CACHE:
         return _PROTRACTOR_STATIC_CACHE[key]
     base = np.empty((h, w, 3), dtype=np.uint8)
@@ -600,6 +601,25 @@ def _get_static_protractor_base(w: int, h: int) -> np.ndarray:
         ty2 = cy - int(r * np.sin(a_rad))
         cv2.line(base, (tx, ty), (tx2, ty2), PROTRACTOR_OUTLINE_BGR, 1, cv2.LINE_AA)
     cv2.circle(base, (cx, cy), 2, PROTRACTOR_OUTLINE_BGR, -1, cv2.LINE_AA)
+    # Major labels: acoustic degrees (0° forward at apex, ±90° at sides) — matches crosshair angle_deg
+    label_font = cv2.FONT_HERSHEY_SIMPLEX
+    label_scale = 0.28
+    label_th = 1
+    for geom_deg, txt in [(0, "-90"), (90, "0"), (180, "+90")]:
+        a_rad = np.deg2rad(180 - geom_deg)
+        ix = cx + int((r - 2) * np.cos(a_rad))
+        iy = cy - int((r - 2) * np.sin(a_rad))
+        (tw, th), _ = cv2.getTextSize(txt, label_font, label_scale, label_th)
+        if geom_deg == 0:
+            lx = max(0, ix - tw - 2)
+            ly = int(np.clip(iy + th // 2, th, h - 1))
+        elif geom_deg == 90:
+            lx = max(0, min(w - tw - 1, cx - tw // 2))
+            ly = max(th + 1, iy - 3)
+        else:
+            lx = min(w - tw - 1, ix + 3)
+            ly = int(np.clip(iy + th // 2, th, h - 1))
+        cv2.putText(base, txt, (lx, ly), label_font, label_scale, PROTRACTOR_OUTLINE_BGR, label_th, cv2.LINE_AA)
     _PROTRACTOR_STATIC_CACHE[key] = base
     return base
 
