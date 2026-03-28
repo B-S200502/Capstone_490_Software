@@ -1,6 +1,6 @@
 """
 Mode-aware spectrum ruler: draws the bottom strip scale for NORM (0-100%), dB (-60..0 dB), or dBA (-60..0 dBA).
-Also draws the left vertical frequency scale ruler (cached).
+Also draws the left vertical frequency scale ruler (optional cached strip; live bar uses draw_freq_ruler_vertical overlay).
 """
 
 from __future__ import annotations
@@ -157,27 +157,42 @@ _FREQ_RULER_MINOR_COUNT = 4
 
 
 def _freq_ruler_minor_tick_values(f_display_max: float) -> list[float]:
-    """Return frequencies for small/minor ticks (evenly spaced between each pair of majors)."""
+    """Return frequencies for small/minor ticks between each pair of majors."""
     major = _freq_ruler_tick_values(f_display_max)
     if len(major) < 2:
         return []
-    minor = []
+    minor: list[float] = []
     n = _FREQ_RULER_MINOR_COUNT
+    f_max = float(f_display_max)
     for i in range(len(major) - 1):
-        lo, hi = major[i], major[i + 1]
-        step = (hi - lo) / (n + 1)
+        lo, hi = float(major[i]), float(major[i + 1])
+        span = hi - lo
+        # e.g. 40k–45k: uniform 4 minors would be every 1k; use 2k like 10k–20k (42k, 44k).
+        short_top = (
+            abs(span - 5000.0) < 1.0
+            and abs(hi - f_max) < 1.0
+            and abs(lo % 10000.0) < 0.01
+        )
+        if short_top:
+            f = lo + 2000.0
+            while f < hi - 1e-6:
+                minor.append(f)
+                f += 2000.0
+            continue
+        step = span / (n + 1)
         for j in range(1, n + 1):
-            f = lo + step * j
-            minor.append(f)
+            minor.append(lo + step * j)
     return minor
 
 
 # Minor ticks: shorter (2 px), same color
 _FREQ_RULER_MINOR_TICK_LEN = 2
+# Major tick is 5 px wide; place "0" Hz label immediately to its right
+_FREQ_ZERO_MAJOR_LABEL_PAD_X = 6
 
-def draw_freq_ruler_vertical(roi: np.ndarray, graph_h: int, f_display_max: float) -> None:
-    """Draw frequency scale (major + minor ticks, labels). Line on LEFT; numbers on RIGHT.
-    Top label (e.g. 45k) is pushed down so it doesn't go off the top of the screen.
+def draw_freq_ruler_vertical(roi: np.ndarray, axis_h: int, f_display_max: float) -> None:
+    """Draw frequency scale (major + minor ticks, labels) onto existing pixels — no fill.
+    axis_h is the height passed to freq_to_y (match bandpass / full bar height h).
     """
     strip_h, strip_w = roi.shape[0], roi.shape[1]
     if strip_h <= 0 or strip_w <= 0:
@@ -187,7 +202,7 @@ def draw_freq_ruler_vertical(roi: np.ndarray, graph_h: int, f_display_max: float
     minor_ticks = _freq_ruler_minor_tick_values(f_display_max)
     scale_minor = _FREQ_RULER_MINOR_FONT_SCALE
     for freq_hz in minor_ticks:
-        y = freq_to_y(freq_hz, graph_h, f_display_max)
+        y = freq_to_y(freq_hz, axis_h, f_display_max)
         y = int(np.clip(y, 0, strip_h - 1))
         cv2.line(roi, (0, y), (_FREQ_RULER_MINOR_TICK_LEN, y), RULER_TICK_COLOR, 1, cv2.LINE_AA)
         if freq_hz >= 1000:
@@ -202,7 +217,7 @@ def draw_freq_ruler_vertical(roi: np.ndarray, graph_h: int, f_display_max: float
     # Major ticks and labels
     ticks = _freq_ruler_tick_values(f_display_max)
     for freq_hz in ticks:
-        y = freq_to_y(freq_hz, graph_h, f_display_max)
+        y = freq_to_y(freq_hz, axis_h, f_display_max)
         y = int(np.clip(y, 0, strip_h - 1))
         cv2.line(roi, (0, y), (5, y), RULER_TICK_COLOR, 1, cv2.LINE_AA)
         if freq_hz >= 1000:
@@ -210,26 +225,29 @@ def draw_freq_ruler_vertical(roi: np.ndarray, graph_h: int, f_display_max: float
         else:
             label = "0"
         (tw, th), _ = cv2.getTextSize(label, _FREQ_RULER_FONT, _FREQ_RULER_FONT_SCALE, _FREQ_RULER_THICKNESS)
-        lx = strip_w - 2 - tw
-        # cv2.putText uses (lx, ly) as bottom-left of text; text extends up to ly - th
-        # Center label on tick: baseline = y + th//2; clamp so top (ly - th) >= 0 and bottom ly <= strip_h - 1
-        ly_centered = y + th // 2
-        ly = max(th, min(strip_h - 1, ly_centered))  # push top label south so it doesn't go off screen
+        if freq_hz <= 0.0:
+            lx = min(_FREQ_ZERO_MAJOR_LABEL_PAD_X, strip_w - 1 - tw)
+            ly = max(th, min(strip_h - 1, y + 1))
+        else:
+            lx = strip_w - 2 - tw
+            ly_centered = y + th // 2
+            ly = max(th, min(strip_h - 1, ly_centered))
         cv2.putText(roi, label, (lx, ly), _FREQ_RULER_FONT, _FREQ_RULER_FONT_SCALE, DB_LABEL_COLOR, _FREQ_RULER_THICKNESS, cv2.LINE_AA)
 
 
 def get_cached_freq_ruler_strip(
     panel_bg: np.ndarray,
-    graph_h: int,
+    strip_h: int,
     f_display_max: float,
 ) -> np.ndarray:
-    """Return (graph_h, FREQ_RULER_WIDTH, 3) strip with panel bg + frequency scale. Cached by (graph_h, f_display_max).
-    Grey ruler line is on the left edge of the strip (bar column 0); numbers to the right.
+    """Return (strip_h, FREQ_RULER_WIDTH, 3) with panel bg + frequency scale. Cached by (strip_h, f_display_max).
+    For the live spectrum bar, prefer draw_freq_ruler_vertical(bar[0:h, 0:W], h, f_max) after the dB strip so the
+    corner stays non-opaque over the horizontal ruler.
     """
-    key = (graph_h, float(f_display_max))
+    key = (strip_h, float(f_display_max))
     if key in _FREQ_RULER_STRIP_CACHE:
         return _FREQ_RULER_STRIP_CACHE[key]
-    strip = panel_bg[0:graph_h, 0:FREQ_RULER_WIDTH].copy()
-    draw_freq_ruler_vertical(strip, graph_h, f_display_max)
+    strip = panel_bg[0:strip_h, 0:FREQ_RULER_WIDTH].copy()
+    draw_freq_ruler_vertical(strip, strip_h, f_display_max)
     _FREQ_RULER_STRIP_CACHE[key] = strip
     return strip

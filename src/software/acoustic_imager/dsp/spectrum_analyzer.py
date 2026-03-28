@@ -26,8 +26,8 @@ from .spectrum_ruler import (
     RULER_HEIGHT,
     BAR_MARGIN_RIGHT,
     FREQ_RULER_WIDTH,
+    draw_freq_ruler_vertical,
     get_cached_ruler_strip,
-    get_cached_freq_ruler_strip,
 )
 
 
@@ -184,9 +184,6 @@ def draw_spectrum_analyzer(
     bar = _bar_buf
 
     graph_h = h - RULER_HEIGHT
-    # Left vertical frequency ruler (cached)
-    freq_ruler_strip = get_cached_freq_ruler_strip(panel_bg, graph_h, f_display_max)
-    bar[0:graph_h, 0:FREQ_RULER_WIDTH] = freq_ruler_strip
 
     use_db = mode in ("dB", "dBA")
     draw_curve = True
@@ -295,9 +292,10 @@ def draw_spectrum_analyzer(
                 cursor_db_val = 10.0 * np.log10((cursor_mag + 1e-20) / ref_cursor)
                 cursor_draw_y = int(np.clip((graph_h_safe - 1) - (cursor_freq_hz / f_display_max) * (graph_h_safe - 1), 0, graph_h_safe - 1))
 
-    # Ruler: use cached strip (Phase 1)
+    # Bottom dB / NORM ruler first, then frequency scale on the left (strokes only — dB strip shows through below).
     ruler_strip = get_cached_ruler_strip(panel_bg, h, bar_w, mode)
     bar[graph_h:h, :] = ruler_strip
+    draw_freq_ruler_vertical(bar[0:h, 0:FREQ_RULER_WIDTH], h, f_display_max)
 
     # ---- Bandpass overlay (sliding window; all modes) ----
     if draw_bandpass:
