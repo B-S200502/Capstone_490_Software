@@ -20,7 +20,8 @@ from ..config import MENU_ACTIVE_BLUE, MENU_ACTIVE_BLUE_LIGHT
 MODAL_W = 580
 MODAL_H = 520
 HEADER_H = 64   # title, line
-SHUTDOWN_BTN_H = 36
+# Match Email Settings button (full row width, 44px tall)
+SHUTDOWN_BTN_H = 44
 CONTENT_PAD = 20
 ROW_H = 42
 ITEM_GAP = 14
@@ -36,11 +37,13 @@ SCROLL_BTN_H = 36
 
 COLORMAPS = ["MAGMA", "JET", "TURBO", "INFERNO"]
 
-# Inertia (like gallery)
-SETTINGS_FLING_GAIN = 2.0
-SETTINGS_EMA_ALPHA = 0.6
-SETTINGS_FRICTION = 1.2
-SETTINGS_STOP_VELOCITY = 15.0
+# Inertia (like gallery) — lower gain / higher friction = less twitchy vertical scroll
+SETTINGS_FLING_GAIN = 0.85
+SETTINGS_EMA_ALPHA = 0.45
+SETTINGS_FRICTION = 3.2
+SETTINGS_STOP_VELOCITY = 22.0
+SETTINGS_SCROLL_DRAG_SCALE = 0.52  # finger travel → scroll px (vertical-only component)
+SETTINGS_HORIZONTAL_DOMINANCE_PX = 14  # ignore vertical scroll when |dx| exceeds |dy| by this much
 
 
 def _draw_toggle(frame: np.ndarray, x: int, y: int, w: int, h: int, on: bool) -> None:
@@ -60,8 +63,6 @@ def _draw_toggle(frame: np.ndarray, x: int, y: int, w: int, h: int, on: bool) ->
 
 
 CONTENT_BOTTOM_PAD = 50  # extra space below last button so it scrolls fully into view
-# Flash Firmware button (purple); Shutdown Device (red) below it
-FLASH_FIRMWARE_BTN_H = 44
 
 
 def _compute_content_height() -> int:
@@ -71,9 +72,18 @@ def _compute_content_height() -> int:
     display_h = 20 + ITEM_GAP + 3 * (ROW_H + ITEM_GAP) + (ROW_H + ITEM_GAP) + 6 + ROW_H + ITEM_GAP + (ROW_H - 4) + SECTION_GAP  # Rotate 90° row
     # Divider + Advanced: section_gap + label + gap + 6 toggles + Calibration Suite button + section_gap
     advanced_h = SECTION_GAP + 20 + ITEM_GAP + 6 * (ROW_H + ITEM_GAP) + (CAL_SUITE_BTN_H + ITEM_GAP) + SECTION_GAP
-    # Divider + Share: ... + flash button + gap + shutdown label + gap + shutdown button + bottom padding
+    # Divider + Share: email label + email button + shutdown label + shutdown button + bottom padding
     SHUTDOWN_LABEL_H = 20 + ITEM_GAP  # "Shutdown" heading
-    share_h = SECTION_GAP + 20 + ITEM_GAP + 44 + ITEM_GAP + 20 + ITEM_GAP + FLASH_FIRMWARE_BTN_H + ITEM_GAP + SHUTDOWN_LABEL_H + SHUTDOWN_BTN_H + CONTENT_BOTTOM_PAD
+    share_h = (
+        SECTION_GAP
+        + 20
+        + ITEM_GAP
+        + 44
+        + ITEM_GAP
+        + SHUTDOWN_LABEL_H
+        + SHUTDOWN_BTN_H
+        + CONTENT_BOTTOM_PAD
+    )
     return display_h + advanced_h + share_h
 
 
@@ -95,11 +105,11 @@ def _update_settings_button_positions(
     email_h = 44
     # Content y positions (must match _build_settings_content; Calibration Suite after Record)
     cal_suite_btn_h = 44
-    y_cam, y_cross, y_rotate, y_color, y_debug, y_radar_dbg, y_radar, y_mapstyle, y_possvc, y_record = 34, 90, 146, 264, 384, 440, 496, 552, 608, 664
+    y_cam, y_cross, y_rotate, y_color = 34, 90, 146, 264
+    y_debug, y_radar_dbg, y_radar_cal_btns, y_mapstyle, y_possvc, y_record = 384, 440, 496, 552, 608, 664
     y_calibration_suite = y_record + ROW_H + ITEM_GAP  # after Record Compass History
     y_email = y_calibration_suite + cal_suite_btn_h + ITEM_GAP + SECTION_GAP + SECTION_GAP + 20 + ITEM_GAP  # after divider + "Setup Email" label
-    y_flash = y_email + email_h + ITEM_GAP + 20 + ITEM_GAP  # after "Update to latest firmware" label
-    y_shutdown_label = y_flash + FLASH_FIRMWARE_BTN_H + ITEM_GAP  # "Shutdown" heading
+    y_shutdown_label = y_email + email_h + ITEM_GAP  # "Shutdown" heading (below Email button)
     y_shutdown = y_shutdown_label + 20 + ITEM_GAP  # Shutdown Device button
     if "settings_cam" in menu_buttons:
         b = menu_buttons["settings_cam"]
@@ -126,15 +136,15 @@ def _update_settings_button_positions(
     if "settings_show_radar_debug" in menu_buttons:
         b = menu_buttons["settings_show_radar_debug"]
         b.x, b.y, b.w, b.h = hit_x, content_top + y_radar_dbg - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
-    if "settings_radar_ui" in menu_buttons:
-        b = menu_buttons["settings_radar_ui"]
-        b.x, b.y, b.w, b.h = hit_x, content_top + y_radar - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
-    if "settings_position_services" in menu_buttons:
-        b = menu_buttons["settings_position_services"]
-        b.x, b.y, b.w, b.h = hit_x, content_top + y_possvc - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
+    if "settings_radar_compass_cal_buttons" in menu_buttons:
+        b = menu_buttons["settings_radar_compass_cal_buttons"]
+        b.x, b.y, b.w, b.h = hit_x, content_top + y_radar_cal_btns - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
     if "settings_map_style" in menu_buttons:
         b = menu_buttons["settings_map_style"]
         b.x, b.y, b.w, b.h = hit_x, content_top + y_mapstyle - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
+    if "settings_position_services" in menu_buttons:
+        b = menu_buttons["settings_position_services"]
+        b.x, b.y, b.w, b.h = hit_x, content_top + y_possvc - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
     if "settings_record_compass_history" in menu_buttons:
         b = menu_buttons["settings_record_compass_history"]
         b.x, b.y, b.w, b.h = hit_x, content_top + y_record - scroll_offset, TOGGLE_W + TOGGLE_HIT_EXTRA_LEFT, ROW_H
@@ -148,19 +158,12 @@ def _update_settings_button_positions(
         b.y = (content_top + y_email - scroll_offset) - EMAIL_BTN_HIT_PAD_Y
         b.w = row_w + 2 * EMAIL_BTN_HIT_PAD_X
         b.h = email_h + 2 * EMAIL_BTN_HIT_PAD_Y
-    if "settings_flash_firmware" in menu_buttons:
-        b = menu_buttons["settings_flash_firmware"]
-        b.x, b.y = row_x, content_top + y_flash - scroll_offset
-        b.w, b.h = row_w, FLASH_FIRMWARE_BTN_H
-    # Shutdown button is narrower and centered (SHUTDOWN_BTN_MARGIN each side)
-    SHUTDOWN_BTN_MARGIN = 28
-    shutdown_btn_w = row_w - 2 * SHUTDOWN_BTN_MARGIN
     if "settings_shutdown" in menu_buttons:
         b = menu_buttons["settings_shutdown"]
-        b.x = row_x + SHUTDOWN_BTN_MARGIN
-        b.y = content_top + y_shutdown - scroll_offset
-        b.w = shutdown_btn_w
-        b.h = SHUTDOWN_BTN_H
+        b.x = row_x - EMAIL_BTN_HIT_PAD_X
+        b.y = (content_top + y_shutdown - scroll_offset) - EMAIL_BTN_HIT_PAD_Y
+        b.w = row_w + 2 * EMAIL_BTN_HIT_PAD_X
+        b.h = SHUTDOWN_BTN_H + 2 * EMAIL_BTN_HIT_PAD_Y
 
 
 def _build_settings_content(
@@ -243,11 +246,10 @@ def _build_settings_content(
     )
     y = _toggle_row(
         content_canvas,
-        "Radar UI",
-        button_state.radar_ui_enabled,
-        "settings_radar_ui",
+        "Radar calibration buttons",
+        button_state.radar_compass_cal_buttons_visible,
+        "settings_radar_compass_cal_buttons",
         y,
-        disabled=not state.MAGNETOMETER_AVAILABLE,
     )
     y = _toggle_row(
         content_canvas,
@@ -286,38 +288,27 @@ def _build_settings_content(
         menu_buttons["settings_email"] = Button(0, 0, row_w, email_h, "")
     y += email_h + ITEM_GAP
 
-    # Flash Firmware: grey label then red button
-    cv2.putText(content_canvas, "Update to latest firmware", (0, y + 14), font, 0.50, section_color, 1, cv2.LINE_AA)
-    y += 20 + ITEM_GAP
-
-    # Flash Firmware button (purple)
-    FLASH_BTN_PURPLE = (200, 0, 200)  # BGR purple
-    FLASH_BTN_PURPLE_LIGHT = (220, 100, 220)
-    cv2.rectangle(content_canvas, (0, y), (row_w, y + FLASH_FIRMWARE_BTN_H), FLASH_BTN_PURPLE, -1, cv2.LINE_AA)
-    cv2.rectangle(content_canvas, (0, y), (row_w, y + FLASH_FIRMWARE_BTN_H), FLASH_BTN_PURPLE_LIGHT, 1, cv2.LINE_AA)
-    (tw, th), _ = cv2.getTextSize("Flash Firmware", font, 0.54, 1)
-    text_x = (row_w - tw) // 2
-    text_y = y + FLASH_FIRMWARE_BTN_H // 2 + th // 2 + 2
-    cv2.putText(content_canvas, "Flash Firmware", (text_x, text_y), font, 0.54, text_color, 1, cv2.LINE_AA)
-    if "settings_flash_firmware" not in menu_buttons:
-        menu_buttons["settings_flash_firmware"] = Button(0, 0, row_w, FLASH_FIRMWARE_BTN_H, "")
-    y += FLASH_FIRMWARE_BTN_H + ITEM_GAP
-
-    # Shutdown: heading then button (narrower than flash, centered)
+    # Shutdown: heading then full-width button (same size as Email Settings)
     cv2.putText(content_canvas, "Shutdown", (0, y + 14), font, 0.50, section_color, 1, cv2.LINE_AA)
     y += 20 + ITEM_GAP
 
-    SHUTDOWN_BTN_MARGIN_C = 28  # same as in _update_settings_button_positions
-    shutdown_btn_w = row_w - 2 * SHUTDOWN_BTN_MARGIN_C
-    shutdown_btn_x = SHUTDOWN_BTN_MARGIN_C
     SHUTDOWN_BTN_BGR = (0, 0, 200)  # BGR red
     SHUTDOWN_BTN_BORDER = (100, 100, 255)
-    cv2.rectangle(content_canvas, (shutdown_btn_x, y), (shutdown_btn_x + shutdown_btn_w, y + SHUTDOWN_BTN_H), SHUTDOWN_BTN_BGR, -1, cv2.LINE_AA)
-    cv2.rectangle(content_canvas, (shutdown_btn_x, y), (shutdown_btn_x + shutdown_btn_w, y + SHUTDOWN_BTN_H), SHUTDOWN_BTN_BORDER, 1, cv2.LINE_AA)
+    cv2.rectangle(content_canvas, (0, y), (row_w, y + SHUTDOWN_BTN_H), SHUTDOWN_BTN_BGR, -1, cv2.LINE_AA)
+    cv2.rectangle(content_canvas, (0, y), (row_w, y + SHUTDOWN_BTN_H), SHUTDOWN_BTN_BORDER, 1, cv2.LINE_AA)
     (tw_sd, _), _ = cv2.getTextSize("Shutdown Device", font, 0.52, 1)
-    cv2.putText(content_canvas, "Shutdown Device", (shutdown_btn_x + (shutdown_btn_w - tw_sd) // 2, y + SHUTDOWN_BTN_H // 2 + 6), font, 0.52, text_color, 1, cv2.LINE_AA)
+    cv2.putText(
+        content_canvas,
+        "Shutdown Device",
+        ((row_w - tw_sd) // 2, y + SHUTDOWN_BTN_H // 2 + 6),
+        font,
+        0.52,
+        text_color,
+        1,
+        cv2.LINE_AA,
+    )
     if "settings_shutdown" not in menu_buttons:
-        menu_buttons["settings_shutdown"] = Button(0, 0, shutdown_btn_w, SHUTDOWN_BTN_H, "Shutdown Device")
+        menu_buttons["settings_shutdown"] = Button(0, 0, row_w, SHUTDOWN_BTN_H, "Shutdown Device")
 
 
 def draw_settings_modal(frame: np.ndarray) -> None:
@@ -403,11 +394,11 @@ def draw_settings_modal(frame: np.ndarray) -> None:
         button_state.camera_feed_rotation_deg,
         button_state.colormap_mode,
         button_state.debug_enabled,
-        button_state.radar_ui_enabled,
         button_state.map_tile_style,
         button_state.position_services_enabled,
         button_state.record_compass_history,
         button_state.show_radar_debug,
+        button_state.radar_compass_cal_buttons_visible,
     )
     global _settings_content_cache, _settings_content_cache_key, _settings_content_buffer
     cache_hit = _settings_content_cache_key == state_key and _settings_content_cache is not None
@@ -512,6 +503,7 @@ def handle_settings_modal_mouse(event: int, x: int, y: int, fw: int, fh: int) ->
             # Check we didn't hit a button - those are handled by click
             if not _hit_any_settings_button(x, y):
                 HUD.settings_modal_content_dragging = True
+                HUD.settings_modal_content_drag_start_x = x
                 HUD.settings_modal_content_drag_start_y = y
                 HUD.settings_modal_content_drag_start_scroll = HUD.settings_modal_scroll_offset
                 HUD.settings_modal_content_drag_moved = False
@@ -524,11 +516,18 @@ def handle_settings_modal_mouse(event: int, x: int, y: int, fw: int, fh: int) ->
 
     if event == cv2.EVENT_MOUSEMOVE:
         if HUD.settings_modal_content_dragging:
+            dx = x - HUD.settings_modal_content_drag_start_x
             dy = y - HUD.settings_modal_content_drag_start_y
-            if abs(dy) > ui_cache.DRAG_PX:
+            if abs(dy) > ui_cache.DRAG_PX or abs(dx) > ui_cache.DRAG_PX:
                 HUD.settings_modal_content_drag_moved = True
             if HUD.settings_modal_content_drag_moved:
-                new_scroll = HUD.settings_modal_content_drag_start_scroll - dy
+                # Vertical scroll only: ignore horizontal-dominant drags (stops sideways weirdness)
+                if abs(dx) > abs(dy) + SETTINGS_HORIZONTAL_DOMINANCE_PX:
+                    return True
+                eff_dy = dy
+                new_scroll = HUD.settings_modal_content_drag_start_scroll - int(
+                    eff_dy * SETTINGS_SCROLL_DRAG_SCALE
+                )
                 HUD.settings_modal_scroll_offset = max(0, min(int(new_scroll), max_scroll))
                 dt = max(1e-6, now - HUD.settings_modal_last_drag_t)
                 inst_v = (HUD.settings_modal_last_drag_y - y) / dt * SETTINGS_FLING_GAIN
@@ -549,7 +548,7 @@ def handle_settings_modal_mouse(event: int, x: int, y: int, fw: int, fh: int) ->
     if event == cv2.EVENT_LBUTTONUP:
         if HUD.settings_modal_content_dragging:
             HUD.settings_modal_content_dragging = False
-            if HUD.settings_modal_content_drag_moved and abs(HUD.settings_modal_scroll_velocity) > 50.0:
+            if HUD.settings_modal_content_drag_moved and abs(HUD.settings_modal_scroll_velocity) > 110.0:
                 HUD.settings_modal_inertia_active = True
                 HUD.settings_modal_last_drag_t = now
             else:
@@ -568,9 +567,9 @@ def _hit_any_settings_button(x: int, y: int) -> bool:
     """True if (x,y) hits any interactive button in the modal."""
     for k in (
         "settings_close", "settings_scroll_up", "settings_scroll_down", "settings_scrollbar",
-        "settings_flash_firmware", "settings_shutdown", "settings_email", "settings_calibration_suite", "settings_cam", "settings_theme", "settings_crosshairs", "settings_debug",
-        "settings_radar_ui", "settings_map_style", "settings_position_services", "settings_record_compass_history",
-        "settings_show_radar_debug",
+        "settings_shutdown", "settings_email", "settings_calibration_suite", "settings_cam", "settings_theme", "settings_crosshairs", "settings_debug",
+        "settings_map_style", "settings_position_services", "settings_record_compass_history",
+        "settings_show_radar_debug", "settings_radar_compass_cal_buttons",
         "settings_rotate_camera",
     ):
         if k in menu_buttons:
@@ -637,13 +636,6 @@ def handle_settings_modal_click(x: int, y: int) -> bool:
         button_state.calibration_suite_modal_open = True
         return True
 
-    # Flash Firmware
-    if "settings_flash_firmware" in menu_buttons and menu_buttons["settings_flash_firmware"].contains(x, y):
-        _reset_settings_modal_scroll_state()
-        HUD.settings_modal_open = False
-        button_state.firmware_flash_modal_open = True
-        return True
-
     # Email Settings
     if "settings_email" in menu_buttons and menu_buttons["settings_email"].contains(x, y):
         _reset_settings_modal_scroll_state()
@@ -670,10 +662,6 @@ def handle_settings_modal_click(x: int, y: int) -> bool:
     if "settings_debug" in menu_buttons and menu_buttons["settings_debug"].contains(x, y):
         button_state.debug_enabled = not button_state.debug_enabled
         return True
-    if "settings_radar_ui" in menu_buttons and menu_buttons["settings_radar_ui"].contains(x, y):
-        if state.MAGNETOMETER_AVAILABLE:
-            button_state.radar_ui_enabled = not button_state.radar_ui_enabled
-        return True
     if "settings_map_style" in menu_buttons and menu_buttons["settings_map_style"].contains(x, y):
         button_state.map_tile_style = "light" if button_state.map_tile_style == "dark" else "dark"
         return True
@@ -685,6 +673,9 @@ def handle_settings_modal_click(x: int, y: int) -> bool:
         return True
     if "settings_show_radar_debug" in menu_buttons and menu_buttons["settings_show_radar_debug"].contains(x, y):
         button_state.show_radar_debug = not button_state.show_radar_debug
+        return True
+    if "settings_radar_compass_cal_buttons" in menu_buttons and menu_buttons["settings_radar_compass_cal_buttons"].contains(x, y):
+        button_state.radar_compass_cal_buttons_visible = not button_state.radar_compass_cal_buttons_visible
         return True
 
     # Heatmap color selector
@@ -707,6 +698,7 @@ def _reset_settings_modal_scroll_state() -> None:
     """Reset all scroll-related state when modal closes."""
     HUD.settings_modal_scroll_offset = 0
     HUD.settings_modal_content_dragging = False
+    HUD.settings_modal_content_drag_start_x = 0
     HUD.settings_modal_scroll_dragging = False
     HUD.settings_modal_inertia_active = False
     HUD.settings_modal_scroll_velocity = 0.0

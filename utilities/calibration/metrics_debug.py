@@ -18,6 +18,7 @@ Usage (from repo root):
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -116,6 +117,29 @@ def _write_spi_mic_gain_to_config(config_path: str, gains: list[float]) -> bool:
         print(f"  Failed to write config: {e}")
         return False
     return True
+
+
+def _write_mic_gain_calibration_json(gains: list[float], gain_mode: str) -> None:
+    """Mirror SPI_MIC_GAIN to JSON for main app reload (same folder as suite logs)."""
+    if not gains:
+        return
+    path = os.path.join(_SCRIPT_DIR, "mic_gain_calibration.json")
+    n_mics = int(getattr(config, "N_MICS", len(gains))) if config is not None else len(gains)
+    if len(gains) != n_mics:
+        return
+    payload = {
+        "version": 1,
+        "saved_at": time.time(),
+        "n_mics": n_mics,
+        "gain_mode": str(gain_mode),
+        "spi_mic_gain": [float(g) for g in gains],
+    }
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, separators=(",", ":"))
+            f.write("\n")
+    except OSError as e:
+        print(f"  Could not write {path}: {e}")
 
 
 def _collect_frames(mgr, num_frames: int, duration_sec: float) -> list:
@@ -285,6 +309,7 @@ def run_live_metrics(
                     config_path = os.path.join(_REPO_ROOT, "src", "software", "acoustic_imager", "config.py")
                 if _write_spi_mic_gain_to_config(config_path, suggested_gains):
                     print(f"  Wrote SPI_MIC_GAIN to {config_path} (from {write_from.upper()} gain run)")
+                    _write_mic_gain_calibration_json(suggested_gains, write_from)
                     print("  Restart the acoustic imager for changes to take effect.")
                 else:
                     print("  --write-config: could not update config (see errors above).")
@@ -301,6 +326,7 @@ def run_live_metrics(
                     config_path = os.path.join(_REPO_ROOT, "src", "software", "acoustic_imager", "config.py")
                 if _write_spi_mic_gain_to_config(config_path, suggested_gains):
                     print(f"  Wrote SPI_MIC_GAIN to {config_path}")
+                    _write_mic_gain_calibration_json(suggested_gains, write_from)
                     print("  Restart the acoustic imager for changes to take effect.")
                 else:
                     print("  --write-config: could not update config (see errors above).")

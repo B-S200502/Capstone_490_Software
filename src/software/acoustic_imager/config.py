@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import os
 import struct
+from pathlib import Path
+
 import numpy as np
 
 # ===============================================================
@@ -113,8 +115,12 @@ RADAR_MAP_TILE_STYLE_DEFAULT = "dark"   # "dark" | "light"
 # RADAR_MAP_CACHE_DIR: set at runtime in main.py to repo_root / "data" / "map_tiles" (under main data folder)
 DIRECTIONAL_HISTORY_RECORD_DEFAULT = False
 RADAR_DEBUG_OVERLAY_DEFAULT = False
+# Under-radar strip: Plane / Cal 4-pt / Clear (toggle in System Settings).
+RADAR_COMPASS_CAL_UI_DEFAULT = False
 # Circular radar widget diameter (px)
 RADAR_MAP_DIAMETER_PX = 200
+# Redraw radar bitmap when heading moves this many degrees (needle tracks compass; avoids stale cache vs 15 Hz tile refresh).
+RADAR_MAP_HEADING_REDRAW_EPS_DEG = 0.35
 # Tile URLs for radar map (use {z},{x},{y} in URL)
 RADAR_MAP_TILE_URL_LIGHT = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 RADAR_MAP_TILE_URL_DARK = "https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png"
@@ -142,6 +148,19 @@ WIFI_GEO_API_KEY = _load_wifi_geo_api_key()
 # Magnetometer (compass) — main.py uses these for MagnetometerReader
 MAG_UART_DEVICE = "/dev/ttyS0"
 MAG_UART_BAUD = 9600
+# Heading plane: "auto" picks XY/XZ/YZ by largest span sum; "XZ"/"YZ" often suit screen-vertical upright mount.
+MAG_HEADING_PLANE = "auto"  # "auto" | "XY" | "XZ" | "YZ"
+MAG_CAL_MIN_SPAN = 100  # min raw axis range (LSB) before hard-iron cal applies for active plane
+MAG_APPLY_HARD_IRON_CAL = True
+# Log x,y,z + compass heading to stdout (journalctl when service pipes via systemd-cat). 0 = off.
+MAG_JOURNAL_LOG_INTERVAL_S = 0.25
+# If True, append plane= and raw_xy= (atan2(y,x) deg) for comparing planes while debugging.
+MAG_JOURNAL_LOG_VERBOSE = False
+# User four-point cal JSON lives under COMPASS_CAL_DIR (set in main.py → repo utilities/calibration)
+COMPASS_CAL_DIR: Path | None = None
+COMPASS_USER_CAL_VALID: bool = False
+COMPASS_USER_CAL_PLANE: str | None = None
+COMPASS_USER_CAL_OFFSET_DEG: float = 0.0
 
 DRAG_MARGIN_PX = 18
 # When tap is within red spectrum cursor x-hit, still grab f_min/f_max edge if this close in y (px)
@@ -163,6 +182,19 @@ UI_PILL_W = 170
 # Battery time-remaining estimate when no hardware data (typical Pi portable pack)
 BATTERY_CAPACITY_MAH = 10000   # mAh
 BATTERY_DISCHARGE_MA = 2000    # mA typical draw
+# Pack / charger (infer % when ADC reads ~5V USB rail instead of cell voltage)
+BATTERY_PACK_AH = 7.2
+BATTERY_CHARGE_CURRENT_A = 1.8   # ~0.25C for 7.2 Ah
+BATTERY_USB_MV_LOW = 4600
+BATTERY_USB_MV_HIGH = 5320
+BATTERY_PACK_READ_MIN_MV = 5800   # at/above: use voltage→% curve (same as empty pack floor)
+BATTERY_CHARGE_INFER_CAP_PCT = 95
+BATTERY_CHARGE_INFER_ANCHOR_DEFAULT = 25   # if no prior SOC when USB mode starts
+# When we would show 0% but the reading is not a trustworthy pack voltage, show this instead.
+BATTERY_DISPLAY_MIN_WHEN_UNCERTAIN_PCT = 25
+# Min seconds between writing data/battery_snapshot.json during runtime (shutdown always writes).
+BATTERY_SNAPSHOT_INTERVAL_S = 45.0
+# BATTERY_SNAPSHOT_PATH: set at runtime in main.py to repo_root / "data" / "battery_snapshot.json"
 # Gestures (swipe/double-tap) only active in content area: between dB bar and freq bar, excluding top/bottom strips
 UI_CONTENT_TOP_MARGIN = 58         # below top HUD
 UI_CONTENT_BOTTOM_MARGIN = 62      # above bottom HUD
@@ -297,7 +329,7 @@ SPI_USE_FULL_FRAME = True  # HW: one read of 32801 bytes per frame; no per-mic a
 
 # --- SPI bus & GPIO (HW only) ---
 # Single switch: 0 = SPI0 (CE0, primary header), 1 = SPI1 (CE2, secondary header). Pinouts in branch_merge_preservation_checklist.md §10.
-SPI_INTERFACE = 0  # 0 = SPI0 (/dev/spidev0.0), 1 = SPI1 (/dev/spidev1.2). Pins below are remapped automatically.
+SPI_INTERFACE = 1  # 0 = SPI0 (/dev/spidev0.0), 1 = SPI1 (/dev/spidev1.2). Pins below are remapped automatically.
 # (SPI_BUS, SPI_DEV, FRAME_READY_BCM_PIN, GAIN_CTRL_BCM_PIN) per interface — single source of truth; no other config file.
 _SPI_PIN_SETUPS = {
     0: (0, 0, 7, 25),   # SPI0: /dev/spidev0.0, frame-ready BCM7, gain BCM25
@@ -338,7 +370,7 @@ CALIBRATION_NOTE = "Camera left, board right, same heading"
 
 # --- HW heatmap pipeline (gain, MUSIC, directivity, etc.) ---
 # Per-mic gain correction (length N_MICS): boost weak mics; 1.0 = no change. Use metrics_debug.py --live --write-config to tune.
-SPI_MIC_GAIN = (1.00, 1.29, 6.73, 6.89, 4.08, 1.80, 7.35, 5.26, 2.91, 3.61, 7.40, 6.23, 2.11, 2.87, 9.21, 6.12)
+SPI_MIC_GAIN = (11.84, 100.00, 100.00, 6.02, 3.06, 1.00, 6.94, 8.26, 6.32, 1.64, 9.07, 7.33, 6.32, 1.82, 8.58, 6.71)
 # Whole-array gain boost (linear): 2.0 = ~6 dB; use if mics seem low
 SPI_ARRAY_GAIN = 1.0
 # Number of bins to use for heatmap in HW/LOOP: top-K by power within bandpass (replaces fixed SPI_SIM_BINS for live display)
@@ -401,8 +433,8 @@ x_coords_hw = np.array([
     -0.003000, -0.012800, 0.018300, 0.007500,
 ])
 y_coords_hw = np.array([
-    0.007080, 0.024280, 0.008380, 0.017780, 0.014380, 0.001480,
-    0.010480, 0.024080, -0.008120, -0.009620, -0.005120, -0.000720,
+    0.007080, 0.004280, 0.008380, 0.017780, 0.014380, 0.001480,
+    0.010480, 0.022760, -0.008120, -0.009620, -0.005120, -0.000720,
     -0.016020, -0.020520, -0.006920, -0.021120,
 ])
-pitch_hw = 0.002179
+pitch_hw = 0.001525

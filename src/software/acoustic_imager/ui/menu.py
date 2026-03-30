@@ -24,7 +24,7 @@ def _blue_gradient_overlay(h: int, w: int, top_bgr: Tuple[int, int, int], bot_bg
 
 
 # Keys for menu dropdown (positions are shifted by offset_x when drawing)
-_MENU_DROPDOWN_KEYS = ("wifi", "main_menu_settings", "fps30", "fpsmax", "gain", "source", "spectrum_analyzer")
+_MENU_DROPDOWN_KEYS = ("wifi", "main_menu_settings", "menu_radar_ui", "fps30", "fpsmax", "gain", "source", "spectrum_analyzer")
 
 
 def draw_menu(frame: np.ndarray, offset_x: float = 0.0, offset_y: float = 0.0) -> None:
@@ -66,9 +66,9 @@ def draw_menu(frame: np.ndarray, offset_x: float = 0.0, offset_y: float = 0.0) -
     if not button_state.menu_open:
         return
 
-    # SHOT and Gallery live in bottom HUD only; menu dropdown has 5 rows (wifi|settings, fps, gain, source, spectrum_analyzer)
+    # SHOT and Gallery live in bottom HUD only; menu dropdown: wifi|settings, radar, fps, gain, source, spectrum
     item_h, gap, menu_w = 40, 8, menu_btn.w
-    dropdown_h = 5 * (item_h + gap) + gap
+    dropdown_h = 6 * (item_h + gap) + gap
     dropdown_y = menu_btn.y - dropdown_h - gap
     oy = int(offset_y)
 
@@ -84,6 +84,10 @@ def draw_menu(frame: np.ndarray, offset_x: float = 0.0, offset_y: float = 0.0) -
     menu_buttons["spectrum_analyzer"].is_active = True
     menu_buttons["spectrum_analyzer"].text = f"SPECTRUM: {button_state.spectrum_analyzer_mode}"
     menu_buttons["gallery"].is_active = button_state.gallery_open
+    if "menu_radar_ui" in menu_buttons:
+        on = button_state.radar_ui_enabled
+        menu_buttons["menu_radar_ui"].text = "RADAR: ON" if on else "RADAR: OFF"
+        menu_buttons["menu_radar_ui"].is_active = on
 
     white_border = (255, 255, 255)
     ox = 0  # dropdown stays fixed horizontally; no horizontal offset applied

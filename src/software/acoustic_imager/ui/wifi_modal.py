@@ -291,34 +291,34 @@ def _draw_list_screen(
 def _draw_password_screen(
     frame: np.ndarray, fw: int, fh: int, font, text_color, border_color
 ) -> None:
-    """Draw password form + standard keyboard."""
-    modal_w = MODAL_W
-    modal_h = MODAL_H_PASSWORD
-    modal_x = (fw - modal_w) // 2
-    modal_y = (fh - modal_h) // 2
+    """Full-width password strip + edge-to-edge keyboard (gallery-scale keys)."""
+    pad = 20
+    # Separator between form and keyboard
+    sep_color = border_color
+    top_block_h = 150
+    key_gap = 10
+    n_rows = 5
+    keyboard_h = max(220, fh - top_block_h - 24)
+    keyboard_y0 = fh - keyboard_h
+    cv2.line(frame, (0, keyboard_y0), (fw, keyboard_y0), sep_color, 2, cv2.LINE_AA)
+    content_w = max(200, fw - 2 * pad)
 
-    cv2.rectangle(frame, (modal_x, modal_y), (modal_x + modal_w, modal_y + modal_h), (40, 40, 40), -1)
-    cv2.rectangle(frame, (modal_x, modal_y), (modal_x + modal_w, modal_y + modal_h), border_color, 3, cv2.LINE_AA)
-
-    pad = 16
     ssid_display = normalize_ssid(HUD.wifi_connect_ssid or "")
-    title_y = modal_y + 32
-    cv2.putText(frame, f"Connect to: {ssid_display[:28]}", (modal_x + pad, title_y), font, 0.56, text_color, 1, cv2.LINE_AA)
+    title_y = 36
+    cv2.putText(frame, f"Connect to: {ssid_display[:42]}", (pad, title_y), font, 0.62, text_color, 1, cv2.LINE_AA)
 
-    # Password field with show/hide toggle
-    field_y = modal_y + 56
-    field_h = 40
-    eye_btn_w = 36
-    eye_btn_gap = 6
-    field_w = modal_w - 2 * pad - eye_btn_w - eye_btn_gap
-    field_x = modal_x + pad
-    cv2.putText(frame, "Password:", (field_x, field_y - 8), font, 0.48, (200, 200, 200), 1, cv2.LINE_AA)
+    field_y = 56
+    field_h = 46
+    eye_btn_w = 48
+    eye_btn_gap = 10
+    field_w = fw - 2 * pad - eye_btn_w - eye_btn_gap
+    field_x = pad
+    cv2.putText(frame, "Password:", (field_x, field_y - 6), font, 0.52, (200, 200, 200), 1, cv2.LINE_AA)
     cv2.rectangle(frame, (field_x, field_y), (field_x + field_w, field_y + field_h), (28, 28, 34), -1)
     cv2.rectangle(frame, (field_x, field_y), (field_x + field_w, field_y + field_h), (120, 120, 120), 1, cv2.LINE_AA)
     pw_visible = HUD.wifi_password_visible
     pw_display = HUD.wifi_password if pw_visible else ("*" * len(HUD.wifi_password))
-    cv2.putText(frame, pw_display or " ", (field_x + 8, field_y + field_h // 2 + 6), font, 0.52, text_color, 1, cv2.LINE_AA)
-    # Show password (eye) button
+    cv2.putText(frame, pw_display or " ", (field_x + 10, field_y + field_h // 2 + 8), font, 0.56, text_color, 1, cv2.LINE_AA)
     eye_x = field_x + field_w + eye_btn_gap
     eye_y = field_y + (field_h - eye_btn_w) // 2
     eye_btn_h = min(eye_btn_w, field_h)
@@ -337,10 +337,9 @@ def _draw_password_screen(
         menu_buttons["wifi_password_toggle"].x, menu_buttons["wifi_password_toggle"].y = eye_x, eye_y
         menu_buttons["wifi_password_toggle"].w, menu_buttons["wifi_password_toggle"].h = eye_btn_w, eye_btn_h
 
-    # Connect button
-    conn_w, conn_h = 100, 36
-    conn_x = modal_x + modal_w - conn_w - pad
-    conn_y = field_y + field_h + 12
+    conn_w, conn_h = 140, 44
+    conn_x = fw - conn_w - pad
+    conn_y = field_y + field_h + 14
     if "wifi_connect_btn" not in menu_buttons:
         menu_buttons["wifi_connect_btn"] = Button(conn_x, conn_y, conn_w, conn_h, "Connect")
     else:
@@ -348,33 +347,28 @@ def _draw_password_screen(
         menu_buttons["wifi_connect_btn"].w, menu_buttons["wifi_connect_btn"].h = conn_w, conn_h
     menu_buttons["wifi_connect_btn"].draw(frame, transparent=True, active_color=MENU_ACTIVE_BLUE)
 
-    # Status message
     status = HUD.wifi_connect_status
     msg = HUD.wifi_connect_message
+    status_y = conn_y + conn_h + 22
     if status == "connecting":
-        cv2.putText(frame, "Connecting...", (modal_x + pad, conn_y + conn_h + 24), font, 0.44, (200, 200, 0), 1, cv2.LINE_AA)
+        cv2.putText(frame, "Connecting...", (pad, status_y), font, 0.48, (200, 200, 0), 1, cv2.LINE_AA)
     elif status == "ok":
-        cv2.putText(frame, "Connected!", (modal_x + pad, conn_y + conn_h + 24), font, 0.44, (0, 200, 100), 1, cv2.LINE_AA)
+        cv2.putText(frame, "Connected!", (pad, status_y), font, 0.48, (0, 200, 100), 1, cv2.LINE_AA)
     elif status == "error" and msg:
-        # Show full error (e.g. "Connection activation failed: Not authorized") on up to 2 lines
-        err_line1 = msg[:48]
-        err_line2 = msg[48:96] if len(msg) > 48 else ""
-        cv2.putText(frame, err_line1, (modal_x + pad, conn_y + conn_h + 24), font, 0.40, (0, 0, 220), 1, cv2.LINE_AA)
+        err_line1 = msg[:56]
+        err_line2 = msg[56:112] if len(msg) > 56 else ""
+        cv2.putText(frame, err_line1, (pad, status_y), font, 0.42, (0, 0, 220), 1, cv2.LINE_AA)
         if err_line2:
-            cv2.putText(frame, err_line2, (modal_x + pad, conn_y + conn_h + 42), font, 0.40, (0, 0, 220), 1, cv2.LINE_AA)
+            cv2.putText(frame, err_line2, (pad, status_y + 20), font, 0.42, (0, 0, 220), 1, cv2.LINE_AA)
 
-    # Keyboard: standard layout (matches app style)
-    keyboard_y0 = modal_y + modal_h - 200
-    keyboard_h = 200
-    content_w = modal_w - 2 * pad
-    key_gap = 6
-    n_rows = 5
-    dims = compute_standard_keyboard_dimensions(content_w, keyboard_h, key_gap=key_gap, n_rows=n_rows)
+    dims = compute_standard_keyboard_dimensions(
+        content_w, keyboard_h - 2 * key_gap, key_gap=key_gap, n_rows=n_rows, max_key_w=200
+    )
     key_w, key_h, sp_w = dims["key_w"], dims["key_h"], dims["sp_w"]
-    key_x_base = modal_x + pad
+    key_x_base = (fw - content_w) // 2
     key_y = keyboard_y0 + key_gap
-    key_font = 0.56
-    key_font_special = 0.50
+    key_font = 0.72
+    key_font_special = 0.64
     is_symbol = HUD.wifi_keyboard_mode == "symbol"
     shift_highlight = HUD.wifi_shift_next
 
@@ -392,17 +386,17 @@ def _draw_password_screen(
         )
 
     if "wifi_modal_panel" not in menu_buttons:
-        menu_buttons["wifi_modal_panel"] = Button(modal_x, modal_y, modal_w, modal_h, "")
+        menu_buttons["wifi_modal_panel"] = Button(0, 0, fw, fh, "")
     else:
         b = menu_buttons["wifi_modal_panel"]
-        b.x, b.y, b.w, b.h = modal_x, modal_y, modal_w, modal_h
+        b.x, b.y, b.w, b.h = 0, 0, fw, fh
 
     if "wifi_keyboard_region" not in menu_buttons:
-        menu_buttons["wifi_keyboard_region"] = Button(modal_x, keyboard_y0, modal_w, keyboard_h, "")
+        menu_buttons["wifi_keyboard_region"] = Button(0, keyboard_y0, fw, keyboard_h, "")
     else:
-        menu_buttons["wifi_keyboard_region"].x = modal_x
+        menu_buttons["wifi_keyboard_region"].x = 0
         menu_buttons["wifi_keyboard_region"].y = keyboard_y0
-        menu_buttons["wifi_keyboard_region"].w = modal_w
+        menu_buttons["wifi_keyboard_region"].w = fw
         menu_buttons["wifi_keyboard_region"].h = keyboard_h
 
 

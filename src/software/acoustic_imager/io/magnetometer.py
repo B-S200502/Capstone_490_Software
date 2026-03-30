@@ -1,6 +1,10 @@
 """
 Magnetometer reader for BN-880 (or compatible): compass via UART (NMEA HDT/HDG) or I2C (HMC5883L).
 Updates HUD.compass_heading_deg and HUD.compass_heading_valid. Stub/demo when device unavailable.
+
+Upright mount (screen vertical to table): raw atan2(y,x) often barely moves when yawing; try
+MAG_HEADING_PLANE "XZ" or "YZ" so heading uses the sensor pair that sees the horizontal field.
+Tilt-compensated compass needs an accelerometer/IMU (not present on this I2C path).
 """
 
 from __future__ import annotations
@@ -207,7 +211,10 @@ class MagnetometerReader:
                         continue
                     heading = _parse_heading_nmea(line)
                     if heading is not None:
-                        HUD.compass_heading_deg = (heading % 360.0)
+                        hdg = heading % 360.0
+                        if bool(getattr(config, "COMPASS_USER_CAL_VALID", False)):
+                            hdg = (hdg + float(getattr(config, "COMPASS_USER_CAL_OFFSET_DEG", 0.0))) % 360.0
+                        HUD.compass_heading_deg = hdg
                         HUD.compass_heading_valid = True
             try:
                 ser.close()
@@ -219,7 +226,7 @@ class MagnetometerReader:
             time.sleep(retry_sleep)
 
     def _run_i2c(self) -> None:
-        """Read HMC5883L over I2C; compute heading from atan2(y, x). Retry on failure."""
+        """Read HMC5883L over I2C; heading from config plane or auto-selected pair. Retry on failure."""
         retry_sleep = 2.0
         while not self._stop.is_set():
             try:
@@ -249,14 +256,12 @@ class MagnetometerReader:
                     val -= 65536
                 return val
 
+            mag_journal_last = 0.0
             while not self._stop.is_set():
                 try:
                     x = read_word_2c(0x03)
                     z = read_word_2c(0x05)
                     y = read_word_2c(0x07)
-                    heading_deg = math.degrees(math.atan2(y, x))
-                    if heading_deg < 0:
-                        heading_deg += 360.0
                     # Track extrema for quick hard-iron bias diagnostics.
                     if HUD.mag_x_min is None or x < HUD.mag_x_min:
                         HUD.mag_x_min = int(x)
@@ -289,27 +294,71 @@ class MagnetometerReader:
                             h += 360.0
                         return h
 
-                    pair_scores = {
-                        "XY": x_span + y_span,
-                        "XZ": x_span + z_span,
-                        "YZ": y_span + z_span,
-                    }
-                    best_pair = max(pair_scores, key=pair_scores.get)
-                    if best_pair == "XZ":
-                        heading_cal_deg = heading_from(x_cal, z_cal)
-                    elif best_pair == "YZ":
-                        heading_cal_deg = heading_from(y_cal, z_cal)
-                    else:
-                        heading_cal_deg = heading_from(x_cal, y_cal)
-
                     min_span = int(getattr(config, "MAG_CAL_MIN_SPAN", 100))
-                    if best_pair == "XZ":
-                        cal_ready = x_span >= min_span and z_span >= min_span
-                    elif best_pair == "YZ":
-                        cal_ready = y_span >= min_span and z_span >= min_span
+                    apply_hi = bool(getattr(config, "MAG_APPLY_HARD_IRON_CAL", True))
+                    raw_xy_heading = heading_from(float(x), float(y))
+
+                    def fixed_plane_heading(plane: str) -> tuple[float, float, bool, str]:
+                        pl = plane.upper()
+                        if pl == "XZ":
+                            return (
+                                heading_from(float(x), float(z)),
+                                heading_from(x_cal, z_cal),
+                                x_span >= min_span and z_span >= min_span,
+                                "XZ",
+                            )
+                        if pl == "YZ":
+                            return (
+                                heading_from(float(y), float(z)),
+                                heading_from(y_cal, z_cal),
+                                y_span >= min_span and z_span >= min_span,
+                                "YZ",
+                            )
+                        return (
+                            heading_from(float(x), float(y)),
+                            heading_from(x_cal, y_cal),
+                            x_span >= min_span and y_span >= min_span,
+                            "XY",
+                        )
+
+                    user_cal = bool(getattr(config, "COMPASS_USER_CAL_VALID", False))
+                    user_plane = getattr(config, "COMPASS_USER_CAL_PLANE", None)
+                    user_off = float(getattr(config, "COMPASS_USER_CAL_OFFSET_DEG", 0.0))
+
+                    if user_cal and user_plane in ("XY", "XZ", "YZ"):
+                        heading_deg, heading_cal_deg, cal_ready, best_pair = fixed_plane_heading(str(user_plane))
+                        use_cal = apply_hi and cal_ready
+                        base = heading_cal_deg if use_cal else heading_deg
+                        HUD.compass_heading_deg = (base + user_off) % 360.0
                     else:
-                        cal_ready = x_span >= min_span and y_span >= min_span
-                    use_cal = bool(getattr(config, "MAG_APPLY_HARD_IRON_CAL", True)) and cal_ready
+                        plane_mode = str(getattr(config, "MAG_HEADING_PLANE", "auto")).strip().lower()
+                        if plane_mode in ("xy", "xz", "yz"):
+                            heading_deg, heading_cal_deg, cal_ready, best_pair = fixed_plane_heading(plane_mode)
+                            use_cal = apply_hi and cal_ready
+                            HUD.compass_heading_deg = heading_cal_deg if use_cal else heading_deg
+                        else:
+                            pair_scores = {
+                                "XY": x_span + y_span,
+                                "XZ": x_span + z_span,
+                                "YZ": y_span + z_span,
+                            }
+                            best_pair = max(pair_scores, key=pair_scores.get)
+                            if best_pair == "XZ":
+                                heading_cal_deg = heading_from(x_cal, z_cal)
+                            elif best_pair == "YZ":
+                                heading_cal_deg = heading_from(y_cal, z_cal)
+                            else:
+                                heading_cal_deg = heading_from(x_cal, y_cal)
+                            if best_pair == "XZ":
+                                cal_ready = x_span >= min_span and z_span >= min_span
+                            elif best_pair == "YZ":
+                                cal_ready = y_span >= min_span and z_span >= min_span
+                            else:
+                                cal_ready = x_span >= min_span and y_span >= min_span
+                            use_cal = apply_hi and cal_ready
+                            heading_deg = raw_xy_heading
+                            HUD.compass_heading_deg = heading_cal_deg if use_cal else heading_deg
+
                     HUD.mag_x_raw = int(x)
                     HUD.mag_y_raw = int(y)
                     HUD.mag_z_raw = int(z)
@@ -320,8 +369,19 @@ class MagnetometerReader:
                     HUD.mag_heading_dbg = float(heading_deg)
                     HUD.mag_heading_cal_dbg = float(heading_cal_deg)
                     HUD.mag_cal_active = bool(use_cal)
-                    HUD.compass_heading_deg = heading_cal_deg if use_cal else heading_deg
                     HUD.compass_heading_valid = True
+                    log_iv = float(getattr(config, "MAG_JOURNAL_LOG_INTERVAL_S", 0.0))
+                    if log_iv > 0:
+                        tn = time.time()
+                        if tn - mag_journal_last >= log_iv:
+                            mag_journal_last = tn
+                            line = (
+                                f"[mag] x={HUD.mag_x_raw} y={HUD.mag_y_raw} z={HUD.mag_z_raw} "
+                                f"heading={HUD.compass_heading_deg:.1f} plane={best_pair}"
+                            )
+                            if bool(getattr(config, "MAG_JOURNAL_LOG_VERBOSE", False)):
+                                line += f" raw_xy={raw_xy_heading:.1f}"
+                            print(line, flush=True)
                 except Exception:
                     HUD.compass_heading_valid = False
                     break

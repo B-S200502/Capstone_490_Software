@@ -112,6 +112,13 @@ from acoustic_imager.ui.handlers import (
 )
 from acoustic_imager.ui.wifi_modal import draw_wifi_modal, handle_wifi_modal_click, handle_wifi_modal_touch_drag
 from acoustic_imager.io.magnetometer import MagnetometerReader, probe_i2c_magnetometer
+from acoustic_imager.io.compass_calibration import (
+    apply_loaded_calibration_to_config,
+    clear_user_calibration,
+    save_calibration,
+    solve_from_samples,
+)
+from acoustic_imager.io.mic_gain_calibration import apply_mic_gain_calibration_json
 from acoustic_imager.io.gps_reader import GPSReader
 from acoustic_imager.io.position_manager import PositionManager
 from acoustic_imager.io.directional_history_store import DirectionalHistoryStore
@@ -121,10 +128,6 @@ from acoustic_imager.ui.settings_modal import (
     handle_settings_modal_mouse,
     handle_settings_modal_scroll,
 )
-from acoustic_imager.ui.firmware_flash_modal import (
-    draw_firmware_flash_modal,
-    handle_firmware_flash_modal_click,
-)
 from acoustic_imager.ui.calibration_suite_modal import (
     draw_calibration_suite_modal,
     handle_calibration_suite_modal_click,
@@ -133,7 +136,12 @@ from acoustic_imager.ui.calibration_suite_modal import (
 )
 from acoustic_imager.ui.acoustic_radar_map import draw_radar_map_widget, update_detection_history
 from acoustic_imager.ui.video_recorder import VideoRecorder
-from acoustic_imager.ui.battery_icon import draw_battery_icon_for_view, battery_mv_to_percent
+from acoustic_imager.ui.battery_icon import (
+    draw_battery_icon_for_view,
+    load_persisted_battery_state,
+    resolve_battery_display_percent,
+    save_persisted_battery_state,
+)
 
 # region agent log
 _AGENT_DEBUG_LOG_PATH = "/home/acousticlord/Capstone_490_Software/.cursor/debug-a9e491.log"
@@ -215,6 +223,57 @@ except ImportError:
 
 
 # ===============================================================
+# Compass 4-point cal (hit rects from draw_radar_map_widget)
+# ===============================================================
+_MAG_PLANE_CYCLE = ("auto", "xy", "xz", "yz")
+
+
+def _compass_cal_handle_click(key: str) -> None:
+    st = button_state
+    if key == "mag_plane_cycle":
+        cur = str(getattr(config, "MAG_HEADING_PLANE", "auto")).strip().lower()
+        if cur not in _MAG_PLANE_CYCLE:
+            cur = "auto"
+        i = _MAG_PLANE_CYCLE.index(cur)
+        config.MAG_HEADING_PLANE = _MAG_PLANE_CYCLE[(i + 1) % len(_MAG_PLANE_CYCLE)]
+        return
+    if key == "compass_cal_start":
+        st.compass_cal_step = 1
+        st.compass_cal_samples = []
+        st.compass_cal_banner = ""
+        return
+    if key == "compass_cal_clear":
+        clear_user_calibration(config)
+        st.compass_cal_banner = "User cal cleared"
+        return
+    if key == "compass_cal_cancel":
+        st.compass_cal_step = 0
+        st.compass_cal_samples = []
+        st.compass_cal_banner = ""
+        return
+    if key == "compass_cal_capture":
+        if st.compass_cal_step < 1:
+            return
+        st.compass_cal_samples.append((int(HUD.mag_x_raw), int(HUD.mag_y_raw), int(HUD.mag_z_raw)))
+        if len(st.compass_cal_samples) < 4:
+            st.compass_cal_step = len(st.compass_cal_samples) + 1
+            return
+        sol, err = solve_from_samples(st.compass_cal_samples)
+        if err or sol is None:
+            st.compass_cal_banner = err or "cal failed"
+            st.compass_cal_step = 0
+            st.compass_cal_samples = []
+            return
+        plane = str(sol["plane"])
+        off = float(sol["offset_deg"])
+        save_calibration(plane, off, samples=list(st.compass_cal_samples))
+        apply_loaded_calibration_to_config(config)
+        st.compass_cal_step = 0
+        st.compass_cal_samples = []
+        st.compass_cal_banner = f"Saved {plane} +{off:.0f} deg"
+
+
+# ===============================================================
 # Mouse callback for interactive controls
 # ===============================================================
 def mouse_callback(event, x: int, y: int, flags, param) -> None:
@@ -278,12 +337,6 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                 state.ui_click_was_on_ui = True
                 return
 
-        # Firmware Flash modal (when open, handle first)
-        if button_state.firmware_flash_modal_open:
-            if handle_firmware_flash_modal_click(mx, my):
-                state.ui_click_was_on_ui = True
-                return
-
         # Calibration Suite modal (mouse first for drag-to-scroll, then click)
         if button_state.calibration_suite_modal_open:
             if handle_calibration_suite_modal_mouse(event, mx, my, config.WIDTH, config.HEIGHT):
@@ -333,6 +386,17 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                             )
                             state.ui_click_was_on_ui = True
                             return
+
+        # 2b) Compass calibration strip under radar map
+        if not button_state.gallery_open and button_state.radar_ui_enabled:
+            cal_rects = getattr(state, "COMPASS_CAL_HIT_RECTS", None)
+            if cal_rects:
+                for ckey, rect in cal_rects.items():
+                    rx, ry, rw, rh = rect
+                    if rx <= mx < rx + rw and ry <= my < ry + rh:
+                        _compass_cal_handle_click(ckey)
+                        state.ui_click_was_on_ui = True
+                        return
 
         # 3) Menu button and dropdown (only when menu visible; hit-test accounts for offset_x and offset_y)
         menu_mx = mx - int(state.ui_menu_offset)
@@ -842,9 +906,15 @@ def main() -> None:
     state.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     print(f"Output directory: {state.OUTPUT_DIR}")
 
+    config.BATTERY_SNAPSHOT_PATH = repo_root / "data" / "battery_snapshot.json"
+    load_persisted_battery_state(config.BATTERY_SNAPSHOT_PATH)
+
     # Radar map tile cache: under main data/ folder (same as heatmap_captures, directional_history)
     config.RADAR_MAP_CACHE_DIR = repo_root / "data" / "map_tiles"
     config.RADAR_MAP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    config.COMPASS_CAL_DIR = repo_root / "utilities" / "calibration"
+    config.COMPASS_CAL_DIR.mkdir(parents=True, exist_ok=True)
 
     # ---- Logging: file + stderr (journalctl captures stderr) ----
     log_file = state.OUTPUT_DIR / "acoustic_imager.log"
@@ -936,6 +1006,12 @@ def main() -> None:
     button_state.debug_enabled = False
     init_buttons(content_right, state.CAMERA_AVAILABLE)
     init_menu_buttons(content_right, config.HEIGHT)
+
+    apply_loaded_calibration_to_config(config)
+
+    _mic_gain_json = config.COMPASS_CAL_DIR / "mic_gain_calibration.json"
+    if apply_mic_gain_calibration_json(config, _mic_gain_json):
+        log.info("Loaded SPI_MIC_GAIN from %s", _mic_gain_json)
 
     # ---- Magnetometer (compass) reader ----
     mag_reader = MagnetometerReader(
@@ -1121,7 +1197,10 @@ def main() -> None:
 
             source_stats = latest_frame.stats
             fft_data = latest_frame.fft_data if latest_frame.ok else None
-            battery_percent = battery_mv_to_percent(getattr(latest_frame, "battery_mv", None))
+            battery_percent = resolve_battery_display_percent(
+                getattr(latest_frame, "battery_mv", None),
+                time.time(),
+            )
 
             # Track firmware (SPI) receive rate for net pill dropdown
             if source_label in ("HW", "LOOP"):
@@ -2008,7 +2087,7 @@ def main() -> None:
 
             # Radar mini-map under Mb/s pill (main view only, before modal overlays).
             if not button_state.gallery_open and button_state.radar_ui_enabled:
-                draw_radar_map_widget(
+                state.COMPASS_CAL_HIT_RECTS = draw_radar_map_widget(
                     output_frame,
                     hud_rects.net,
                     heading_deg=HUD.compass_heading_deg,
@@ -2017,7 +2096,14 @@ def main() -> None:
                     show_debug=button_state.show_radar_debug,
                     hud_offset_y=state.ui_bottom_hud_offset,
                     now_s=time.time(),
+                    compass_cal_step=button_state.compass_cal_step,
+                    compass_cal_banner=button_state.compass_cal_banner,
+                    user_cal_active=bool(getattr(config, "COMPASS_USER_CAL_VALID", False)),
+                    mag_heading_plane=str(getattr(config, "MAG_HEADING_PLANE", "auto")),
+                    show_compass_cal_ui=button_state.radar_compass_cal_buttons_visible,
                 )
+            else:
+                state.COMPASS_CAL_HIT_RECTS = None
 
             # WiFi modal drawn after top HUD
             if HUD.wifi_modal_open:
@@ -2031,10 +2117,6 @@ def main() -> None:
             if button_state.email_settings_modal_open:
                 from acoustic_imager.ui.email_modal import draw_email_modal
                 draw_email_modal(output_frame, state.OUTPUT_DIR)
-
-            # Firmware Flash modal
-            if button_state.firmware_flash_modal_open:
-                draw_firmware_flash_modal(output_frame)
 
             # Calibration Suite modal
             if button_state.calibration_suite_modal_open:
@@ -2109,9 +2191,6 @@ def main() -> None:
                 button_state.email_modal_provider = ""
                 button_state.email_test_status = ""
                 button_state.email_test_message = ""
-            elif key == 27 and button_state.firmware_flash_modal_open:
-                button_state.firmware_flash_modal_open = False
-                button_state.firmware_flash_status = ""
             elif key == 27 and button_state.calibration_suite_modal_open:
                 button_state.calibration_suite_modal_open = False
             elif key == ord("c"):
@@ -2159,6 +2238,7 @@ def main() -> None:
         camera_mgr.close()
 
         cv2.destroyAllWindows()
+        save_persisted_battery_state(getattr(config, "BATTERY_SNAPSHOT_PATH", None))
         print("Shutdown complete.")
 
 

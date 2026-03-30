@@ -184,7 +184,11 @@ def draw_standard_symbol_keyboard(
 
 
 def compute_standard_keyboard_dimensions(
-    content_w: int, keyboard_h: int, key_gap: int = 6, n_rows: int = 5,
+    content_w: int,
+    keyboard_h: int,
+    key_gap: int = 6,
+    n_rows: int = 5,
+    max_key_w: int = 120,
 ) -> dict:
     """Compute key_w, key_h, sp_w to fit standard keyboard in content_w x keyboard_h. Keys expand to fill modal."""
     key_h = (keyboard_h - key_gap * (n_rows + 1)) // n_rows
@@ -193,8 +197,8 @@ def compute_standard_keyboard_dimensions(
     key_w_alpha = (content_w - 8 * key_gap) // 11 if content_w > 0 else 28
     # Symbol row 1: 10 keys + 9 gaps
     key_w_sym = (content_w - 9 * key_gap) // 10 if content_w > 0 else 28
-    # Use full width (cap at 120 so keys don't get absurdly large on very wide screens)
-    key_w = min(key_w_alpha, key_w_sym, 120)
+    # Cap key width (raise max_key_w for full-screen / touch-first layouts)
+    key_w = min(key_w_alpha, key_w_sym, max_key_w)
     key_w = max(18, key_w)
     sp_w = (content_w - 2 * key_gap) // 3
     sp_w = max(key_w, sp_w)

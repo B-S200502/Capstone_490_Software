@@ -429,7 +429,7 @@ def init_menu_buttons(left_width: int, frame_height: Optional[int] = None) -> No
     item_h = 40
     gap = 8
 
-    total_items = 5  # wifi|settings, fps, gain, source, spectrum_analyzer
+    total_items = 6  # wifi|settings, radar ui, fps, gain, source, spectrum_analyzer
     dropdown_h = total_items * (item_h + gap) + gap
     dropdown_y = menu_y - dropdown_h - gap
 
@@ -440,7 +440,10 @@ def init_menu_buttons(left_width: int, frame_height: Optional[int] = None) -> No
     menu_buttons["wifi"] = Button(menu_x + 0 * (seg_w_top + seg_gap_top), wifi_y, seg_w_top, item_h, "")
     menu_buttons["main_menu_settings"] = Button(menu_x + 1 * (seg_w_top + seg_gap_top), wifi_y, seg_w_top, item_h, "")
 
-    y0 = wifi_y + (item_h + gap)
+    radar_y = wifi_y + (item_h + gap)
+    menu_buttons["menu_radar_ui"] = Button(menu_x, radar_y, menu_w, item_h, "RADAR: OFF")
+
+    y0 = radar_y + (item_h + gap)
     seg_gap = 6
     seg_w = (menu_w - 1 * seg_gap) // 2  # 30FPS | MAX
     menu_buttons["fps30"]  = Button(menu_x + 0 * (seg_w + seg_gap), y0, seg_w, item_h, "30FPS")
@@ -476,7 +479,7 @@ def update_button_states(mx: int, my: int) -> None:
 
     # Dropdown items: only when menu is open
     if button_state.menu_open:
-        for k in ("wifi", "main_menu_settings", "fps30", "fpsmax", "gain", "source", "spectrum_analyzer"):
+        for k in ("wifi", "main_menu_settings", "menu_radar_ui", "fps30", "fpsmax", "gain", "source", "spectrum_analyzer"):
             if k in menu_buttons:
                 menu_buttons[k].is_hovered = menu_buttons[k].contains(mx, my)
 

@@ -2,24 +2,16 @@
 STEP_PROGRESS 0 7
 [0] Silence check (env quiet enough for gain cal)...
 SILENCE_START 1.5
-  max_total_power=2.033e+02 threshold=1.000e+09 frames=24 -> PASS
+  max_total_power=8.682e+01 threshold=1.000e+09 frames=26 -> PASS
   FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
-  parse_full_frame: magic 0x08BE0C9A != expected 0xAABBCCDD, buf[:8]=9a0cbe089cd6be5a
-  parse_full_frame: magic 0xD9D9D9D9 != expected 0xAABBCCDD, buf[:8]=d9d9d9d9d9d9d9d9
-  parse_full_frame: magic 0x0C3BA86D != expected 0xAABBCCDD, buf[:8]=6da83b0c90483df9
-  parse_full_frame: magic 0x024FBA5D != expected 0xAABBCCDD, buf[:8]=5dba4f02d3bda68a
-  parse_full_frame: magic 0xE5E5E5E5 != expected 0xAABBCCDD, buf[:8]=e5e5e5e5e5e5e5e5
-  parse_full_frame: magic 0xDF743C8D != expected 0xAABBCCDD, buf[:8]=8d3c74dfaf3d92e9
-  parse_full_frame: magic 0x3DA8CC78 != expected 0xAABBCCDD, buf[:8]=78cca83d5603b7bd
-  parse_full_frame: magic 0xD2D2D2D2 != expected 0xAABBCCDD, buf[:8]=d2d2d2d2d2d2d2d2
-  parse_full_frame: magic 0xC031BB5D != expected 0xAABBCCDD, buf[:8]=5dbb31c075bcc8eb
-  parse_full_frame: magic 0x94949494 != expected 0xAABBCCDD, buf[:8]=9494949494949494
-  parse_full_frame: magic 0x8C5D293C != expected 0xAABBCCDD, buf[:8]=3c295d8cbcc10c24
-  parse_full_frame: magic 0xF43E32FB != expected 0xAABBCCDD, buf[:8]=fb323ef47194bd17
-  parse_full_frame: magic 0x8C8C8C8C != expected 0xAABBCCDD, buf[:8]=8c8c8c8c8c8c8c8c
-  parse_full_frame: magic 0x549D39F3 != expected 0xAABBCCDD, buf[:8]=f3399d548cbc1db8
-  parse_full_frame: magic 0x85858585 != expected 0xAABBCCDD, buf[:8]=8585858585858585
-  parse_full_frame: magic 0x3BE727C1 != expected 0xAABBCCDD, buf[:8]=c127e73b0f220abd
+  parse_full_frame: magic 0xCD3DDAE2 != expected 0xAABBCCDD, buf[:8]=e2da3dcd5b393edb
+  parse_full_frame: magic 0x7B7B7B7B != expected 0xAABBCCDD, buf[:8]=7b7b7b7b7b7b7b7b
+  parse_full_frame: magic 0xE4D5E3BD != expected 0xAABBCCDD, buf[:8]=bde3d5e4bc37b533
+  parse_full_frame: magic 0xC603B90E != expected 0xAABBCCDD, buf[:8]=0eb903c6c3bb586f
+  parse_full_frame: magic 0xC7C7C7C7 != expected 0xAABBCCDD, buf[:8]=c7c7c7c7c7c7c7c7
+  parse_full_frame: magic 0xF63A11B6 != expected 0xAABBCCDD, buf[:8]=b6113af627d4b976
+  parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
+  parse_full_frame: magic 0x5C3CAA6A != expected 0xAABBCCDD, buf[:8]=6aaa3c5c7bf83b3c
   OK
 STEP_PROGRESS 1 7
 [1] Pin monitor (ribbon cable, 5 runs)...
@@ -100,7 +92,7 @@ STEP_PROGRESS 2 7
     HW geometry: x_coords_hw, y_coords_hw (source: config.py), length 16
 
   Validate OK: config matches calibration_test.md
-  Geometry OK (config.py valid; array_geometry not checked)
+  Geometry OK (config.py matches array_geometry)
 STEP_PROGRESS 3 7
 [3] SPI devices...
   === Boot config (SPI enabled?) ===
@@ -109,13 +101,17 @@ STEP_PROGRESS 3 7
   6:dtparam=i2c_arm=on
   7:#dtparam=i2s=on
   8:dtparam=spi=on
-  11:dtparam=audio=on
-  52:dtparam=uart0=on
+  9:dtoverlay=spi1-3cs
+  12:dtparam=audio=on
+  53:dtparam=uart0=on
 
   === SPI device nodes ===
-  crw-rw---- 1 root spi 153, 0 Mar 28 11:22 /dev/spidev0.0
-  crw-rw---- 1 root spi 153, 1 Mar 28 11:22 /dev/spidev0.1
-  crw-rw---- 1 root spi 153, 2 Mar 28 11:22 /dev/spidev10.0
+  crw-rw---- 1 root spi 153, 0 Mar 29 20:03 /dev/spidev0.0
+  crw-rw---- 1 root spi 153, 1 Mar 29 20:03 /dev/spidev0.1
+  crw-rw---- 1 root spi 153, 4 Mar 29 20:03 /dev/spidev1.0
+  crw-rw---- 1 root spi 153, 5 Mar 29 20:03 /dev/spidev10.0
+  crw-rw---- 1 root spi 153, 3 Mar 29 20:03 /dev/spidev1.1
+  crw-rw---- 1 root spi 153, 2 Mar 29 20:03 /dev/spidev1.2
 
   === Kernel SPI modules ===
   spidev                 49152  0
@@ -126,12 +122,12 @@ STEP_PROGRESS 3 7
   === dmesg (SPI) ===
 STEP_PROGRESS 4 7
 [4] Parsing (magic probe) & frame rate...
-  Probing /dev/spidev0.0, frame_size=32801, sync=False
+  Probing /dev/spidev1.2, frame_size=32801, sync=False
   Magic LE: dd cc bb aa  |  BE: aa bb cc dd  |  bit_rev LE: bb33dd55
   ------------------------------------------------------------
   mode=0 lsbfirst=False: magic@[0x0] BE no bit_rev no
   mode=0 lsbfirst=True: lsbfirst not supported
-  mode=1 lsbfirst=False: magic no BE no bit_rev no
+  mode=1 lsbfirst=False: magic@[0x7609] BE no bit_rev no
   mode=1 lsbfirst=True: lsbfirst not supported
   mode=2 lsbfirst=False: magic no BE no bit_rev no
   mode=2 lsbfirst=True: lsbfirst not supported
@@ -140,181 +136,159 @@ STEP_PROGRESS 4 7
   ------------------------------------------------------------
   At least one setting saw magic (LE/BE/bit_rev). Consider aligning config to that.
   SPI_MAX_SPEED_HZ = 30000000
-  FPS = 26.0  frames_ok = 39  bad_parse = 36  bad_crc = 0
+  FPS = 33.7  frames_ok = 51  bad_parse = 10  bad_crc = 0
   OK
 STEP_PROGRESS 5 7
 [5] Metrics (gain normalization)...
   --- Per-mic levels (LOW gain, averaged over 5 frames) ---
-    Total power (sum of squared L2 per mic): 2.644290e+01
-    Max mic L2: 4.145576e+00  Min mic L2: 2.014161e-03
-    Ratio max/min: 2058.22
+    Total power (sum of squared L2 per mic): 1.514302e+01
+    Max mic L2: 2.921956e+00  Min mic L2: 1.000000e-12
+    Ratio max/min: >1e6
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   4.145576e+00   +0.0 dB    1.000     1.00
-      1   ADC1   7.918393e-03   -27.2 dB    0.002     100+
-      2   ADC1   6.623890e-01   -8.0 dB    0.160     6.26
-      3   ADC1   6.478984e-01   -8.1 dB    0.156     6.40
-      4   ADC2   9.804887e-01   -6.3 dB    0.237     4.23
-      5   ADC2   4.793866e-01   -9.4 dB    0.116     8.65
-      6   ADC2   8.295973e-01   -7.0 dB    0.200     5.00
-      7   ADC2   8.447873e-01   -6.9 dB    0.204     4.91
-      8   ADC3   1.033243e+00   -6.0 dB    0.249     4.01
-      9   ADC3   1.218228e+00   -5.3 dB    0.294     3.40
-     10   ADC3   6.796274e-01   -7.9 dB    0.164     6.10
-     11   ADC3   8.604026e-01   -6.8 dB    0.208     4.82
-     12   ADC4   1.032920e+00   -6.0 dB    0.249     4.01
-     13   ADC4   2.014161e-03   -33.1 dB    0.000     100+
-     14   ADC4   6.599880e-01   -8.0 dB    0.159     6.28
-     15   ADC4   7.409876e-01   -7.5 dB    0.179     5.59
+      0   ADC1   2.237973e-01   -11.2 dB    0.077     13.06
+      1   ADC1   1.036806e-06   -64.5 dB    0.000     100+
+      2   ADC1   1.000000e-12   -124.7 dB    0.000     100+
+      3   ADC1   3.785485e-01   -8.9 dB    0.130     7.72
+      4   ADC2   9.556695e-01   -4.9 dB    0.327     3.06
+      5   ADC2   2.921956e+00   +0.0 dB    1.000     1.00
+      6   ADC2   2.534621e-01   -10.6 dB    0.087     11.53
+      7   ADC2   3.062969e-01   -9.8 dB    0.105     9.54
+      8   ADC3   3.859578e-01   -8.8 dB    0.132     7.57
+      9   ADC3   1.459258e+00   -3.0 dB    0.499     2.00
+     10   ADC3   2.499033e-01   -10.7 dB    0.086     11.69
+     11   ADC3   3.575276e-01   -9.1 dB    0.122     8.17
+     12   ADC4   3.965507e-01   -8.7 dB    0.136     7.37
+     13   ADC4   1.544285e+00   -2.8 dB    0.529     1.89
+     14   ADC4   3.028370e-01   -9.8 dB    0.104     9.65
+     15   ADC4   4.878385e-01   -7.8 dB    0.167     5.99
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -10.8 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -7.4 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -6.5 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -13.7 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -52.3 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -6.3 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -7.9 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -7.3 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 2, 3, 4, 5, 6, 7,
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [0, 1, 2, 3, 4, 6, 7,
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
   --- Per-mic levels (HIGH gain, averaged over 5 frames) ---
-    Total power (sum of squared L2 per mic): 2.908007e+02
-    Max mic L2: 1.039675e+01  Min mic L2: 1.128857e+00
-    Ratio max/min: 9.21
+    Total power (sum of squared L2 per mic): 1.073882e+01
+    Max mic L2: 2.336752e+00  Min mic L2: 1.000000e-12
+    Ratio max/min: >1e6
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   1.039675e+01   +0.0 dB    1.000     1.00
-      1   ADC1   8.075553e+00   -1.1 dB    0.777     1.29
-      2   ADC1   1.543990e+00   -8.3 dB    0.149     6.73
-      3   ADC1   1.507995e+00   -8.4 dB    0.145     6.89
-      4   ADC2   2.545542e+00   -6.1 dB    0.245     4.08
-      5   ADC2   5.760983e+00   -2.6 dB    0.554     1.80
-      6   ADC2   1.414404e+00   -8.7 dB    0.136     7.35
-      7   ADC2   1.977948e+00   -7.2 dB    0.190     5.26
-      8   ADC3   3.571594e+00   -4.6 dB    0.344     2.91
-      9   ADC3   2.880399e+00   -5.6 dB    0.277     3.61
-     10   ADC3   1.404614e+00   -8.7 dB    0.135     7.40
-     11   ADC3   1.667670e+00   -7.9 dB    0.160     6.23
-     12   ADC4   4.917413e+00   -3.3 dB    0.473     2.11
-     13   ADC4   3.620467e+00   -4.6 dB    0.348     2.87
-     14   ADC4   1.128857e+00   -9.6 dB    0.109     9.21
-     15   ADC4   1.698286e+00   -7.9 dB    0.163     6.12
+      0   ADC1   1.972839e-01   -10.7 dB    0.084     11.84
+      1   ADC1   1.750141e-12   -121.3 dB    0.000     100+
+      2   ADC1   1.000000e-12   -123.7 dB    0.000     100+
+      3   ADC1   3.881832e-01   -7.8 dB    0.166     6.02
+      4   ADC2   7.636846e-01   -4.9 dB    0.327     3.06
+      5   ADC2   2.336752e+00   +0.0 dB    1.000     1.00
+      6   ADC2   3.368773e-01   -8.4 dB    0.144     6.94
+      7   ADC2   2.829051e-01   -9.2 dB    0.121     8.26
+      8   ADC3   3.695423e-01   -8.0 dB    0.158     6.32
+      9   ADC3   1.425029e+00   -2.1 dB    0.610     1.64
+     10   ADC3   2.577006e-01   -9.6 dB    0.110     9.07
+     11   ADC3   3.189684e-01   -8.6 dB    0.137     7.33
+     12   ADC4   3.695968e-01   -8.0 dB    0.158     6.32
+     13   ADC4   1.282458e+00   -2.6 dB    0.549     1.82
+     14   ADC4   2.724119e-01   -9.3 dB    0.117     8.58
+     15   ADC4   3.480517e-01   -8.3 dB    0.149     6.71
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -4.4 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -6.1 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -6.7 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -6.3 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -65.9 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -5.6 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -7.1 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -7.1 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [2, 3, 4, 6, 7, 8, 9,
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [0, 1, 2, 3, 4, 6, 7,
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
-    Wrote SPI_MIC_GAIN to /home/acousticgod/Capstone_490_Software/src/software/acoustic_imag
+    Wrote SPI_MIC_GAIN to /home/acousticlord/Capstone_490_Software/src/software/acoustic_ima
     Restart the acoustic imager for changes to take effect.
   FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
+  /home/acousticlord/Capstone_490_Software/utilities/calibration/metrics_debug.py:84: Runtim
+    scale = np.where(mag > _FFT_MAG_CAP, _FFT_MAG_CAP / (mag + 1e-30), 1.0)
   OK
 STEP_PROGRESS 6 7
 [6] Post-gain sanity (ratio check)...
   --- Per-mic levels (LOW gain, latest of 3 frames) ---
-    Total power (sum of squared L2 per mic): 9.616584e+01
-    Max mic L2: 4.192663e+00  Min mic L2: 3.003266e-02
-    Ratio max/min: 139.60
+    Total power (sum of squared L2 per mic): 5.343658e+01
+    Max mic L2: 6.280973e+00  Min mic L2: 1.000000e-12
+    Ratio max/min: >1e6
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   4.192663e+00   +0.0 dB    1.000     1.00
-      1   ADC1   8.686035e-02   -16.8 dB    0.021     48.27
-      2   ADC1   1.644741e+00   -4.1 dB    0.392     2.55
-      3   ADC1   1.717818e+00   -3.9 dB    0.410     2.44
-      4   ADC2   2.541328e+00   -2.2 dB    0.606     1.65
-      5   ADC2   2.905647e+00   -1.6 dB    0.693     1.44
-      6   ADC2   1.793979e+00   -3.7 dB    0.428     2.34
-      7   ADC2   2.071854e+00   -3.1 dB    0.494     2.02
-      8   ADC3   2.911322e+00   -1.6 dB    0.694     1.44
-      9   ADC3   3.956240e+00   -0.3 dB    0.944     1.06
-     10   ADC3   1.750622e+00   -3.8 dB    0.418     2.39
-     11   ADC3   2.124505e+00   -3.0 dB    0.507     1.97
-     12   ADC4   3.457823e+00   -0.8 dB    0.825     1.21
-     13   ADC4   3.003266e-02   -21.4 dB    0.007     100+
-     14   ADC4   1.644385e+00   -4.1 dB    0.392     2.55
-     15   ADC4   2.035794e+00   -3.1 dB    0.486     2.06
+      0   ADC1   4.574178e-01   -11.4 dB    0.073     13.73
+      1   ADC1   1.000000e-12   -128.0 dB    0.000     100+
+      2   ADC1   1.000000e-12   -128.0 dB    0.000     100+
+      3   ADC1   6.849095e-01   -9.6 dB    0.109     9.17
+      4   ADC2   1.230671e+00   -7.1 dB    0.196     5.10
+      5   ADC2   6.280973e+00   +0.0 dB    1.000     1.00
+      6   ADC2   5.488811e-01   -10.6 dB    0.087     11.44
+      7   ADC2   6.230463e-01   -10.0 dB    0.099     10.08
+      8   ADC3   5.640818e-01   -10.5 dB    0.090     11.13
+      9   ADC3   2.859566e+00   -3.4 dB    0.455     2.20
+     10   ADC3   5.691763e-01   -10.4 dB    0.091     11.04
+     11   ADC3   7.282270e-01   -9.4 dB    0.116     8.63
+     12   ADC4   8.197829e-01   -8.8 dB    0.131     7.66
+     13   ADC4   2.141336e-02   -24.7 dB    0.003     100+
+     14   ADC4   6.287157e-01   -10.0 dB    0.100     9.99
+     15   ADC4   8.283961e-01   -8.8 dB    0.132     7.58
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -6.2 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -2.6 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -2.1 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -7.4 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -69.2 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -6.9 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -8.4 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -13.1 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [1, 13]
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [0, 1, 2, 3, 4, 6, 7,
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
 
   --- Per-mic levels (HIGH gain, latest of 3 frames) ---
-    Total power (sum of squared L2 per mic): 6.103460e+02
-    Max mic L2: 1.466289e+01  Min mic L2: 1.509620e+00
-    Ratio max/min: 9.71
+    Total power (sum of squared L2 per mic): 5.501996e+01
+    Max mic L2: 4.724180e+00  Min mic L2: 1.000000e-12
+    Ratio max/min: >1e6
 
     mic   ADC   L2 norm      dB vs max   ratio    suggested gain (to match max)
     ---   ---   ---------   ---------   -----    -----------------------------
-      0   ADC1   1.466289e+01   +0.0 dB    1.000     1.00
-      1   ADC1   1.300233e+01   -0.5 dB    0.887     1.13
-      2   ADC1   2.190458e+00   -8.3 dB    0.149     6.69
-      3   ADC1   2.218129e+00   -8.2 dB    0.151     6.61
-      4   ADC2   4.198698e+00   -5.4 dB    0.286     3.49
-      5   ADC2   8.770374e+00   -2.2 dB    0.598     1.67
-      6   ADC2   2.290448e+00   -8.1 dB    0.156     6.40
-      7   ADC2   2.338387e+00   -8.0 dB    0.159     6.27
-      8   ADC3   5.035193e+00   -4.6 dB    0.343     2.91
-      9   ADC3   1.950928e+00   -8.8 dB    0.133     7.52
-     10   ADC3   2.017306e+00   -8.6 dB    0.138     7.27
-     11   ADC3   2.335675e+00   -8.0 dB    0.159     6.28
-     12   ADC4   6.743576e+00   -3.4 dB    0.460     2.17
-     13   ADC4   4.402210e+00   -5.2 dB    0.300     3.33
-     14   ADC4   1.509620e+00   -9.9 dB    0.103     9.71
-     15   ADC4   2.342127e+00   -8.0 dB    0.160     6.26
+      0   ADC1   9.413223e-01   -7.0 dB    0.199     5.02
+      1   ADC1   1.000000e-12   -126.7 dB    0.000     100+
+      2   ADC1   1.000000e-12   -126.7 dB    0.000     100+
+      3   ADC1   7.956678e-01   -7.7 dB    0.168     5.94
+      4   ADC2   2.945812e+00   -2.1 dB    0.624     1.60
+      5   ADC2   4.133307e+00   -0.6 dB    0.875     1.14
+      6   ADC2   6.526183e-01   -8.6 dB    0.138     7.24
+      7   ADC2   6.358511e-01   -8.7 dB    0.135     7.43
+      8   ADC3   4.804072e-01   -9.9 dB    0.102     9.83
+      9   ADC3   4.724180e+00   +0.0 dB    1.000     1.00
+     10   ADC3   6.563294e-01   -8.6 dB    0.139     7.20
+     11   ADC3   8.971436e-01   -7.2 dB    0.190     5.27
+     12   ADC4   9.981400e-01   -6.8 dB    0.211     4.73
+     13   ADC4   5.678493e-01   -9.2 dB    0.120     8.32
+     14   ADC4   8.077054e-01   -7.7 dB    0.171     5.85
+     15   ADC4   1.073825e+00   -6.4 dB    0.227     4.40
 
-    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -4.2 dB
-    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -5.9 dB
-    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -7.5 dB
-    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -6.6 dB
+    ADC1 (mics [0, 1, 2, 3]): mean dB vs max = -67.1 dB
+    ADC2 (mics [4, 5, 6, 7]): mean dB vs max = -5.0 dB
+    ADC3 (mics [8, 9, 10, 11]): mean dB vs max = -6.4 dB
+    ADC4 (mics [12, 13, 14, 15]): mean dB vs max = -7.5 dB
 
-    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [2, 3, 4, 6, 7, 8, 9,
+    Mics with level < 35% of max (candidates for SPI_MIC_GAIN boost): [0, 1, 2, 3, 6, 7, 8,
     Example: set those indices to suggested gain in config.SPI_MIC_GAIN.
   FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspbe
+  /home/acousticlord/Capstone_490_Software/utilities/calibration/metrics_debug.py:84: Runtim
+    scale = np.where(mag > _FFT_MAG_CAP, _FFT_MAG_CAP / (mag + 1e-30), 1.0)
   OK (ratio in output)
-CPU temp: 59.5 C
+CPU temp: 67.8 C
 === Done: 7/7 steps passed ===
 [stderr] FrameReadyGPIO init failed (No GPIO backend available. Install gpiozero or run on a Raspberry Pi with RPi.GPIO.); continuing without GPIO wait
-[stderr] parse_full_frame: magic 0x79A3F0F1 != expected 0xAABBCCDD, buf[:8]=f1f0a3798d97b876
-[stderr] parse_full_frame: magic 0x46464646 != expected 0xAABBCCDD, buf[:8]=4646464646464646
-[stderr] parse_full_frame: magic 0xD35C3AC7 != expected 0xAABBCCDD, buf[:8]=c73a5cd32dbdcdb7
-[stderr] parse_full_frame: magic 0xF6F6F6F6 != expected 0xAABBCCDD, buf[:8]=f6f6f6f6f6f6f6f6
-[stderr] parse_full_frame: magic 0x6BBC12F4 != expected 0xAABBCCDD, buf[:8]=f412bc6b40fabbcb
-[stderr] parse_full_frame: magic 0x3DBC8F8D != expected 0xAABBCCDD, buf[:8]=8d8fbc3d608eb964
-[stderr] parse_full_frame: magic 0x14141414 != expected 0xAABBCCDD, buf[:8]=1414141414141414
-[stderr] parse_full_frame: magic 0x90C5BA71 != expected 0xAABBCCDD, buf[:8]=71bac590f83a0be2
-[stderr] parse_full_frame: magic 0x05050505 != expected 0xAABBCCDD, buf[:8]=0505050505050505
-[stderr] parse_full_frame: magic 0xE33CD501 != expected 0xAABBCCDD, buf[:8]=01d53ce346a0bc4f
-[stderr] parse_full_frame: magic 0x1D1D1D1D != expected 0xAABBCCDD, buf[:8]=1d1d1d1d1d1d1d1d
-[stderr] parse_full_frame: magic 0x3C7BBAD7 != expected 0xAABBCCDD, buf[:8]=d7ba7b3c2456953c
-[stderr] parse_full_frame: magic 0x7DA7AB3D != expected 0xAABBCCDD, buf[:8]=3daba77d3d559fa4
-[stderr] parse_full_frame: magic 0x34343434 != expected 0xAABBCCDD, buf[:8]=3434343434343434
-[stderr] parse_full_frame: magic 0x8B2BBDD3 != expected 0xAABBCCDD, buf[:8]=d3bd2b8b29beccf8
-[stderr] parse_full_frame: magic 0x27272727 != expected 0xAABBCCDD, buf[:8]=2727272727272727
-[stderr] parse_full_frame: magic 0x493C83AF != expected 0xAABBCCDD, buf[:8]=af833c4964eebc5a
-[stderr] parse_full_frame: magic 0x66803DE9 != expected 0xAABBCCDD, buf[:8]=e93d806697bd003b
-[stderr] parse_full_frame: magic 0x0C0C0C0C != expected 0xAABBCCDD, buf[:8]=0c0c0c0c0c0c0c0c
-[stderr] parse_full_frame: magic 0x3D06FB16 != expected 0xAABBCCDD, buf[:8]=16fb063dab297fbc
-[stderr] parse_full_frame: magic 0x16161616 != expected 0xAABBCCDD, buf[:8]=1616161616161616
-[stderr] parse_full_frame: magic 0x33B62F3E != expected 0xAABBCCDD, buf[:8]=3e2fb633bcc3f685
-[stderr] parse_full_frame: magic 0x6D66BABA != expected 0xAABBCCDD, buf[:8]=baba666dc83b7ca7
-[stderr] parse_full_frame: magic 0xCDCDCDCD != expected 0xAABBCCDD, buf[:8]=cdcdcdcdcdcdcdcd
-[stderr] parse_full_frame: magic 0x316304BD != expected 0xAABBCCDD, buf[:8]=bd046331bdc507e5
-[stderr] parse_full_frame: magic 0xFEFEFEFE != expected 0xAABBCCDD, buf[:8]=fefefefefefefefe
-[stderr] parse_full_frame: magic 0x14CC38E4 != expected 0xAABBCCDD, buf[:8]=e438cc14003dcb83
-[stderr] parse_full_frame: magic 0xDEDEDEDE != expected 0xAABBCCDD, buf[:8]=dededededededede
-[stderr] parse_full_frame: magic 0xDF783CE1 != expected 0xAABBCCDD, buf[:8]=e13c78df96bc6cca
-[stderr] parse_full_frame: magic 0x3CBE91D1 != expected 0xAABBCCDD, buf[:8]=d191be3ce67bcc3b
-[stderr] parse_full_frame: magic 0x00000000 != expected 0xAABBCCDD, buf[:8]=0000000000000000
-[stderr] parse_full_frame: magic 0x9068BC99 != expected 0xAABBCCDD, buf[:8]=99bc68901d3afe01
-[stderr] parse_full_frame: magic 0xBABABABA != expected 0xAABBCCDD, buf[:8]=babababababababa
-[stderr] parse_full_frame: magic 0x3C765089 != expected 0xAABBCCDD, buf[:8]=8950763c9f58ee3b
-[stderr] parse_full_frame: magic 0xBEBEBEBE != expected 0xAABBCCDD, buf[:8]=bebebebebebebebe
-[stderr] parse_full_frame: magic 0x7C0D3CAE != expected 0xAABBCCDD, buf[:8]=ae3c0d7cacbb8a4d
+[stderr] parse_full_frame: magic 0x77330F0F != expected 0xAABBCCDD, buf[:8]=0f0f33775d176978
+[stderr] parse_full_frame: magic 0x3A3A3A3A != expected 0xAABBCCDD, buf[:8]=3a3a3a3a3a3a3a3a
+[stderr] parse_full_frame: magic 0x3B569375 != expected 0xAABBCCDD, buf[:8]=7593563bb19d3f3d
+[stderr] parse_full_frame: magic 0xA4A4A4A4 != expected 0xAABBCCDD, buf[:8]=a4a4a4a4a4a4a4a4
+[stderr] parse_full_frame: magic 0x61EA3ADB != expected 0xAABBCCDD, buf[:8]=db3aea616d3b18d4
+[stderr] parse_full_frame: magic 0x27A90C65 != expected 0xAABBCCDD, buf[:8]=650ca9271914a8a6
+[stderr] parse_full_frame: magic 0x59595959 != expected 0xAABBCCDD, buf[:8]=5959595959595959
+[stderr] parse_full_frame: magic 0x97563D0A != expected 0xAABBCCDD, buf[:8]=0a3d5697c43a61e1
+[stderr] parse_full_frame: magic 0x0D0D0D0D != expected 0xAABBCCDD, buf[:8]=0d0d0d0d0d0d0d0d
+[stderr] parse_full_frame: magic 0x21CF453D != expected 0xAABBCCDD, buf[:8]=3d45cf21bdaba9aa

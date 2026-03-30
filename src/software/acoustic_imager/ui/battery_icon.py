@@ -10,15 +10,293 @@ Position varies by view:
 
 from __future__ import annotations
 
+import json
+import time
+from pathlib import Path
 from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 
+from .. import config
+
 # Voltage → percent: 5.8V = 0%, 8.4V = 100%; cap at 100% if >= 8.3V
 BATTERY_V_MV_MIN = 5800   # 5.8V = 0%
 BATTERY_V_MV_MAX = 8400   # 8.4V = 100%
 BATTERY_V_MV_CAP = 8300   # >= 8.3V show 100%
+
+# Session state: when ~5V USB is present the ADC does not see pack voltage
+_last_good_soc: Optional[int] = None
+_last_trusted_mv: Optional[int] = None
+_usb_infer_start_s: Optional[float] = None
+_usb_infer_anchor_soc: int = 0
+# From battery_snapshot.json: wall time at last shutdown; applied as infer start on first USB-band read
+_persisted_infer_start_s: Optional[float] = None
+_last_display_soc: Optional[int] = None
+_last_battery_snapshot_write_s: float = 0.0
+_last_snapshot_reported_mv: Optional[int] = None
+
+_SNAPSHOT_VERSION = 2
+
+
+def _cfg(name: str, default: float | int) -> float | int:
+    return getattr(config, name, default)
+
+
+def reset_battery_charge_inference_state() -> None:
+    """Clear USB charge inference (e.g. after tests)."""
+    global _last_good_soc, _last_trusted_mv, _usb_infer_start_s, _usb_infer_anchor_soc
+    global _persisted_infer_start_s, _last_display_soc
+    global _last_battery_snapshot_write_s, _last_snapshot_reported_mv
+    _last_good_soc = None
+    _last_trusted_mv = None
+    _usb_infer_start_s = None
+    _usb_infer_anchor_soc = 0
+    _persisted_infer_start_s = None
+    _last_display_soc = None
+    _last_battery_snapshot_write_s = 0.0
+    _last_snapshot_reported_mv = None
+
+
+def _display_floor_pct() -> int:
+    d = int(_cfg("BATTERY_DISPLAY_MIN_WHEN_UNCERTAIN_PCT", 25))
+    a = int(_cfg("BATTERY_CHARGE_INFER_ANCHOR_DEFAULT", 25))
+    return max(0, min(100, d if d > 0 else a))
+
+
+def load_persisted_battery_state(path: Optional[Path]) -> None:
+    """Restore anchor SOC, mV fields, infer start time, and last display from JSON."""
+    global _last_good_soc, _last_trusted_mv, _persisted_infer_start_s, _last_display_soc
+    global _last_snapshot_reported_mv
+    if path is None:
+        return
+    try:
+        p = Path(path)
+        if not p.is_file():
+            return
+        with open(p, encoding="utf-8") as f:
+            data = json.load(f)
+        ver = int(data.get("version", 0))
+        if ver not in (1, _SNAPSHOT_VERSION):
+            return
+        anchor = data.get("anchor_soc")
+        if anchor is None:
+            return
+        lt = int(data.get("last_trusted_mv", 0) or 0)
+        ag = max(0, min(100, int(anchor)))
+        if ag == 0 and lt == 0:
+            ag = _display_floor_pct()
+        _last_good_soc = ag
+        _last_trusted_mv = lt if lt > 0 else None
+        sa = data.get("saved_at")
+        if sa is not None:
+            _persisted_infer_start_s = float(sa)
+        ld = data.get("last_display_soc")
+        pm = int(_cfg("BATTERY_PACK_READ_MIN_MV", BATTERY_V_MV_MIN))
+        lrmv_file = int(data.get("last_reported_mv", 0) or 0)
+        if ld is not None:
+            ldi = max(0, min(100, int(ld)))
+            if ldi == 0 and not (lrmv_file >= pm):
+                ldi = _display_floor_pct()
+            _last_display_soc = ldi
+        elif _last_display_soc is None:
+            _last_display_soc = _last_good_soc
+        if lrmv_file > 0:
+            _last_snapshot_reported_mv = lrmv_file
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+
+
+def _write_battery_snapshot_file(path: Optional[Path]) -> None:
+    """Write battery_snapshot.json with unix saved_at (always set on each write)."""
+    if path is None:
+        return
+    floor = _display_floor_pct()
+    anchor = _last_good_soc if _last_good_soc is not None else _last_display_soc
+    if anchor is None:
+        anchor = floor
+    anchor = max(0, min(100, int(anchor)))
+    disp = _last_display_soc if _last_display_soc is not None else anchor
+    disp = max(0, min(100, int(disp)))
+    mv_trust = int(_last_trusted_mv) if _last_trusted_mv is not None else 0
+    mv_rep = int(_last_snapshot_reported_mv) if _last_snapshot_reported_mv is not None else 0
+    payload = {
+        "version": _SNAPSHOT_VERSION,
+        "saved_at": time.time(),
+        "anchor_soc": anchor,
+        "last_trusted_mv": mv_trust,
+        "last_reported_mv": mv_rep,
+        "last_display_soc": disp,
+    }
+    try:
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, separators=(",", ":"))
+            f.write("\n")
+        tmp.replace(p)
+    except OSError:
+        pass
+
+
+def maybe_persist_battery_snapshot(path: Optional[Path], mv: Optional[int]) -> None:
+    """Throttled disk write while the app runs (first call writes immediately)."""
+    global _last_battery_snapshot_write_s, _last_snapshot_reported_mv
+    if path is None:
+        return
+    if mv is not None and mv > 0:
+        _last_snapshot_reported_mv = mv
+    interval = float(_cfg("BATTERY_SNAPSHOT_INTERVAL_S", 45.0))
+    t = time.time()
+    if _last_battery_snapshot_write_s > 0.0 and (t - _last_battery_snapshot_write_s) < interval:
+        return
+    _last_battery_snapshot_write_s = t
+    _write_battery_snapshot_file(path)
+
+
+def save_persisted_battery_state(path: Optional[Path]) -> None:
+    """Write snapshot immediately (shutdown). Always updates saved_at."""
+    global _last_battery_snapshot_write_s
+    _last_battery_snapshot_write_s = time.time()
+    _write_battery_snapshot_file(path)
+
+
+def _coerce_uncertain_zero(out: Optional[int], mv: Optional[int]) -> Optional[int]:
+    """Keep real 0% only for trustworthy pack voltage at empty; else use display floor."""
+    if out is None:
+        return None
+    if out != 0:
+        return max(0, min(100, out))
+    if mv is not None and mv > 0 and _pack_voltage_trustworthy(mv):
+        return 0
+    return _display_floor_pct()
+
+
+def _finalize_display(soc: Optional[int], mv: Optional[int]) -> Optional[int]:
+    global _last_display_soc, _last_snapshot_reported_mv
+    c = _coerce_uncertain_zero(soc, mv)
+    if c is not None:
+        _last_display_soc = c
+    if mv is not None and mv > 0:
+        _last_snapshot_reported_mv = mv
+    snap_path = getattr(config, "BATTERY_SNAPSHOT_PATH", None)
+    if snap_path is not None:
+        maybe_persist_battery_snapshot(snap_path, mv)
+    return c
+
+
+def _in_usb_rail_band(mv: int) -> bool:
+    lo = int(_cfg("BATTERY_USB_MV_LOW", 4600))
+    hi = int(_cfg("BATTERY_USB_MV_HIGH", 5320))
+    return lo <= mv <= hi
+
+
+def _pack_voltage_trustworthy(mv: int) -> bool:
+    return mv >= int(_cfg("BATTERY_PACK_READ_MIN_MV", BATTERY_V_MV_MIN))
+
+
+def _charge_soc_delta(elapsed_s: float) -> float:
+    """Estimated % points added over elapsed_s at constant charge current (crude CC; taper above 85%)."""
+    cap_ah = float(_cfg("BATTERY_PACK_AH", 7.2))
+    i_a = float(_cfg("BATTERY_CHARGE_CURRENT_A", 1.8))
+    if cap_ah <= 0 or elapsed_s <= 0:
+        return 0.0
+    dt_h = elapsed_s / 3600.0
+    linear = (i_a / cap_ah) * dt_h * 100.0
+    return linear
+
+
+def resolve_battery_display_percent(mv: Optional[int], now_s: Optional[float] = None) -> Optional[int]:
+    """
+    Map firmware battery_mv to a display percent.
+
+    When the pack is on USB 5V, the reported voltage often sits in a ~5V band and the
+    linear 5.8–8.4V curve would show 0%. In that band we infer SOC from last known good
+    % plus charge time at BATTERY_CHARGE_CURRENT_A into BATTERY_PACK_AH.
+
+    When voltage is at or above BATTERY_PACK_READ_MIN_MV, we use the normal voltage curve
+    and refresh last-known good SOC.
+
+    Between BATTERY_USB_MV_HIGH and BATTERY_PACK_READ_MIN_MV we hold last known % (or
+    default anchor) instead of mapping to 0%.
+    """
+    global _last_good_soc, _last_trusted_mv, _usb_infer_start_s, _usb_infer_anchor_soc
+    global _persisted_infer_start_s
+
+    if now_s is None:
+        now_s = time.time()
+
+    if mv is None:
+        return _finalize_display(_last_good_soc, mv)
+
+    if mv <= 0:
+        return _finalize_display(_last_good_soc, mv)
+
+    if _pack_voltage_trustworthy(mv):
+        pct = battery_mv_to_percent(mv)
+        if pct is not None:
+            _last_good_soc = pct
+        _last_trusted_mv = mv
+        _usb_infer_start_s = None
+        _persisted_infer_start_s = None
+        return _finalize_display(pct, mv)
+
+    infer_cap = int(_cfg("BATTERY_CHARGE_INFER_CAP_PCT", 95))
+    anchor_default = int(_cfg("BATTERY_CHARGE_INFER_ANCHOR_DEFAULT", 25))
+
+    if _in_usb_rail_band(mv):
+        if _usb_infer_start_s is None:
+            if _persisted_infer_start_s is not None:
+                _usb_infer_start_s = float(_persisted_infer_start_s)
+                _persisted_infer_start_s = None
+            else:
+                _usb_infer_start_s = float(now_s)
+            _usb_infer_anchor_soc = (
+                _last_good_soc if _last_good_soc is not None else anchor_default
+            )
+            _usb_infer_anchor_soc = max(0, min(100, _usb_infer_anchor_soc))
+        elapsed = max(0.0, float(now_s) - float(_usb_infer_start_s))
+        raw_add = _charge_soc_delta(elapsed)
+        # Taper growth above 85% (CV phase unknown)
+        anchor = _usb_infer_anchor_soc
+        projected = anchor + raw_add
+        if projected > 85.0:
+            over = projected - 85.0
+            projected = 85.0 + over * 0.28
+        out = int(round(projected))
+        out = max(anchor, out)
+        out = min(min(infer_cap, 100), out)
+        return _finalize_display(out, mv)
+
+    # Between USB band and trustworthy pack: hysteresis — keep inferring if session active
+    if _usb_infer_start_s is not None:
+        elapsed = max(0.0, float(now_s) - float(_usb_infer_start_s))
+        raw_add = _charge_soc_delta(elapsed)
+        anchor = _usb_infer_anchor_soc
+        projected = anchor + raw_add
+        if projected > 85.0:
+            over = projected - 85.0
+            projected = 85.0 + over * 0.28
+        out = int(round(projected))
+        out = max(anchor, out)
+        out = min(min(infer_cap, 100), out)
+        return _finalize_display(out, mv)
+
+    # Between USB rail ceiling and trustworthy pack: not on the 5.8–8.4V curve, but
+    # battery_mv_to_percent() treats mv <= 5.8V as 0% — bogus "empty" for this gap.
+    pack_min = int(_cfg("BATTERY_PACK_READ_MIN_MV", BATTERY_V_MV_MIN))
+    usb_hi = int(_cfg("BATTERY_USB_MV_HIGH", 5320))
+    if usb_hi < mv < pack_min:
+        hold = _last_good_soc if _last_good_soc is not None else anchor_default
+        hold = max(0, min(100, int(hold)))
+        return _finalize_display(hold, mv)
+
+    _usb_infer_start_s = None
+    pct = battery_mv_to_percent(mv)
+    if pct is not None and mv >= BATTERY_V_MV_MIN:
+        _last_good_soc = pct
+    return _finalize_display(pct, mv)
 
 
 def battery_mv_to_percent(mv: Optional[int]) -> Optional[int]:

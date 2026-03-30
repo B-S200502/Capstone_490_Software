@@ -19,6 +19,7 @@ from .storage_bar import _format_size
 from .menu import get_recording_timestamp_rect
 from .screenshot import save_screenshot
 from ..config import SOURCE_MODES, SOURCE_DEFAULT
+from .. import state
 from ..state import button_state, HUD
 from ..io.gallery_metadata import save_metadata
 from ..io.gain_control import GAIN_CONTROL
@@ -1436,6 +1437,11 @@ def handle_menu_click(
 
     if "main_menu_settings" in menu_buttons and menu_buttons["main_menu_settings"].contains(x, y):
         HUD.settings_modal_open = True
+        return video_recorder
+
+    if "menu_radar_ui" in menu_buttons and menu_buttons["menu_radar_ui"].contains(x, y):
+        if getattr(state, "MAGNETOMETER_AVAILABLE", False):
+            button_state.radar_ui_enabled = not button_state.radar_ui_enabled
         return video_recorder
 
     if "gain" in menu_buttons and menu_buttons["gain"].contains(x, y):

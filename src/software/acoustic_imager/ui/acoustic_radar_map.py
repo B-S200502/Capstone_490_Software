@@ -16,7 +16,7 @@ import urllib.request
 import json
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Any
+from typing import Any, Dict, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -421,6 +421,117 @@ def _render_widget_image(d: int, heading_deg: float, colormap_mode: str, now_s: 
     return widget
 
 
+def _mag_plane_strip_label(plane_raw: str) -> str:
+    p = (plane_raw or "auto").strip().upper()
+    if p in ("XY", "XZ", "YZ"):
+        return f"Plane:{p}"
+    return "Plane:AUTO"
+
+
+def _draw_compass_cal_strip(
+    frame: np.ndarray,
+    cx: int,
+    cy: int,
+    r: int,
+    fw: int,
+    fh: int,
+    compass_cal_step: int,
+    compass_cal_banner: str,
+    user_cal_active: bool,
+    mag_heading_plane: str = "auto",
+) -> Dict[str, Tuple[int, int, int, int]]:
+    """Buttons under the radar circle; returns hit rectangles for main mouse_callback."""
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    fs = 0.38
+    tthick = 1
+    rects: Dict[str, Tuple[int, int, int, int]] = {}
+    y0 = cy + r + 4
+    if y0 + 88 > fh - 2:
+        return rects
+
+    def _btn(
+        bx: int,
+        by: int,
+        bw: int,
+        bh: int,
+        label: str,
+        key: str,
+        *,
+        font_scale: float | None = None,
+        text_dy: int = 5,
+    ) -> None:
+        use_fs = fs if font_scale is None else font_scale
+        cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), (55, 55, 55), -1)
+        cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), (120, 120, 120), 1, cv2.LINE_AA)
+        (tw, _tht), _ = cv2.getTextSize(label, font, use_fs, tthick)
+        cv2.putText(
+            frame,
+            label,
+            (bx + max(0, (bw - tw) // 2), by + bh - text_dy),
+            font,
+            use_fs,
+            (240, 240, 240),
+            tthick,
+            cv2.LINE_AA,
+        )
+        rects[key] = (bx, by, bw, bh)
+
+    if compass_cal_step == 0:
+        btn_y_off = 18
+        if compass_cal_banner:
+            msg = compass_cal_banner
+            max_w = min(fw - 8, 360)
+            while msg:
+                (tw, _), _ = cv2.getTextSize(msg, font, fs, tthick)
+                if tw <= max_w or len(msg) <= 8:
+                    break
+                msg = msg[:-1]
+            tx = max(4, min(cx - tw // 2, fw - tw - 4))
+            cv2.putText(frame, msg, (tx, y0 + 12), font, fs, (200, 220, 255), tthick, cv2.LINE_AA)
+            btn_y_off = 32
+        gap = 8
+        bw_plane, bh_row = 108, 30
+        bw_cal, bh_cal = 152, 34
+        bw_clear = 72
+        row_items: list[tuple[int, int, str, str, float, int]] = [
+            (bw_plane, bh_row, _mag_plane_strip_label(mag_heading_plane), "mag_plane_cycle", 0.42, 6),
+            (bw_cal, bh_cal, "Cal 4-pt", "compass_cal_start", 0.48, 7),
+        ]
+        if user_cal_active:
+            row_items.append((bw_clear, bh_row, "Clear", "compass_cal_clear", 0.4, 6))
+        total_w = sum(t[0] for t in row_items) + gap * (len(row_items) - 1)
+        x0 = max(4, min(cx - total_w // 2, fw - total_w - 4))
+        by_base = y0 + btn_y_off
+        x_run = x0
+        for bw, bh, lab, key, fscale, tdy in row_items:
+            by = by_base + (bh_cal - bh) // 2
+            bx = x_run
+            if bx + bw > fw - 4:
+                break
+            _btn(bx, by, bw, bh, lab, key, font_scale=fscale, text_dy=tdy)
+            x_run += bw + gap
+        return rects
+
+    dirs = ("North", "East", "South", "West")
+    idx = min(max(compass_cal_step - 1, 0), 3)
+    hint = f"Point {dirs[idx]}, tap Capture"
+    msg = compass_cal_banner or hint
+    max_w = min(fw - 8, 320)
+    while msg:
+        (tw, _), _ = cv2.getTextSize(msg, font, fs, tthick)
+        if tw <= max_w or len(msg) <= 6:
+            break
+        msg = msg[:-1]
+    tx = max(4, min(cx - tw // 2, fw - tw - 4))
+    cv2.putText(frame, msg, (tx, y0 + 12), font, fs, (220, 230, 255), tthick, cv2.LINE_AA)
+    bw, bh, gap = 148, 38, 12
+    x0 = max(4, min(cx - (2 * bw + gap) // 2, fw - 2 * bw - gap - 4))
+    by = y0 + 22
+    _btn(x0, by, bw, bh, "Capture", "compass_cal_capture", font_scale=0.5, text_dy=8)
+    _btn(x0 + bw + gap, by, bw, bh, "Cancel", "compass_cal_cancel", font_scale=0.5, text_dy=8)
+    return rects
+
+
 def draw_radar_map_widget(
     frame: np.ndarray,
     anchor_rect: Tuple[int, int, int, int],
@@ -430,10 +541,15 @@ def draw_radar_map_widget(
     show_debug: bool = False,
     hud_offset_y: float = 0.0,
     now_s: Optional[float] = None,
-) -> None:
+    compass_cal_step: int = 0,
+    compass_cal_banner: str = "",
+    user_cal_active: bool = False,
+    mag_heading_plane: str = "auto",
+    show_compass_cal_ui: bool = True,
+) -> Optional[Dict[str, Tuple[int, int, int, int]]]:
     global _RADAR_DEBUG_LAST_LOG_S
     if not bool(getattr(config, "RADAR_MAP_ENABLED", True)):
-        return
+        return None
     if now_s is None:
         now_s = time.time()
     d = int(getattr(config, "RADAR_MAP_DIAMETER_PX", 100))
@@ -445,21 +561,26 @@ def draw_radar_map_widget(
     cy = y + h + gap + d // 2
     r = d // 2
     if r < 12:
-        return
+        return None
     fh, fw = frame.shape[:2]
     if cx - r < 0 or cy - r < 0 or cx + r >= fw or cy + r >= fh:
-        return
+        return None
 
     # Prune stale detections periodically to keep draw path compact.
     _prune_history(float(now_s))
 
-    # Re-render cached widget only at target update rate.
+    # Re-render at target rate or when heading moves (cached bitmap must use same angle as debug overlay).
+    h_now = float(heading_deg)
+    h_prev = float(_WIDGET_CACHE.get("heading_last", h_now))
+    dh = abs((h_now - h_prev + 540.0) % 360.0 - 180.0)
+    heading_eps = float(getattr(config, "RADAR_MAP_HEADING_REDRAW_EPS_DEG", 0.35))
     needs_refresh = (
         _WIDGET_CACHE.get("img") is None
         or int(_WIDGET_CACHE.get("d", 0)) != d
         or str(_WIDGET_CACHE.get("colormap", "")) != str(colormap_mode)
         or str(_WIDGET_CACHE.get("tile_style", "dark")) != str(tile_style)
         or (float(now_s) - float(_WIDGET_CACHE.get("updated_s", 0.0))) >= refresh_dt
+        or dh >= heading_eps
     )
     if needs_refresh:
         _WIDGET_CACHE["img"] = _render_widget_image(d, heading_deg, colormap_mode, float(now_s), str(tile_style))
@@ -467,10 +588,11 @@ def draw_radar_map_widget(
         _WIDGET_CACHE["d"] = d
         _WIDGET_CACHE["colormap"] = str(colormap_mode)
         _WIDGET_CACHE["tile_style"] = str(tile_style)
+        _WIDGET_CACHE["heading_last"] = h_now
 
     widget_img = _WIDGET_CACHE["img"]
     if widget_img is None:
-        return
+        return None
     if widget_img.shape[:2] != (d, d):
         widget_img = cv2.resize(widget_img, (d, d), interpolation=cv2.INTER_LINEAR)
     mask, inv = _get_circle_masks(d)
@@ -479,12 +601,30 @@ def draw_radar_map_widget(
     fg = cv2.bitwise_and(widget_img, widget_img, mask=mask)
     roi[:] = cv2.add(bg, fg)
 
+    if show_compass_cal_ui or compass_cal_step > 0:
+        cal_hit = _draw_compass_cal_strip(
+            frame,
+            cx,
+            cy,
+            r,
+            fw,
+            fh,
+            compass_cal_step,
+            compass_cal_banner,
+            user_cal_active,
+            mag_heading_plane=mag_heading_plane,
+        )
+    else:
+        cal_hit = {}
+
     if show_debug:
+        nav_h = float(heading_deg)
+        raw_h = float(getattr(HUD, "mag_heading_dbg", nav_h))
         line1 = (
             f"X={int(getattr(HUD, 'mag_x_raw', 0))}  "
             f"Y={int(getattr(HUD, 'mag_y_raw', 0))}  "
             f"Z={int(getattr(HUD, 'mag_z_raw', 0))}  "
-            f"Heading={int(round(float(getattr(HUD, 'mag_heading_dbg', heading_deg))))}deg"
+            f"Nav={int(round(nav_h))}deg  Raw={int(round(raw_h))}deg"
         )
         x_min = getattr(HUD, "mag_x_min", None)
         x_max = getattr(HUD, "mag_x_max", None)
@@ -576,3 +716,4 @@ def draw_radar_map_widget(
             cv2.putText(frame, line, (box_x + pad, ty), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
             ty += line_h
 
+    return cal_hit

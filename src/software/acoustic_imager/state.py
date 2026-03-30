@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, Any, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from .config import (
     USE_CAMERA,
@@ -22,6 +22,7 @@ from .config import (
     RADAR_MAP_TILE_STYLE_DEFAULT,
     DIRECTIONAL_HISTORY_RECORD_DEFAULT,
     RADAR_DEBUG_OVERLAY_DEFAULT,
+    RADAR_COMPASS_CAL_UI_DEFAULT,
 )
 
 # ===============================================================
@@ -81,6 +82,7 @@ class HudState:
     settings_modal_drag_start_scroll: int = 0   # scroll offset at drag start
     # Touch/drag scroll (like gallery)
     settings_modal_content_dragging: bool = False
+    settings_modal_content_drag_start_x: int = 0
     settings_modal_content_drag_start_y: int = 0
     settings_modal_content_drag_start_scroll: int = 0
     settings_modal_content_drag_moved: bool = False
@@ -171,6 +173,11 @@ class ButtonState:
     position_services_enabled: bool = POSITION_SERVICES_DEFAULT
     record_compass_history: bool = DIRECTIONAL_HISTORY_RECORD_DEFAULT
     show_radar_debug: bool = RADAR_DEBUG_OVERLAY_DEFAULT
+    radar_compass_cal_buttons_visible: bool = RADAR_COMPASS_CAL_UI_DEFAULT
+    # Four-point compass cal (N/E/S/W) under radar widget; JSON under repo utilities/calibration/
+    compass_cal_step: int = 0  # 0 = idle, 1–4 = awaiting sample for N,E,S,W
+    compass_cal_samples: List[Tuple[int, int, int]] = field(default_factory=list)
+    compass_cal_banner: str = ""  # status / errors (short)
     map_tile_style: str = RADAR_MAP_TILE_STYLE_DEFAULT  # "dark" | "light"
     colormap_mode: str = "MAGMA"  # "MAGMA" | "JET" | "TURBO" | "INFERNO"
     spectrum_analyzer_mode: str = "dB"  # "dB" | "NORM" | "dBA"
@@ -342,6 +349,8 @@ SPECTRUM_CURSOR_LAST_TAP_Y: int = 0
 # ===============================================================
 CURSOR_POS: Tuple[int, int] = (0, 0)
 HUD_RECTS: Optional[Any] = None  # HudRects from top_hud.draw_hud; set each frame when drawing
+# Hit rectangles for compass cal strip under radar (draw_radar_map_widget); None when radar not drawn
+COMPASS_CAL_HIT_RECTS: Optional[Dict[str, Tuple[int, int, int, int]]] = None
 
 CURRENT_FRAME: Optional[Any] = None  # typically a numpy ndarray (H,W,3) uint8
 CALIBRATION_SUITE_BACKGROUND_FRAME: Optional[Any] = None  # cached frame when calibration suite modal closed (for launcher background)
