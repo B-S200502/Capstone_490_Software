@@ -225,18 +225,8 @@ except ImportError:
 # ===============================================================
 # Compass 4-point cal (hit rects from draw_radar_map_widget)
 # ===============================================================
-_MAG_PLANE_CYCLE = ("auto", "xy", "xz", "yz")
-
-
 def _compass_cal_handle_click(key: str) -> None:
     st = button_state
-    if key == "mag_plane_cycle":
-        cur = str(getattr(config, "MAG_HEADING_PLANE", "auto")).strip().lower()
-        if cur not in _MAG_PLANE_CYCLE:
-            cur = "auto"
-        i = _MAG_PLANE_CYCLE.index(cur)
-        config.MAG_HEADING_PLANE = _MAG_PLANE_CYCLE[(i + 1) % len(_MAG_PLANE_CYCLE)]
-        return
     if key == "compass_cal_start":
         st.compass_cal_step = 1
         st.compass_cal_samples = []
@@ -2099,7 +2089,6 @@ def main() -> None:
                     compass_cal_step=button_state.compass_cal_step,
                     compass_cal_banner=button_state.compass_cal_banner,
                     user_cal_active=bool(getattr(config, "COMPASS_USER_CAL_VALID", False)),
-                    mag_heading_plane=str(getattr(config, "MAG_HEADING_PLANE", "auto")),
                     show_compass_cal_ui=button_state.radar_compass_cal_buttons_visible,
                 )
             else:

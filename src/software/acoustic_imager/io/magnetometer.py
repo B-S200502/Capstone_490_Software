@@ -2,16 +2,22 @@
 Magnetometer reader for BN-880 (or compatible): compass via UART (NMEA HDT/HDG) or I2C (HMC5883L).
 Updates HUD.compass_heading_deg and HUD.compass_heading_valid. Stub/demo when device unavailable.
 
-Upright mount (screen vertical to table): raw atan2(y,x) often barely moves when yawing; try
-MAG_HEADING_PLANE "XZ" or "YZ" so heading uses the sensor pair that sees the horizontal field.
-Tilt-compensated compass needs an accelerometer/IMU (not present on this I2C path).
+Default plane XY uses atan2(y,x): best when yaw is rotation about the sensor normal (e.g. device
+flat or screen facing you, spin like a turntable). Use XZ or YZ if your mechanical mount puts
+horizontal field rotation mostly in those axes instead.
+
+Without an accelerometer, pitch/roll repartition the field into x,y,z — the 2D heading will jump
+when you tilt. That is expected until tilt compensation is added (different sensor path).
 """
 
 from __future__ import annotations
 
 import math
+import statistics
 import threading
 import time
+from collections import deque
+from pathlib import Path
 from typing import Optional
 
 try:
@@ -26,17 +32,19 @@ except ImportError:
 
 from .. import config
 from ..state import HUD
+from .compass_calibration import cal_dir
 
-# #region agent log
-DEBUG_LOG_PATH = "/home/acousticgod/Capstone_490_Software/.cursor/debug-2bfbda.log"
-def _debug_log(location: str, message: str, data: dict, hypothesis_id: str = "") -> None:
-    import json
-    try:
-        with open(DEBUG_LOG_PATH, "a") as f:
-            f.write(json.dumps({"sessionId": "2bfbda", "timestamp": int(time.time() * 1000), "location": location, "message": message, "data": data, "hypothesisId": hypothesis_id}) + "\n")
-    except Exception:
-        pass
-# #endregion
+
+def _median_int(samples: list[int]) -> int:
+    return int(round(statistics.median(samples)))
+
+
+def _mag_heading_debug_log_file() -> Optional[Path]:
+    raw = str(getattr(config, "MAG_HEADING_DEBUG_LOG_PATH", "") or "").strip()
+    if not raw:
+        return None
+    p = Path(raw)
+    return p if p.is_absolute() else cal_dir() / p
 
 
 def _nmea_checksum(s: str) -> bool:
@@ -80,55 +88,18 @@ def _parse_heading_nmea(line: str) -> Optional[float]:
     return None
 
 
-def _i2c_scan_bus(bus_num: int) -> list[int]:
-    """Scan I2C bus for devices that ACK (addresses 0x08--0x77). Returns list of addresses."""
-    if SMBus is None:
-        return []
-    found = []
-    try:
-        smb = SMBus(bus_num)
-        try:
-            for a in range(0x08, 0x78):
-                try:
-                    smb.read_byte(a)
-                    found.append(a)
-                except Exception:
-                    pass
-        finally:
-            smb.close()
-    except Exception:
-        pass
-    return found
-
-
 def probe_i2c_magnetometer(bus: int, addr: int) -> bool:
     """Probe for HMC5883L (or compatible) at the given I2C bus and address. Returns True if present."""
-    # #region agent log
-    _debug_log("magnetometer.py:probe_i2c_magnetometer", "I2C probe start", {"bus": bus, "expected_addr_hex": hex(addr), "expected_addr_dec": addr}, "A")
-    # #endregion
     if SMBus is None:
-        # #region agent log
-        _debug_log("magnetometer.py:probe_i2c_magnetometer", "SMBus not available", {"reason": "smbus2 not installed"}, "D")
-        # #endregion
         return False
     try:
         smb = SMBus(bus)
         try:
-            # #region agent log
-            addrs_found = _i2c_scan_bus(bus)
-            _debug_log("magnetometer.py:probe_i2c_magnetometer", "I2C scan result", {"bus": bus, "addresses_hex": [hex(a) for a in addrs_found], "expected_addr_hex": hex(addr), "expected_in_scan": addr in addrs_found}, "B")
-            # #endregion
             smb.read_byte_data(addr, 0x00)  # config A
-            # #region agent log
-            _debug_log("magnetometer.py:probe_i2c_magnetometer", "Probe success", {"addr_hex": hex(addr)}, "E")
-            # #endregion
             return True
         finally:
             smb.close()
-    except Exception as e:
-        # #region agent log
-        _debug_log("magnetometer.py:probe_i2c_magnetometer", "Probe failed", {"bus": bus, "addr_hex": hex(addr), "exception_type": type(e).__name__, "exception_msg": str(e)}, "C")
-        # #endregion
+    except Exception:
         return False
 
 
@@ -157,6 +128,12 @@ class MagnetometerReader:
         self.i2c_gain_reg = i2c_gain_reg
         self._thr: Optional[threading.Thread] = None
         self._stop = threading.Event()
+        self._mag_heading_dbg_last_t = 0.0
+        n_med = int(getattr(config, "MAG_HEADING_MEDIAN_LEN", 5))
+        self._mag_med_n = max(1, min(n_med, 15))
+        self._mag_x_hist: deque[int] = deque(maxlen=self._mag_med_n)
+        self._mag_y_hist: deque[int] = deque(maxlen=self._mag_med_n)
+        self._mag_z_hist: deque[int] = deque(maxlen=self._mag_med_n)
 
     def start(self) -> None:
         if self._thr is not None and self._thr.is_alive():
@@ -226,7 +203,7 @@ class MagnetometerReader:
             time.sleep(retry_sleep)
 
     def _run_i2c(self) -> None:
-        """Read HMC5883L over I2C; heading from config plane or auto-selected pair. Retry on failure."""
+        """Read HMC5883L over I2C; heading from MAG_HEADING_PLANE (XY/XZ/YZ). Retry on failure."""
         retry_sleep = 2.0
         while not self._stop.is_set():
             try:
@@ -256,25 +233,37 @@ class MagnetometerReader:
                     val -= 65536
                 return val
 
+            self._mag_x_hist.clear()
+            self._mag_y_hist.clear()
+            self._mag_z_hist.clear()
             mag_journal_last = 0.0
             while not self._stop.is_set():
                 try:
                     x = read_word_2c(0x03)
                     z = read_word_2c(0x05)
                     y = read_word_2c(0x07)
-                    # Track extrema for quick hard-iron bias diagnostics.
-                    if HUD.mag_x_min is None or x < HUD.mag_x_min:
-                        HUD.mag_x_min = int(x)
-                    if HUD.mag_x_max is None or x > HUD.mag_x_max:
-                        HUD.mag_x_max = int(x)
-                    if HUD.mag_y_min is None or y < HUD.mag_y_min:
-                        HUD.mag_y_min = int(y)
-                    if HUD.mag_y_max is None or y > HUD.mag_y_max:
-                        HUD.mag_y_max = int(y)
-                    if HUD.mag_z_min is None or z < HUD.mag_z_min:
-                        HUD.mag_z_min = int(z)
-                    if HUD.mag_z_max is None or z > HUD.mag_z_max:
-                        HUD.mag_z_max = int(z)
+                    self._mag_x_hist.append(x)
+                    self._mag_y_hist.append(y)
+                    self._mag_z_hist.append(z)
+                    if self._mag_med_n <= 1:
+                        xm, ym, zm = x, y, z
+                    else:
+                        xm = _median_int(list(self._mag_x_hist))
+                        ym = _median_int(list(self._mag_y_hist))
+                        zm = _median_int(list(self._mag_z_hist))
+                    # Hard-iron extrema + heading use median-smoothed samples to limit spike poisoning.
+                    if HUD.mag_x_min is None or xm < HUD.mag_x_min:
+                        HUD.mag_x_min = int(xm)
+                    if HUD.mag_x_max is None or xm > HUD.mag_x_max:
+                        HUD.mag_x_max = int(xm)
+                    if HUD.mag_y_min is None or ym < HUD.mag_y_min:
+                        HUD.mag_y_min = int(ym)
+                    if HUD.mag_y_max is None or ym > HUD.mag_y_max:
+                        HUD.mag_y_max = int(ym)
+                    if HUD.mag_z_min is None or zm < HUD.mag_z_min:
+                        HUD.mag_z_min = int(zm)
+                    if HUD.mag_z_max is None or zm > HUD.mag_z_max:
+                        HUD.mag_z_max = int(zm)
 
                     x_span = int(HUD.mag_x_max - HUD.mag_x_min) if (HUD.mag_x_max is not None and HUD.mag_x_min is not None) else 0
                     y_span = int(HUD.mag_y_max - HUD.mag_y_min) if (HUD.mag_y_max is not None and HUD.mag_y_min is not None) else 0
@@ -284,9 +273,9 @@ class MagnetometerReader:
                     x_off = 0.5 * (HUD.mag_x_min + HUD.mag_x_max) if (HUD.mag_x_min is not None and HUD.mag_x_max is not None) else 0.0
                     y_off = 0.5 * (HUD.mag_y_min + HUD.mag_y_max) if (HUD.mag_y_min is not None and HUD.mag_y_max is not None) else 0.0
                     z_off = 0.5 * (HUD.mag_z_min + HUD.mag_z_max) if (HUD.mag_z_min is not None and HUD.mag_z_max is not None) else 0.0
-                    x_cal = float(x) - x_off
-                    y_cal = float(y) - y_off
-                    z_cal = float(z) - z_off
+                    x_cal = float(xm) - x_off
+                    y_cal = float(ym) - y_off
+                    z_cal = float(zm) - z_off
 
                     def heading_from(a: float, b: float) -> float:
                         h = math.degrees(math.atan2(b, a))
@@ -296,26 +285,28 @@ class MagnetometerReader:
 
                     min_span = int(getattr(config, "MAG_CAL_MIN_SPAN", 100))
                     apply_hi = bool(getattr(config, "MAG_APPLY_HARD_IRON_CAL", True))
-                    raw_xy_heading = heading_from(float(x), float(y))
+                    raw_xy_heading = heading_from(float(xm), float(ym))
+                    dbg_h_xz = heading_from(float(xm), float(zm))
+                    dbg_h_yz = heading_from(float(ym), float(zm))
 
                     def fixed_plane_heading(plane: str) -> tuple[float, float, bool, str]:
                         pl = plane.upper()
                         if pl == "XZ":
                             return (
-                                heading_from(float(x), float(z)),
+                                heading_from(float(xm), float(zm)),
                                 heading_from(x_cal, z_cal),
                                 x_span >= min_span and z_span >= min_span,
                                 "XZ",
                             )
                         if pl == "YZ":
                             return (
-                                heading_from(float(y), float(z)),
+                                heading_from(float(ym), float(zm)),
                                 heading_from(y_cal, z_cal),
                                 y_span >= min_span and z_span >= min_span,
                                 "YZ",
                             )
                         return (
-                            heading_from(float(x), float(y)),
+                            heading_from(float(xm), float(ym)),
                             heading_from(x_cal, y_cal),
                             x_span >= min_span and y_span >= min_span,
                             "XY",
@@ -331,33 +322,12 @@ class MagnetometerReader:
                         base = heading_cal_deg if use_cal else heading_deg
                         HUD.compass_heading_deg = (base + user_off) % 360.0
                     else:
-                        plane_mode = str(getattr(config, "MAG_HEADING_PLANE", "auto")).strip().lower()
-                        if plane_mode in ("xy", "xz", "yz"):
-                            heading_deg, heading_cal_deg, cal_ready, best_pair = fixed_plane_heading(plane_mode)
-                            use_cal = apply_hi and cal_ready
-                            HUD.compass_heading_deg = heading_cal_deg if use_cal else heading_deg
-                        else:
-                            pair_scores = {
-                                "XY": x_span + y_span,
-                                "XZ": x_span + z_span,
-                                "YZ": y_span + z_span,
-                            }
-                            best_pair = max(pair_scores, key=pair_scores.get)
-                            if best_pair == "XZ":
-                                heading_cal_deg = heading_from(x_cal, z_cal)
-                            elif best_pair == "YZ":
-                                heading_cal_deg = heading_from(y_cal, z_cal)
-                            else:
-                                heading_cal_deg = heading_from(x_cal, y_cal)
-                            if best_pair == "XZ":
-                                cal_ready = x_span >= min_span and z_span >= min_span
-                            elif best_pair == "YZ":
-                                cal_ready = y_span >= min_span and z_span >= min_span
-                            else:
-                                cal_ready = x_span >= min_span and y_span >= min_span
-                            use_cal = apply_hi and cal_ready
-                            heading_deg = raw_xy_heading
-                            HUD.compass_heading_deg = heading_cal_deg if use_cal else heading_deg
+                        plane_mode = str(getattr(config, "MAG_HEADING_PLANE", "xy")).strip().lower()
+                        if plane_mode not in ("xy", "xz", "yz"):
+                            plane_mode = "xy"
+                        heading_deg, heading_cal_deg, cal_ready, best_pair = fixed_plane_heading(plane_mode)
+                        use_cal = apply_hi and cal_ready
+                        HUD.compass_heading_deg = heading_cal_deg if use_cal else heading_deg
 
                     HUD.mag_x_raw = int(x)
                     HUD.mag_y_raw = int(y)
@@ -382,6 +352,23 @@ class MagnetometerReader:
                             if bool(getattr(config, "MAG_JOURNAL_LOG_VERBOSE", False)):
                                 line += f" raw_xy={raw_xy_heading:.1f}"
                             print(line, flush=True)
+                    dbg_file = _mag_heading_debug_log_file()
+                    if dbg_file is not None:
+                        dbg_iv = float(getattr(config, "MAG_HEADING_DEBUG_LOG_INTERVAL_S", 0.2))
+                        tdbg = time.time()
+                        if dbg_iv <= 0 or (tdbg - self._mag_heading_dbg_last_t) >= dbg_iv:
+                            self._mag_heading_dbg_last_t = tdbg
+                            try:
+                                dbg_file.parent.mkdir(parents=True, exist_ok=True)
+                                with dbg_file.open("a", encoding="utf-8") as _df:
+                                    _df.write(
+                                        f"{tdbg:.3f}\t{HUD.mag_x_raw}\t{HUD.mag_y_raw}\t{HUD.mag_z_raw}\t"
+                                        f"{HUD.compass_heading_deg:.2f}\t{best_pair}\t{int(use_cal)}\t"
+                                        f"{HUD.mag_heading_dbg:.2f}\t{HUD.mag_heading_cal_dbg:.2f}\t"
+                                        f"{raw_xy_heading:.2f}\t{dbg_h_xz:.2f}\t{dbg_h_yz:.2f}\n"
+                                    )
+                            except OSError:
+                                pass
                 except Exception:
                     HUD.compass_heading_valid = False
                     break

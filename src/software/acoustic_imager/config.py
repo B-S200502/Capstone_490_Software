@@ -148,14 +148,22 @@ WIFI_GEO_API_KEY = _load_wifi_geo_api_key()
 # Magnetometer (compass) — main.py uses these for MagnetometerReader
 MAG_UART_DEVICE = "/dev/ttyS0"
 MAG_UART_BAUD = 9600
-# Heading plane: "auto" picks XY/XZ/YZ by largest span sum; "XZ"/"YZ" often suit screen-vertical upright mount.
-MAG_HEADING_PLANE = "auto"  # "auto" | "XY" | "XZ" | "YZ"
+# Heading plane: XY | XZ | YZ. Default XY = yaw about sensor normal (screen toward you) rotates atan2(y,x).
+# XZ/YZ suit other mounts; pitch/roll still shift the arrow without an accelerometer (no tilt comp on this I2C path).
+MAG_HEADING_PLANE = "XY"
+# Median window (>=3) for samples fed to heading + hard-iron extrema; damps spikes. 1 = raw samples only.
+MAG_HEADING_MEDIAN_LEN = 5
 MAG_CAL_MIN_SPAN = 100  # min raw axis range (LSB) before hard-iron cal applies for active plane
 MAG_APPLY_HARD_IRON_CAL = True
 # Log x,y,z + compass heading to stdout (journalctl when service pipes via systemd-cat). 0 = off.
 MAG_JOURNAL_LOG_INTERVAL_S = 0.25
 # If True, append plane= and raw_xy= (atan2(y,x) deg) for comparing planes while debugging.
 MAG_JOURNAL_LOG_VERBOSE = False
+# TSV yaw/heading log: unix_s, x, y, z, heading_deg, plane, cal_on, raw_dbg, cal_dbg, h_xy, h_xz, h_yz (all in-plane raw °).
+# Relative names are written under COMPASS_CAL_DIR (utilities/calibration); absolute path = as-is. Empty = off.
+MAG_HEADING_DEBUG_LOG_PATH = "mag_heading_debug.tsv"
+# Min seconds between debug log lines (reduces I/O). Set 0 to log every mag sample (~20 Hz).
+MAG_HEADING_DEBUG_LOG_INTERVAL_S = 0.2
 # User four-point cal JSON lives under COMPASS_CAL_DIR (set in main.py → repo utilities/calibration)
 COMPASS_CAL_DIR: Path | None = None
 COMPASS_USER_CAL_VALID: bool = False

@@ -421,13 +421,6 @@ def _render_widget_image(d: int, heading_deg: float, colormap_mode: str, now_s: 
     return widget
 
 
-def _mag_plane_strip_label(plane_raw: str) -> str:
-    p = (plane_raw or "auto").strip().upper()
-    if p in ("XY", "XZ", "YZ"):
-        return f"Plane:{p}"
-    return "Plane:AUTO"
-
-
 def _draw_compass_cal_strip(
     frame: np.ndarray,
     cx: int,
@@ -438,7 +431,6 @@ def _draw_compass_cal_strip(
     compass_cal_step: int,
     compass_cal_banner: str,
     user_cal_active: bool,
-    mag_heading_plane: str = "auto",
 ) -> Dict[str, Tuple[int, int, int, int]]:
     """Buttons under the radar circle; returns hit rectangles for main mouse_callback."""
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -490,15 +482,13 @@ def _draw_compass_cal_strip(
             cv2.putText(frame, msg, (tx, y0 + 12), font, fs, (200, 220, 255), tthick, cv2.LINE_AA)
             btn_y_off = 32
         gap = 8
-        bw_plane, bh_row = 108, 30
         bw_cal, bh_cal = 152, 34
         bw_clear = 72
         row_items: list[tuple[int, int, str, str, float, int]] = [
-            (bw_plane, bh_row, _mag_plane_strip_label(mag_heading_plane), "mag_plane_cycle", 0.42, 6),
             (bw_cal, bh_cal, "Cal 4-pt", "compass_cal_start", 0.48, 7),
         ]
         if user_cal_active:
-            row_items.append((bw_clear, bh_row, "Clear", "compass_cal_clear", 0.4, 6))
+            row_items.append((bw_clear, bh_cal, "Clear", "compass_cal_clear", 0.4, 6))
         total_w = sum(t[0] for t in row_items) + gap * (len(row_items) - 1)
         x0 = max(4, min(cx - total_w // 2, fw - total_w - 4))
         by_base = y0 + btn_y_off
@@ -544,7 +534,6 @@ def draw_radar_map_widget(
     compass_cal_step: int = 0,
     compass_cal_banner: str = "",
     user_cal_active: bool = False,
-    mag_heading_plane: str = "auto",
     show_compass_cal_ui: bool = True,
 ) -> Optional[Dict[str, Tuple[int, int, int, int]]]:
     global _RADAR_DEBUG_LAST_LOG_S
@@ -612,7 +601,6 @@ def draw_radar_map_widget(
             compass_cal_step,
             compass_cal_banner,
             user_cal_active,
-            mag_heading_plane=mag_heading_plane,
         )
     else:
         cal_hit = {}
