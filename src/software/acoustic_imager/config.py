@@ -482,15 +482,34 @@ pitch = (
 # 4. HW geometry (measured, payload order)
 # From utilities/calibration/array_geometry; payload 0=U3 .. 15=U14.
 # Used only for SRC:HW and LOOP; SIM keeps x_coords/y_coords above.
+#
+# THIN = slim array (default). THICK = legacy body / pre-slim geometry.
+# x coordinates match between variants; only y and pitch_hw differ.
 # ===============================================================
+DEVICE_MODEL_GEOMETRY = "THIN"  # "THIN" | "THICK"
+
 x_coords_hw = np.array([
     0.013300, 0.023800, 0.001900, 0.009700, -0.006800, -0.011600,
     -0.018300, -0.002200, -0.016800, 0.007900, -0.003700, 0.001100,
     -0.003000, -0.012800, 0.018300, 0.007500,
 ])
-y_coords_hw = np.array([
+_Y_COORDS_HW_THIN = np.array([
     0.007080, 0.004280, 0.008380, 0.017780, 0.014380, 0.001480,
     0.010480, 0.022760, -0.008120, -0.009620, -0.005120, -0.000720,
     -0.016020, -0.020520, -0.006920, -0.021120,
-])
-pitch_hw = 0.001525
+], dtype=np.float64)
+_Y_COORDS_HW_THICK = np.array([
+    0.007080, 0.024280, 0.008380, 0.017780, 0.014380, 0.001480,
+    0.010480, 0.024080, -0.008120, -0.009620, -0.005120, -0.000720,
+    -0.016020, -0.020520, -0.006920, -0.021120,
+], dtype=np.float64)
+_PITCH_HW_THIN = 0.001525
+_PITCH_HW_THICK = 0.002179
+
+_geom_sel = str(DEVICE_MODEL_GEOMETRY or "THIN").strip().upper()
+if _geom_sel == "THICK":
+    y_coords_hw = _Y_COORDS_HW_THICK.copy()
+    pitch_hw = float(_PITCH_HW_THICK)
+else:
+    y_coords_hw = _Y_COORDS_HW_THIN.copy()
+    pitch_hw = float(_PITCH_HW_THIN)
