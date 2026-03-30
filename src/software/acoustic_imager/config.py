@@ -410,6 +410,40 @@ SPI_COV_AVG_FRAMES = 4
 SPI_DIRECTIVITY_MIN = 0.6
 # Only show bin if its MUSIC peak angle is stable: change from last frame <= this deg (0=off). Suppresses jitter.
 SPI_ANGLE_STABILITY_DEG = 18.0
+
+# FPS HUD — blob stability: 0=Sharp 1=Balanced 2=Smooth. Balanced matches the six values above.
+# Startup: only presets 0 and 2 are applied from tables; 1 keeps literals as loaded from this file.
+HEATMAP_STABILITY_PRESET_INDEX = 1
+_HEATMAP_STABILITY_BALANCED = {
+    "HEATMAP_SMOOTH_ALPHA": 0.52,
+    "HEATMAP_REUSE_POSITION_EPS_PX": 1.0,
+    "HEATMAP_REUSE_AMP_EPS": 0.04,
+    "SPI_MUSIC_EVERY_N_FRAMES": 2,
+    "SPI_COV_AVG_FRAMES": 4,
+    "SPI_ANGLE_STABILITY_DEG": 18.0,
+}
+HEATMAP_STABILITY_PRESETS = (
+    {
+        **_HEATMAP_STABILITY_BALANCED,
+        "HEATMAP_SMOOTH_ALPHA": 0.38,
+        "HEATMAP_REUSE_POSITION_EPS_PX": 0.75,
+        "HEATMAP_REUSE_AMP_EPS": 0.03,
+        "SPI_MUSIC_EVERY_N_FRAMES": 1,
+        "SPI_COV_AVG_FRAMES": 3,
+        "SPI_ANGLE_STABILITY_DEG": 22.0,
+    },
+    dict(_HEATMAP_STABILITY_BALANCED),
+    {
+        **_HEATMAP_STABILITY_BALANCED,
+        "HEATMAP_SMOOTH_ALPHA": 0.68,
+        "HEATMAP_REUSE_POSITION_EPS_PX": 2.5,
+        "HEATMAP_REUSE_AMP_EPS": 0.08,
+        "SPI_MUSIC_EVERY_N_FRAMES": 2,
+        "SPI_COV_AVG_FRAMES": 6,
+        "SPI_ANGLE_STABILITY_DEG": 14.0,
+    },
+)
+
 # Per-mic normalization: scale each mic so L2 norm across bins is 1 (balances gain across mics; use if some mics are weak).
 SPI_PER_MIC_NORMALIZE = True
 # Power curve for blob brightness: 1.0=linear, >1=stronger bins dominate (more differentiation), <1=lift weak bins

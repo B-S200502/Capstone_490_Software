@@ -3,12 +3,13 @@ Top HUD: network, FPS, and time pills at the top of the main view.
 """
 
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Dict, Tuple, Optional  # noqa: F401 Optional used in _draw_pill
 import time
 import cv2
 import numpy as np
 
+from .. import config as app_config
 from ..config import (
     HUD_MENU_OPACITY,
     MENU_ACTIVE_BLUE,
@@ -27,12 +28,16 @@ from .menu import _blue_gradient_overlay
 from .battery_icon import draw_battery_icon, BATTERY_BODY_W, BATTERY_TIP_W, BATTERY_BODY_H
 from .button import menu_buttons, Button
 
+HeatmapPresetHitRects = Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int], Tuple[int, int, int, int]]
+
+
 @dataclass
 class HudRects:
     net:     Tuple[int,int,int,int]
     fps:     Tuple[int,int,int,int]
     battery: Tuple[int,int,int,int]  # merged battery + wifi pill
     time:    Tuple[int,int,int,int]
+    heatmap_stability_preset_rects: Optional[HeatmapPresetHitRects] = None
 
 
 def _draw_pill(frame: np.ndarray, x: int, y: int, w: int, h: int,
@@ -128,7 +133,13 @@ def draw_hud(
     Returns hit rects for mouse click handling (with offset applied).
     """
     if details_level == "OFF":
-        return HudRects(net=(0,0,0,0), fps=(0,0,0,0), battery=(0,0,0,0), time=(0,0,0,0))
+        return HudRects(
+            net=(0, 0, 0, 0),
+            fps=(0, 0, 0, 0),
+            battery=(0, 0, 0, 0),
+            time=(0, 0, 0, 0),
+            heatmap_stability_preset_rects=None,
+        )
 
     h, w, _ = frame.shape
 
@@ -247,10 +258,11 @@ def draw_hud(
     draw_pill_icon_text(x_time, time_w, time_txt, draw_clock_icon)
 
     rects = HudRects(
-        net=(x_net,  y, net_w,   pill_h),
-        fps=(x_fps,  y, fps_w,   pill_h),
+        net=(x_net, y, net_w, pill_h),
+        fps=(x_fps, y, fps_w, pill_h),
         battery=(x_bat, y, bat_w, pill_h),
         time=(x_time, y, time_w, pill_h),
+        heatmap_stability_preset_rects=None,
     )
 
     # Expanded panel (only when icon clicked); keep width within camera feed (don't cross into freq bar)
@@ -295,11 +307,71 @@ def draw_hud(
         panel(lines, rects.battery[0])
 
     elif open_panel == "fps":
-        panel([
+        lines_fps = [
             f"Mode: {fps_mode}",
             f"dt: {1000.0/max(1e-6, (1.0/max(1e-6, fps_ema))):0.1f} ms (approx)",
             "Tip: MAX mode removes throttle",
-        ], rects.fps[0])
+        ]
+        line_h = 16
+        first_line_y = 20
+        seg_gap = 3
+        seg_h = 18
+        bottom_pad = 8
+        anchor_x = rects.fps[0]
+        content_w = max(tw(s, 0.5, 1) for s in lines_fps) + 20
+        panel_w = min(max(165, content_w), max(1, panel_right - anchor_x))
+        # Height must cover: text block + gap + segment row + bottom inset (cv2 baseline layout)
+        panel_h = first_line_y + line_h * len(lines_fps) + seg_gap + seg_h + bottom_pad
+        _draw_pill(frame, anchor_x, panel_y, panel_w, panel_h)
+        yy = panel_y + first_line_y
+        for s in lines_fps:
+            cv2.putText(
+                frame,
+                s,
+                (anchor_x + 10, yy),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.50,
+                (255, 255, 255),
+                1,
+                cv2.LINE_AA,
+            )
+            yy += line_h
+        seg_y = yy + seg_gap
+        margin = 8
+        inner_w = max(1, panel_w - 2 * margin)
+        seg_w = inner_w // 3
+        rem = inner_w - 3 * seg_w
+        preset_idx = int(getattr(app_config, "HEATMAP_STABILITY_PRESET_INDEX", 1))
+        preset_idx = max(0, min(2, preset_idx))
+        labels = ("Sharp", "Balanced", "Smooth")
+        hit_list: list[Tuple[int, int, int, int]] = []
+        x_cursor = anchor_x + margin
+        font_seg = cv2.FONT_HERSHEY_SIMPLEX
+        for i in range(3):
+            w_i = seg_w + (rem if i == 2 else 0)
+            rx, ry, rw, rh = x_cursor, seg_y, w_i, seg_h
+            hit_list.append((rx, ry, rw, rh))
+            is_act = i == preset_idx
+            y1 = min(frame.shape[0], ry + rh)
+            x1 = min(frame.shape[1], rx + rw)
+            if rx < x1 and ry < y1:
+                sub = frame[ry:y1, rx:x1]
+                h_sub, w_sub = sub.shape[:2]
+                if is_act:
+                    overlay = _blue_gradient_overlay(h_sub, w_sub, MENU_ACTIVE_BLUE, MENU_ACTIVE_BLUE_LIGHT)
+                    cv2.addWeighted(overlay, HUD_MENU_OPACITY, sub, 1.0 - HUD_MENU_OPACITY, 0.0, dst=sub)
+                else:
+                    cv2.rectangle(frame, (rx, ry), (x1 - 1, y1 - 1), (90, 90, 90), 1, cv2.LINE_AA)
+            txt = labels[i]
+            (tw_txt, th_txt), _ = cv2.getTextSize(txt, font_seg, 0.38, 1)
+            tx = rx + max(0, (rw - tw_txt) // 2)
+            ty = ry + max(0, (rh + th_txt) // 2)
+            cv2.putText(frame, txt, (tx, ty), font_seg, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
+            x_cursor += w_i
+        rects = replace(
+            rects,
+            heatmap_stability_preset_rects=(hit_list[0], hit_list[1], hit_list[2]),
+        )
 
     elif open_panel == "net":
         mbps_bytes = bytes_per_s / 1e6

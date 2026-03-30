@@ -88,6 +88,7 @@ from acoustic_imager.state import HUD
 # I/O managers
 from acoustic_imager.io.camera_manager import CameraManager
 from acoustic_imager.io.gallery_metadata import load_metadata
+from acoustic_imager.io.heatmap_stability import apply_heatmap_stability_preset
 
 # UI components (flat modules alongside hud and video_recorder)
 from acoustic_imager.state import button_state
@@ -353,7 +354,21 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                 state.ui_click_was_on_ui = True
                 return
 
-        # 1) Top HUD pill click
+        # 1) Top HUD: FPS panel heatmap stability presets (before pill toggle)
+        try:
+            if HUD.open_panel == "fps" and getattr(state, "HUD_RECTS", None) is not None:
+                pr = getattr(state.HUD_RECTS, "heatmap_stability_preset_rects", None)
+                if pr is not None:
+                    for i, r in enumerate(pr):
+                        rx, ry, rw, rh = r
+                        if rx <= mx < rx + rw and ry <= my < ry + rh:
+                            apply_heatmap_stability_preset(i)
+                            state.ui_click_was_on_ui = True
+                            return
+        except Exception:
+            pass
+
+        # 2) Top HUD pill click
         try:
             from acoustic_imager.ui.top_hud import handle_hud_click
             if hasattr(state, "HUD_RECTS") and state.HUD_RECTS is not None:
@@ -365,7 +380,7 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
         except Exception:
             pass
 
-        # 2) Bottom HUD pills first (so they work when menu is closed; only when bar visible)
+        # 3) Bottom HUD pills first (so they work when menu is closed; only when bar visible)
         if state.ui_bottom_hud_offset <= 15:
             hit_pad = getattr(config, "UI_BOTTOM_HUD_HIT_PAD", 8)
             # Gallery: trigger on release (set pressed state here; actual open on LBUTTONUP)
@@ -932,6 +947,10 @@ def main() -> None:
     state.OUTPUT_DIR = repo_root / "data" / "heatmap_captures"
     state.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     print(f"Output directory: {state.OUTPUT_DIR}")
+
+    _hpreset = int(getattr(config, "HEATMAP_STABILITY_PRESET_INDEX", 1))
+    if _hpreset in (0, 2):
+        apply_heatmap_stability_preset(_hpreset)
 
     config.BATTERY_SNAPSHOT_PATH = repo_root / "data" / "battery_snapshot.json"
     load_persisted_battery_state(config.BATTERY_SNAPSHOT_PATH)
