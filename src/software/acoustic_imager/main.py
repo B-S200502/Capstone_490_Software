@@ -118,6 +118,7 @@ from acoustic_imager.io.compass_calibration import (
     save_calibration,
     solve_from_samples,
 )
+from acoustic_imager.io.config_persist import save_mag_heading_display_offset_deg
 from acoustic_imager.io.mic_gain_calibration import apply_mic_gain_calibration_json
 from acoustic_imager.io.gps_reader import GPSReader
 from acoustic_imager.io.position_manager import PositionManager
@@ -263,6 +264,22 @@ def _compass_cal_handle_click(key: str) -> None:
         st.compass_cal_banner = f"Saved {plane} +{off:.0f} deg"
 
 
+def _apply_mag_heading_offset_from_mx(mx: int) -> None:
+    """Map slider x position to MAG_HEADING_DISPLAY_OFFSET_DEG (uses track rect from last draw)."""
+    rect = button_state.mag_offset_slider_rect
+    if rect is None:
+        return
+    rx, ry, rw, rh = rect
+    vmin = float(getattr(config, "MAG_HEADING_OFFSET_SLIDER_MIN_DEG", -360.0))
+    vmax = float(getattr(config, "MAG_HEADING_OFFSET_SLIDER_MAX_DEG", 360.0))
+    span = vmax - vmin
+    if span <= 0.0:
+        return
+    t = (mx - rx) / max(1, rw)
+    t = max(0.0, min(1.0, t))
+    setattr(config, "MAG_HEADING_DISPLAY_OFFSET_DEG", vmin + t * span)
+
+
 # ===============================================================
 # Mouse callback for interactive controls
 # ===============================================================
@@ -377,11 +394,20 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
                             state.ui_click_was_on_ui = True
                             return
 
-        # 2b) Compass calibration strip under radar map
+        # 2b) Compass calibration strip under radar map (heading trim slider first)
         if not button_state.gallery_open and button_state.radar_ui_enabled:
             cal_rects = getattr(state, "COMPASS_CAL_HIT_RECTS", None)
             if cal_rects:
+                if "mag_offset_slider" in cal_rects:
+                    rx, ry, rw, rh = cal_rects["mag_offset_slider"]
+                    if rx <= mx < rx + rw and ry <= my < ry + rh:
+                        button_state.mag_offset_slider_dragging = True
+                        _apply_mag_heading_offset_from_mx(mx)
+                        state.ui_click_was_on_ui = True
+                        return
                 for ckey, rect in cal_rects.items():
+                    if ckey == "mag_offset_slider":
+                        continue
                     rx, ry, rw, rh = rect
                     if rx <= mx < rx + rw and ry <= my < ry + rh:
                         _compass_cal_handle_click(ckey)
@@ -770,6 +796,10 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
     # Handle mouse move (dragging)
     elif event == cv2.EVENT_MOUSEMOVE:
 
+        if button_state.mag_offset_slider_dragging:
+            _apply_mag_heading_offset_from_mx(mx)
+            return
+
         # WiFi modal list touch-drag scroll
         if HUD.wifi_modal_open:
             if handle_wifi_modal_touch_drag(event, mx, my, config.WIDTH, config.HEIGHT):
@@ -855,6 +885,13 @@ def mouse_callback(event, x: int, y: int, flags, param) -> None:
         if button_state.calibration_suite_modal_open:
             if handle_calibration_suite_modal_mouse(event, mx, my, config.WIDTH, config.HEIGHT):
                 pass  # consumed
+
+        if button_state.mag_offset_slider_dragging:
+            button_state.mag_offset_slider_dragging = False
+            if save_mag_heading_display_offset_deg(float(getattr(config, "MAG_HEADING_DISPLAY_OFFSET_DEG", 0.0))):
+                log.info("Saved MAG_HEADING_DISPLAY_OFFSET_DEG to config.py")
+            else:
+                log.warning("Could not save MAG_HEADING_DISPLAY_OFFSET_DEG to config.py")
 
         # End frequency bar drag
         state.DRAG_ACTIVE = False
@@ -2090,6 +2127,7 @@ def main() -> None:
                     compass_cal_banner=button_state.compass_cal_banner,
                     user_cal_active=bool(getattr(config, "COMPASS_USER_CAL_VALID", False)),
                     show_compass_cal_ui=button_state.radar_compass_cal_buttons_visible,
+                    heading_offset_deg=float(getattr(config, "MAG_HEADING_DISPLAY_OFFSET_DEG", 0.0)),
                 )
             else:
                 state.COMPASS_CAL_HIT_RECTS = None

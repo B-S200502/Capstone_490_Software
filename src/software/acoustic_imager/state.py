@@ -178,6 +178,9 @@ class ButtonState:
     compass_cal_step: int = 0  # 0 = idle, 1–4 = awaiting sample for N,E,S,W
     compass_cal_samples: List[Tuple[int, int, int]] = field(default_factory=list)
     compass_cal_banner: str = ""  # status / errors (short)
+    # Heading trim slider under radar (live MAG_HEADING_DISPLAY_OFFSET_DEG; saved to config.py on mouse up)
+    mag_offset_slider_dragging: bool = False
+    mag_offset_slider_rect: Optional[Tuple[int, int, int, int]] = None
     map_tile_style: str = RADAR_MAP_TILE_STYLE_DEFAULT  # "dark" | "light"
     colormap_mode: str = "MAGMA"  # "MAGMA" | "JET" | "TURBO" | "INFERNO"
     spectrum_analyzer_mode: str = "dB"  # "dB" | "NORM" | "dBA"

@@ -23,7 +23,7 @@ import numpy as np
 
 from .. import config
 from ..dsp.bars import COLORMAP_DICT
-from ..state import HUD, RadarDetection
+from ..state import HUD, RadarDetection, button_state
 
 _TILE_MEM_CACHE: Dict[Tuple[str, int, int, int], np.ndarray] = {}
 _TILE_LAST_ATTEMPT: Dict[Tuple[str, int, int, int], float] = {}
@@ -431,14 +431,16 @@ def _draw_compass_cal_strip(
     compass_cal_step: int,
     compass_cal_banner: str,
     user_cal_active: bool,
+    heading_offset_deg: float = 0.0,
 ) -> Dict[str, Tuple[int, int, int, int]]:
     """Buttons under the radar circle; returns hit rectangles for main mouse_callback."""
     font = cv2.FONT_HERSHEY_SIMPLEX
     fs = 0.38
     tthick = 1
     rects: Dict[str, Tuple[int, int, int, int]] = {}
+    button_state.mag_offset_slider_rect = None
     y0 = cy + r + 4
-    if y0 + 88 > fh - 2:
+    if y0 + 130 > fh - 2:
         return rects
 
     def _btn(
@@ -500,6 +502,54 @@ def _draw_compass_cal_strip(
                 break
             _btn(bx, by, bw, bh, lab, key, font_scale=fscale, text_dy=tdy)
             x_run += bw + gap
+
+        # Heading trim slider (live MAG_HEADING_DISPLAY_OFFSET_DEG; persisted to config.py on mouse up)
+        vmin = float(getattr(config, "MAG_HEADING_OFFSET_SLIDER_MIN_DEG", -360.0))
+        vmax = float(getattr(config, "MAG_HEADING_OFFSET_SLIDER_MAX_DEG", 360.0))
+        track_w = min(260, fw - 16)
+        track_h = 18
+        lab_h = 16
+        row2_y = by_base + bh_cal + 10
+        track_x = int(max(4, min(cx - track_w // 2, fw - track_w - 4)))
+        track_y = row2_y + lab_h
+        cv2.putText(
+            frame,
+            f"Heading trim: {heading_offset_deg:+.1f}",
+            (track_x, row2_y + 12),
+            font,
+            0.38,
+            (200, 215, 235),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.rectangle(
+            frame,
+            (track_x, track_y),
+            (track_x + track_w, track_y + track_h),
+            (55, 55, 55),
+            -1,
+        )
+        cv2.rectangle(
+            frame,
+            (track_x, track_y),
+            (track_x + track_w, track_y + track_h),
+            (120, 120, 120),
+            1,
+            cv2.LINE_AA,
+        )
+        span = vmax - vmin
+        if span <= 0.0:
+            span = 1.0
+        tkn = (float(heading_offset_deg) - vmin) / span
+        tkn = max(0.0, min(1.0, tkn))
+        knob_cx = int(track_x + tkn * track_w)
+        knob_r = 7
+        cv2.circle(frame, (knob_cx, track_y + track_h // 2), knob_r, (180, 200, 220), -1, cv2.LINE_AA)
+        cv2.circle(frame, (knob_cx, track_y + track_h // 2), knob_r, (90, 110, 130), 1, cv2.LINE_AA)
+        hit_h = lab_h + track_h + 4
+        rects["mag_offset_slider"] = (track_x, row2_y, track_w, hit_h)
+        button_state.mag_offset_slider_rect = (track_x, track_y, track_w, track_h)
+
         return rects
 
     dirs = ("North", "East", "South", "West")
@@ -535,6 +585,7 @@ def draw_radar_map_widget(
     compass_cal_banner: str = "",
     user_cal_active: bool = False,
     show_compass_cal_ui: bool = True,
+    heading_offset_deg: float = 0.0,
 ) -> Optional[Dict[str, Tuple[int, int, int, int]]]:
     global _RADAR_DEBUG_LAST_LOG_S
     if not bool(getattr(config, "RADAR_MAP_ENABLED", True)):
@@ -601,9 +652,11 @@ def draw_radar_map_widget(
             compass_cal_step,
             compass_cal_banner,
             user_cal_active,
+            heading_offset_deg=heading_offset_deg,
         )
     else:
         cal_hit = {}
+        button_state.mag_offset_slider_rect = None
 
     if show_debug:
         nav_h = float(heading_deg)

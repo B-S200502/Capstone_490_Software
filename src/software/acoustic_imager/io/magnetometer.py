@@ -18,7 +18,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 try:
     import serial
@@ -45,6 +45,31 @@ def _mag_heading_debug_log_file() -> Optional[Path]:
         return None
     p = Path(raw)
     return p if p.is_absolute() else cal_dir() / p
+
+
+def _apply_heading_display_offset(heading_deg: float) -> float:
+    """Final UI/map heading after optional temporary trim (MAG_HEADING_DISPLAY_OFFSET_DEG)."""
+    off = float(getattr(config, "MAG_HEADING_DISPLAY_OFFSET_DEG", 0.0))
+    return (float(heading_deg) + off) % 360.0
+
+
+def _update_mag_axis_extrema(
+    lo: Optional[int],
+    hi: Optional[int],
+    val: int,
+    max_step: int,
+) -> Tuple[Optional[int], Optional[int]]:
+    """Expand min/max only if the jump is within max_step LSB (rejects single-frame spikes)."""
+    if lo is None or hi is None:
+        return int(val), int(val)
+    nlo, nhi = int(lo), int(hi)
+    if val < nlo:
+        if (nlo - val) <= max_step:
+            nlo = int(val)
+    elif val > nhi:
+        if (val - nhi) <= max_step:
+            nhi = int(val)
+    return nlo, nhi
 
 
 def _nmea_checksum(s: str) -> bool:
@@ -134,6 +159,7 @@ class MagnetometerReader:
         self._mag_x_hist: deque[int] = deque(maxlen=self._mag_med_n)
         self._mag_y_hist: deque[int] = deque(maxlen=self._mag_med_n)
         self._mag_z_hist: deque[int] = deque(maxlen=self._mag_med_n)
+        self._mag_extrema_frozen = False
 
     def start(self) -> None:
         if self._thr is not None and self._thr.is_alive():
@@ -191,7 +217,7 @@ class MagnetometerReader:
                         hdg = heading % 360.0
                         if bool(getattr(config, "COMPASS_USER_CAL_VALID", False)):
                             hdg = (hdg + float(getattr(config, "COMPASS_USER_CAL_OFFSET_DEG", 0.0))) % 360.0
-                        HUD.compass_heading_deg = hdg
+                        HUD.compass_heading_deg = _apply_heading_display_offset(hdg)
                         HUD.compass_heading_valid = True
             try:
                 ser.close()
@@ -236,6 +262,7 @@ class MagnetometerReader:
             self._mag_x_hist.clear()
             self._mag_y_hist.clear()
             self._mag_z_hist.clear()
+            self._mag_extrema_frozen = False
             mag_journal_last = 0.0
             while not self._stop.is_set():
                 try:
@@ -251,19 +278,20 @@ class MagnetometerReader:
                         xm = _median_int(list(self._mag_x_hist))
                         ym = _median_int(list(self._mag_y_hist))
                         zm = _median_int(list(self._mag_z_hist))
-                    # Hard-iron extrema + heading use median-smoothed samples to limit spike poisoning.
-                    if HUD.mag_x_min is None or xm < HUD.mag_x_min:
-                        HUD.mag_x_min = int(xm)
-                    if HUD.mag_x_max is None or xm > HUD.mag_x_max:
-                        HUD.mag_x_max = int(xm)
-                    if HUD.mag_y_min is None or ym < HUD.mag_y_min:
-                        HUD.mag_y_min = int(ym)
-                    if HUD.mag_y_max is None or ym > HUD.mag_y_max:
-                        HUD.mag_y_max = int(ym)
-                    if HUD.mag_z_min is None or zm < HUD.mag_z_min:
-                        HUD.mag_z_min = int(zm)
-                    if HUD.mag_z_max is None or zm > HUD.mag_z_max:
-                        HUD.mag_z_max = int(zm)
+                    # Hard-iron extrema from median-smoothed samples; bounded steps reduce spike drift per revolution.
+                    if HUD.mag_x_min is None:
+                        self._mag_extrema_frozen = False
+                    if not self._mag_extrema_frozen:
+                        max_step = int(getattr(config, "MAG_CAL_EXTREMA_MAX_STEP_LSB", 420))
+                        HUD.mag_x_min, HUD.mag_x_max = _update_mag_axis_extrema(
+                            HUD.mag_x_min, HUD.mag_x_max, xm, max_step
+                        )
+                        HUD.mag_y_min, HUD.mag_y_max = _update_mag_axis_extrema(
+                            HUD.mag_y_min, HUD.mag_y_max, ym, max_step
+                        )
+                        HUD.mag_z_min, HUD.mag_z_max = _update_mag_axis_extrema(
+                            HUD.mag_z_min, HUD.mag_z_max, zm, max_step
+                        )
 
                     x_span = int(HUD.mag_x_max - HUD.mag_x_min) if (HUD.mag_x_max is not None and HUD.mag_x_min is not None) else 0
                     y_span = int(HUD.mag_y_max - HUD.mag_y_min) if (HUD.mag_y_max is not None and HUD.mag_y_min is not None) else 0
@@ -320,14 +348,19 @@ class MagnetometerReader:
                         heading_deg, heading_cal_deg, cal_ready, best_pair = fixed_plane_heading(str(user_plane))
                         use_cal = apply_hi and cal_ready
                         base = heading_cal_deg if use_cal else heading_deg
-                        HUD.compass_heading_deg = (base + user_off) % 360.0
+                        HUD.compass_heading_deg = _apply_heading_display_offset((base + user_off) % 360.0)
                     else:
                         plane_mode = str(getattr(config, "MAG_HEADING_PLANE", "xy")).strip().lower()
                         if plane_mode not in ("xy", "xz", "yz"):
                             plane_mode = "xy"
                         heading_deg, heading_cal_deg, cal_ready, best_pair = fixed_plane_heading(plane_mode)
                         use_cal = apply_hi and cal_ready
-                        HUD.compass_heading_deg = heading_cal_deg if use_cal else heading_deg
+                        HUD.compass_heading_deg = _apply_heading_display_offset(
+                            heading_cal_deg if use_cal else heading_deg
+                        )
+
+                    if bool(getattr(config, "MAG_CAL_EXTREMA_FREEZE_AFTER_READY", False)) and cal_ready:
+                        self._mag_extrema_frozen = True
 
                     HUD.mag_x_raw = int(x)
                     HUD.mag_y_raw = int(y)
@@ -352,23 +385,24 @@ class MagnetometerReader:
                             if bool(getattr(config, "MAG_JOURNAL_LOG_VERBOSE", False)):
                                 line += f" raw_xy={raw_xy_heading:.1f}"
                             print(line, flush=True)
-                    dbg_file = _mag_heading_debug_log_file()
-                    if dbg_file is not None:
-                        dbg_iv = float(getattr(config, "MAG_HEADING_DEBUG_LOG_INTERVAL_S", 0.2))
-                        tdbg = time.time()
-                        if dbg_iv <= 0 or (tdbg - self._mag_heading_dbg_last_t) >= dbg_iv:
-                            self._mag_heading_dbg_last_t = tdbg
-                            try:
-                                dbg_file.parent.mkdir(parents=True, exist_ok=True)
-                                with dbg_file.open("a", encoding="utf-8") as _df:
-                                    _df.write(
-                                        f"{tdbg:.3f}\t{HUD.mag_x_raw}\t{HUD.mag_y_raw}\t{HUD.mag_z_raw}\t"
-                                        f"{HUD.compass_heading_deg:.2f}\t{best_pair}\t{int(use_cal)}\t"
-                                        f"{HUD.mag_heading_dbg:.2f}\t{HUD.mag_heading_cal_dbg:.2f}\t"
-                                        f"{raw_xy_heading:.2f}\t{dbg_h_xz:.2f}\t{dbg_h_yz:.2f}\n"
-                                    )
-                            except OSError:
-                                pass
+                    # TSV heading log disabled (set MAG_HEADING_DEBUG_LOG_PATH in config to re-enable).
+                    # dbg_file = _mag_heading_debug_log_file()
+                    # if dbg_file is not None:
+                    #     dbg_iv = float(getattr(config, "MAG_HEADING_DEBUG_LOG_INTERVAL_S", 0.2))
+                    #     tdbg = time.time()
+                    #     if dbg_iv <= 0 or (tdbg - self._mag_heading_dbg_last_t) >= dbg_iv:
+                    #         self._mag_heading_dbg_last_t = tdbg
+                    #         try:
+                    #             dbg_file.parent.mkdir(parents=True, exist_ok=True)
+                    #             with dbg_file.open("a", encoding="utf-8") as _df:
+                    #                 _df.write(
+                    #                     f"{tdbg:.3f}\t{HUD.mag_x_raw}\t{HUD.mag_y_raw}\t{HUD.mag_z_raw}\t"
+                    #                     f"{HUD.compass_heading_deg:.2f}\t{best_pair}\t{int(use_cal)}\t"
+                    #                     f"{HUD.mag_heading_dbg:.2f}\t{HUD.mag_heading_cal_dbg:.2f}\t"
+                    #                     f"{raw_xy_heading:.2f}\t{dbg_h_xz:.2f}\t{dbg_h_yz:.2f}\n"
+                    #                 )
+                    #         except OSError:
+                    #             pass
                 except Exception:
                     HUD.compass_heading_valid = False
                     break
@@ -385,6 +419,6 @@ class MagnetometerReader:
     def _run_demo(self) -> None:
         """Time-based heading for testing when no device."""
         while not self._stop.is_set():
-            HUD.compass_heading_deg = (time.time() * 20.0) % 360.0
+            HUD.compass_heading_deg = _apply_heading_display_offset((time.time() * 20.0) % 360.0)
             HUD.compass_heading_valid = True
             time.sleep(0.05)

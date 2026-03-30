@@ -151,17 +151,26 @@ MAG_UART_BAUD = 9600
 # Heading plane: XY | XZ | YZ. Default XY = yaw about sensor normal (screen toward you) rotates atan2(y,x).
 # XZ/YZ suit other mounts; pitch/roll still shift the arrow without an accelerometer (no tilt comp on this I2C path).
 MAG_HEADING_PLANE = "XY"
+# Added last to HUD compass heading (degrees). Temporary trim only; prefer compass_cal.json for real alignment.
+MAG_HEADING_DISPLAY_OFFSET_DEG = 49.84615384615381
+# Heading trim slider range (degrees) on radar strip; written to config.py on release.
+MAG_HEADING_OFFSET_SLIDER_MIN_DEG = -360.0
+MAG_HEADING_OFFSET_SLIDER_MAX_DEG = 360.0
 # Median window (>=3) for samples fed to heading + hard-iron extrema; damps spikes. 1 = raw samples only.
 MAG_HEADING_MEDIAN_LEN = 5
 MAG_CAL_MIN_SPAN = 100  # min raw axis range (LSB) before hard-iron cal applies for active plane
 MAG_APPLY_HARD_IRON_CAL = True
+# Hard-iron extrema: max LSB a single median sample may extend min or max (rejects spike growth / drift per revolution).
+MAG_CAL_EXTREMA_MAX_STEP_LSB = 420
+# If True, stop updating mag min/max after hard-iron becomes ready (reduces drift; move away from metal before lock).
+MAG_CAL_EXTREMA_FREEZE_AFTER_READY = False
 # Log x,y,z + compass heading to stdout (journalctl when service pipes via systemd-cat). 0 = off.
 MAG_JOURNAL_LOG_INTERVAL_S = 0.25
 # If True, append plane= and raw_xy= (atan2(y,x) deg) for comparing planes while debugging.
 MAG_JOURNAL_LOG_VERBOSE = False
-# TSV yaw/heading log: unix_s, x, y, z, heading_deg, plane, cal_on, raw_dbg, cal_dbg, h_xy, h_xz, h_yz (all in-plane raw °).
-# Relative names are written under COMPASS_CAL_DIR (utilities/calibration); absolute path = as-is. Empty = off.
-MAG_HEADING_DEBUG_LOG_PATH = "mag_heading_debug.tsv"
+# TSV yaw/heading log (disabled). Re-enable: set to e.g. "mag_heading_debug.tsv" (under COMPASS_CAL_DIR if relative).
+# MAG_HEADING_DEBUG_LOG_PATH = "mag_heading_debug.tsv"
+MAG_HEADING_DEBUG_LOG_PATH = ""
 # Min seconds between debug log lines (reduces I/O). Set 0 to log every mag sample (~20 Hz).
 MAG_HEADING_DEBUG_LOG_INTERVAL_S = 0.2
 # User four-point cal JSON lives under COMPASS_CAL_DIR (set in main.py → repo utilities/calibration)
