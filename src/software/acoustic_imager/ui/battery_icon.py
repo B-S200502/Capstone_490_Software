@@ -192,6 +192,15 @@ def _in_usb_rail_band(mv: int) -> bool:
     return lo <= mv <= hi
 
 
+def _hold_uncertain_display(anchor_default: int) -> int:
+    """Prefer last UI % (e.g. from JSON), then anchor SOC, then default — avoid bogus 0."""
+    if _last_display_soc is not None:
+        return max(0, min(100, int(_last_display_soc)))
+    if _last_good_soc is not None:
+        return max(0, min(100, int(_last_good_soc)))
+    return max(0, min(100, int(anchor_default)))
+
+
 def _pack_voltage_trustworthy(mv: int) -> bool:
     return mv >= int(_cfg("BATTERY_PACK_READ_MIN_MV", BATTERY_V_MV_MIN))
 
@@ -220,6 +229,9 @@ def resolve_battery_display_percent(mv: Optional[int], now_s: Optional[float] = 
 
     Between BATTERY_USB_MV_HIGH and BATTERY_PACK_READ_MIN_MV we hold last known % (or
     default anchor) instead of mapping to 0%.
+
+    Below BATTERY_USB_MV_LOW (but mv > 0) we also hold — same as stale JSON case where
+    the ADC reports e.g. ~4.5 V and would otherwise hit 0% then the display floor.
     """
     global _last_good_soc, _last_trusted_mv, _usb_infer_start_s, _usb_infer_anchor_soc
     global _persisted_infer_start_s
@@ -287,9 +299,15 @@ def resolve_battery_display_percent(mv: Optional[int], now_s: Optional[float] = 
     # battery_mv_to_percent() treats mv <= 5.8V as 0% — bogus "empty" for this gap.
     pack_min = int(_cfg("BATTERY_PACK_READ_MIN_MV", BATTERY_V_MV_MIN))
     usb_hi = int(_cfg("BATTERY_USB_MV_HIGH", 5320))
+    usb_lo = int(_cfg("BATTERY_USB_MV_LOW", 4600))
     if usb_hi < mv < pack_min:
-        hold = _last_good_soc if _last_good_soc is not None else anchor_default
-        hold = max(0, min(100, int(hold)))
+        hold = _hold_uncertain_display(anchor_default)
+        return _finalize_display(hold, mv)
+
+    # Below USB low threshold: offset/noisy rail (e.g. ~4.5 V); do not use linear curve → 0%.
+    if 0 < mv < usb_lo:
+        _usb_infer_start_s = None
+        hold = _hold_uncertain_display(anchor_default)
         return _finalize_display(hold, mv)
 
     _usb_infer_start_s = None
