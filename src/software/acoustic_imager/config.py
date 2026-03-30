@@ -391,9 +391,9 @@ SPI_MIC_GAIN = (11.84, 100.00, 100.00, 6.02, 3.06, 1.00, 6.94, 8.26, 6.32, 1.64,
 # Whole-array gain boost (linear): 2.0 = ~6 dB; use if mics seem low
 SPI_ARRAY_GAIN = 1.0
 # Number of bins to use for heatmap in HW/LOOP: top-K by power within bandpass (replaces fixed SPI_SIM_BINS for live display)
-SPI_TOP_K_BINS = 3
+SPI_TOP_K_BINS = 5
 # Only bins within this many dB of peak (in bandpass) are eligible for heatmap; lower = stricter, less noisy
-SPI_NOISE_FLOOR_DB = 10.0
+SPI_NOISE_FLOOR_DB = 12.0
 # Heatmap never uses bins below this Hz (vs UI bandpass lower edge): excludes DC / very-low leakage from top-K+MUSIC.
 # Set 0.0 to disable (bandpass-only lower bound).
 HEATMAP_MIN_FREQ_HZ = 100.0
@@ -447,7 +447,12 @@ HEATMAP_STABILITY_PRESETS = (
 # Per-mic normalization: scale each mic so L2 norm across bins is 1 (balances gain across mics; use if some mics are weak).
 SPI_PER_MIC_NORMALIZE = True
 # Power curve for blob brightness: 1.0=linear, >1=stronger bins dominate (more differentiation), <1=lift weak bins
-SPI_HEATMAP_POWER_GAMMA = 1.15
+SPI_HEATMAP_POWER_GAMMA = 1.05
+# Second spatial peak per FFT bin (2D MUSIC only): mask global max region and take next peak — helps two same-frequency sources
+SPI_HEATMAP_SECOND_PEAK_ENABLED = True
+SPI_HEATMAP_SECOND_PEAK_MIN_REL = 0.22
+SPI_HEATMAP_SECOND_PEAK_MASK_CELLS = 4
+SPI_HEATMAP_SECOND_PEAK_POWER_SCALE = 0.82
 
 CRC_EVERY_N = 30
 

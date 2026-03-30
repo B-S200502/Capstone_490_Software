@@ -57,6 +57,7 @@ from acoustic_imager.dsp.beamforming import (
     music_spectrum_2d,
     music_spectrum_2d_refined,
     music_2d_peak_angles,
+    music_2d_second_peak_angles,
 )
 from acoustic_imager.dsp.heatmap import (
     spectra_to_heatmap_absolute,
@@ -1115,7 +1116,7 @@ def main() -> None:
     last_spi_peak_angles: Optional[list] = None
     cov_avg: dict[int, np.ndarray] = {}  # bin_idx -> averaged covariance (N_MICS, N_MICS) for MUSIC
     # Reusable buffers for HW/LOOP heatmap (avoid per-frame allocs)
-    _heatmap_max_bins = 32
+    _heatmap_max_bins = max(64, int(getattr(config, "SPI_TOP_K_BINS", 5)) * 2)
     _heatmap_max_n_ang = max(
         len(config.ANGLES),
         len(getattr(config, "ANGLES_2D_X", config.ANGLES)),
@@ -1460,25 +1461,28 @@ def main() -> None:
                         n_ang = len(config.ANGLES_2D_X)
                     else:
                         n_ang = len(config.ANGLES)
-                    n = len(bins)
+                    n_bins = len(bins)
                     every_n = max(1, int(getattr(config, "SPI_MUSIC_EVERY_N_FRAMES", 1)))
+                    second_peak_on = bool(getattr(config, "SPI_HEATMAP_SECOND_PEAK_ENABLED", False)) and use_dual_angle
+                    max_rows = min(_heatmap_max_bins, n_bins * 2 if second_peak_on else n_bins)
                     if use_dual_angle and every_n > 1 and (frame_count % every_n) != 0 and frozen_bins is not None and len(frozen_bins) > 0:
                         bins = frozen_bins
-                        n = len(bins)
-                    if heatmap_spec_buf is None or heatmap_spec_buf.shape[0] < n or heatmap_spec_buf.shape[1] < n_ang:
+                        n_bins = len(bins)
+                        max_rows = min(_heatmap_max_bins, n_bins * 2 if second_peak_on else n_bins)
+                    if heatmap_spec_buf is None or heatmap_spec_buf.shape[0] < max_rows or heatmap_spec_buf.shape[1] < n_ang:
                         heatmap_spec_buf = np.zeros((_heatmap_max_bins, _heatmap_max_n_ang), dtype=np.float32)
                         heatmap_angle_x_buf = np.empty(_heatmap_max_bins, dtype=np.float64)
                         heatmap_angle_y_buf = np.empty(_heatmap_max_bins, dtype=np.float64)
                         heatmap_power_buf = np.zeros(_heatmap_max_bins, dtype=np.float32)
                         heatmap_band_freqs_buf = np.zeros(_heatmap_max_bins, dtype=np.float64)
-                    spec_matrix = heatmap_spec_buf[:n, :n_ang]
+                    spec_matrix = heatmap_spec_buf[:max_rows, :n_ang]
                     spec_matrix.fill(0)
-                    angle_x_deg = heatmap_angle_x_buf[:n] if use_dual_angle else None
-                    angle_y_deg = heatmap_angle_y_buf[:n] if use_dual_angle else None
+                    angle_x_deg = heatmap_angle_x_buf[:max_rows] if use_dual_angle else None
+                    angle_y_deg = heatmap_angle_y_buf[:max_rows] if use_dual_angle else None
                     for j, b in enumerate(bins):
                         heatmap_band_freqs_buf[j] = float(config.f_axis[b])
-                    band_freqs = heatmap_band_freqs_buf[:n]
-                    power = heatmap_power_buf[:n]
+                    band_freqs = heatmap_band_freqs_buf[:max_rows]
+                    power = heatmap_power_buf[:max_rows]
                     power.fill(0)
 
                     skip_music = (
@@ -1490,34 +1494,46 @@ def main() -> None:
                         and all(bins[j] == last_music_bins_list[j] for j in range(len(bins)))
                         and last_music_spec_cache is not None
                         and last_music_angle_x_cache is not None
+                        and not second_peak_on
                     )
 
                     n_avg = max(1, int(getattr(config, "SPI_COV_AVG_FRAMES", 1)))
                     alpha = 1.0 / n_avg
+                    p2_scale = float(getattr(config, "SPI_HEATMAP_SECOND_PEAK_POWER_SCALE", 0.82))
+                    sp_min_rel = float(getattr(config, "SPI_HEATMAP_SECOND_PEAK_MIN_REL", 0.22))
+                    sp_mask = int(getattr(config, "SPI_HEATMAP_SECOND_PEAK_MASK_CELLS", 4))
                     if skip_music:
-                        heatmap_angle_x_buf[:n] = last_music_angle_x_cache[:n]
-                        heatmap_angle_y_buf[:n] = last_music_angle_y_cache[:n]
-                        heatmap_spec_buf[:n, :n_ang] = last_music_spec_cache[:n, :n_ang]
+                        heatmap_angle_x_buf[:n_bins] = last_music_angle_x_cache[:n_bins]
+                        heatmap_angle_y_buf[:n_bins] = last_music_angle_y_cache[:n_bins]
+                        heatmap_spec_buf[:n_bins, :n_ang] = last_music_spec_cache[:n_bins, :n_ang]
                         for i, f_idx in enumerate(bins):
                             Xf = fft_for_heatmap[:, f_idx][:, np.newaxis]
                             power[i] = float(np.sum(np.abs(Xf) ** 2).real)
+                        n_rows = n_bins
+                        row_bins = list(bins)
                     else:
-                        for i, f_idx in enumerate(bins):
-                            f_sig = float(config.f_axis[f_idx])
-                            Xf = fft_for_heatmap[:, f_idx][:, np.newaxis]
-                            R = Xf @ Xf.conj().T
-                            if n_avg > 1:
-                                if f_idx not in cov_avg:
-                                    cov_avg[f_idx] = R.copy()
+                        row_bins: list[int] = []
+                        if use_dual_angle:
+                            r = 0
+                            for i, f_idx in enumerate(bins):
+                                f_sig = float(config.f_axis[f_idx])
+                                Xf = fft_for_heatmap[:, f_idx][:, np.newaxis]
+                                R = Xf @ Xf.conj().T
+                                if n_avg > 1:
+                                    if f_idx not in cov_avg:
+                                        cov_avg[f_idx] = R.copy()
+                                    else:
+                                        cov_avg[f_idx] = (1.0 - alpha) * cov_avg[f_idx] + alpha * R
+                                    R_use = cov_avg[f_idx]
                                 else:
-                                    cov_avg[f_idx] = (1.0 - alpha) * cov_avg[f_idx] + alpha * R
-                                R_use = cov_avg[f_idx]
-                            else:
-                                R_use = R
+                                    R_use = R
 
-                            if use_dual_angle:
+                                p0 = float(np.sum(np.abs(Xf) ** 2).real)
+                                heatmap_band_freqs_buf[r] = float(config.f_axis[f_idx])
+                                row_bins.append(f_idx)
+
                                 if coarse_res > 0:
-                                    spec_coarse, angle_x_deg[i], angle_y_deg[i] = music_spectrum_2d_refined(
+                                    spec_coarse, angle_x_deg[r], angle_y_deg[r] = music_spectrum_2d_refined(
                                         R_use, config.ANGLES_2D_X, config.ANGLES_2D_Y, f_sig,
                                         config.SPI_MUSIC_N_SOURCES, config.x_coords_hw, config.y_coords_hw,
                                         config.SPEED_SOUND,
@@ -1525,74 +1541,165 @@ def main() -> None:
                                         refine_half_width=int(getattr(config, "SPI_MUSIC_2D_REFINE_HALF_WIDTH", 2)),
                                     )
                                     iy = int(np.argmax(spec_coarse) % spec_coarse.shape[1])
-                                    spec_matrix[i, :] = spec_coarse[:, iy]
+                                    spec_matrix[r, :] = spec_coarse[:, iy]
                                 else:
                                     spec_2d = music_spectrum_2d(
                                         R_use, config.ANGLES_2D_X, config.ANGLES_2D_Y, f_sig,
                                         config.SPI_MUSIC_N_SOURCES, config.x_coords_hw, config.y_coords_hw,
                                         config.SPEED_SOUND,
                                     )
-                                    angle_x_deg[i], angle_y_deg[i] = music_2d_peak_angles(
+                                    angle_x_deg[r], angle_y_deg[r] = music_2d_peak_angles(
                                         spec_2d, config.ANGLES_2D_X, config.ANGLES_2D_Y,
                                     )
                                     iy = int(np.argmax(spec_2d) % spec_2d.shape[1])
-                                    spec_matrix[i, :] = spec_2d[:, iy]
-                            else:
+                                    spec_matrix[r, :] = spec_2d[:, iy]
+
+                                power[r] = p0
+                                if config.SPI_DIRECTIVITY_MIN > 0:
+                                    dr = directivity_ratio(R_use)
+                                    if dr < config.SPI_DIRECTIVITY_MIN:
+                                        power[r] = 0.0
+
+                                if (
+                                    second_peak_on
+                                    and (r + 1) < max_rows
+                                    and power[r] > 0.0
+                                ):
+                                    if coarse_res > 0:
+                                        Ncx, Ncy = spec_coarse.shape
+                                        coarse_x = np.linspace(
+                                            float(config.ANGLES_2D_X[0]),
+                                            float(config.ANGLES_2D_X[-1]),
+                                            Ncx,
+                                            dtype=np.float64,
+                                        )
+                                        coarse_y = np.linspace(
+                                            float(config.ANGLES_2D_Y[0]),
+                                            float(config.ANGLES_2D_Y[-1]),
+                                            Ncy,
+                                            dtype=np.float64,
+                                        )
+                                        ax2, ay2, ok, iy2 = music_2d_second_peak_angles(
+                                            spec_coarse,
+                                            coarse_x,
+                                            coarse_y,
+                                            mask_radius_cells=sp_mask,
+                                            min_rel=sp_min_rel,
+                                        )
+                                        if ok:
+                                            r += 1
+                                            angle_x_deg[r] = ax2
+                                            angle_y_deg[r] = ay2
+                                            spec_matrix[r, :] = spec_coarse[:, iy2]
+                                            heatmap_band_freqs_buf[r] = float(config.f_axis[f_idx])
+                                            power[r] = p0 * p2_scale
+                                            row_bins.append(f_idx)
+                                            if config.SPI_DIRECTIVITY_MIN > 0:
+                                                dr = directivity_ratio(R_use)
+                                                if dr < config.SPI_DIRECTIVITY_MIN:
+                                                    power[r] = 0.0
+                                    else:
+                                        ax2, ay2, ok, iy2 = music_2d_second_peak_angles(
+                                            spec_2d,
+                                            config.ANGLES_2D_X,
+                                            config.ANGLES_2D_Y,
+                                            mask_radius_cells=sp_mask,
+                                            min_rel=sp_min_rel,
+                                        )
+                                        if ok:
+                                            r += 1
+                                            angle_x_deg[r] = ax2
+                                            angle_y_deg[r] = ay2
+                                            spec_matrix[r, :] = spec_2d[:, iy2]
+                                            heatmap_band_freqs_buf[r] = float(config.f_axis[f_idx])
+                                            power[r] = p0 * p2_scale
+                                            row_bins.append(f_idx)
+                                            if config.SPI_DIRECTIVITY_MIN > 0:
+                                                dr = directivity_ratio(R_use)
+                                                if dr < config.SPI_DIRECTIVITY_MIN:
+                                                    power[r] = 0.0
+                                r += 1
+                            n_rows = r
+                        else:
+                            for i, f_idx in enumerate(bins):
+                                f_sig = float(config.f_axis[f_idx])
+                                Xf = fft_for_heatmap[:, f_idx][:, np.newaxis]
+                                R = Xf @ Xf.conj().T
+                                if n_avg > 1:
+                                    if f_idx not in cov_avg:
+                                        cov_avg[f_idx] = R.copy()
+                                    else:
+                                        cov_avg[f_idx] = (1.0 - alpha) * cov_avg[f_idx] + alpha * R
+                                    R_use = cov_avg[f_idx]
+                                else:
+                                    R_use = R
+
                                 spec_matrix[i, :] = music_spectrum(
                                     R_use, config.ANGLES, f_sig, config.SPI_MUSIC_N_SOURCES,
                                     config.x_coords_hw, config.y_coords_hw, config.SPEED_SOUND
                                 )
-                            power[i] = float(np.sum(np.abs(Xf) ** 2).real)
-                            if config.SPI_DIRECTIVITY_MIN > 0:
-                                dr = directivity_ratio(R_use)
-                                if dr < config.SPI_DIRECTIVITY_MIN:
-                                    power[i] = 0.0
+                                power[i] = float(np.sum(np.abs(Xf) ** 2).real)
+                                if config.SPI_DIRECTIVITY_MIN > 0:
+                                    dr = directivity_ratio(R_use)
+                                    if dr < config.SPI_DIRECTIVITY_MIN:
+                                        power[i] = 0.0
+                            n_rows = n_bins
+                            row_bins = list(bins)
+
                         if use_dual_angle:
                             if last_music_angle_x_cache is None or last_music_spec_cache is None:
                                 last_music_angle_x_cache = np.empty(_heatmap_max_bins, dtype=np.float64)
                                 last_music_angle_y_cache = np.empty(_heatmap_max_bins, dtype=np.float64)
                                 last_music_spec_cache = np.zeros((_heatmap_max_bins, _heatmap_max_n_ang), dtype=np.float32)
-                            last_music_angle_x_cache[:n] = heatmap_angle_x_buf[:n]
-                            last_music_angle_y_cache[:n] = heatmap_angle_y_buf[:n]
-                            last_music_spec_cache[:n, :n_ang] = heatmap_spec_buf[:n, :n_ang]
+                            last_music_angle_x_cache[:n_rows] = heatmap_angle_x_buf[:n_rows]
+                            last_music_angle_y_cache[:n_rows] = heatmap_angle_y_buf[:n_rows]
+                            last_music_spec_cache[:n_rows, :n_ang] = heatmap_spec_buf[:n_rows, :n_ang]
                             last_music_bins_list = list(bins)
                             frozen_bins = list(bins)
 
                     prof.mark("heat_music")
-                    # Peak-angle stability: use angle_x_deg when dual_angle, else 1D peak from spec_matrix
-                    if config.SPI_ANGLE_STABILITY_DEG > 0 and len(bins) > 0:
+                    # Peak-angle stability: index-aligned rows (supports duplicate bin index for 2nd peak)
+                    if config.SPI_ANGLE_STABILITY_DEG > 0 and n_rows > 0:
                         if use_dual_angle and angle_x_deg is not None:
-                            current_angles = [float(angle_x_deg[j]) for j in range(len(bins))]
+                            current_angles = [float(angle_x_deg[j]) for j in range(n_rows)]
                         else:
-                            peak_idx_per_bin = np.argmax(spec_matrix, axis=1)
+                            peak_idx_per_bin = np.argmax(spec_matrix[:n_rows], axis=1)
                             ang_arr = config.ANGLES_2D_X if use_dual_angle else config.ANGLES
-                            current_angles = [float(ang_arr[int(peak_idx_per_bin[j])]) for j in range(len(bins))]
-                        if last_spi_bins is not None and last_spi_peak_angles is not None:
-                            last_bin_to_angle = dict(zip(last_spi_bins, last_spi_peak_angles))
-                            for j in range(len(bins)):
-                                prev_angle = last_bin_to_angle.get(bins[j])
-                                if prev_angle is not None and abs(current_angles[j] - prev_angle) > config.SPI_ANGLE_STABILITY_DEG:
+                            current_angles = [
+                                float(ang_arr[int(peak_idx_per_bin[j])]) for j in range(n_rows)
+                            ]
+                        if (
+                            last_spi_peak_angles is not None
+                            and len(last_spi_peak_angles) == n_rows
+                        ):
+                            for j in range(n_rows):
+                                if abs(current_angles[j] - last_spi_peak_angles[j]) > config.SPI_ANGLE_STABILITY_DEG:
                                     power[j] = 0.0
-                        last_spi_bins = list(bins)
+                        last_spi_bins = list(row_bins)
                         last_spi_peak_angles = list(current_angles)
-                    elif len(bins) > 0:
+                    elif n_rows > 0:
                         if use_dual_angle and angle_x_deg is not None:
-                            last_spi_peak_angles = [float(angle_x_deg[j]) for j in range(len(bins))]
+                            last_spi_peak_angles = [float(angle_x_deg[j]) for j in range(n_rows)]
                         else:
-                            peak_idx_per_bin = np.argmax(spec_matrix, axis=1)
+                            peak_idx_per_bin = np.argmax(spec_matrix[:n_rows], axis=1)
                             ang_arr = config.ANGLES_2D_X if use_dual_angle else config.ANGLES
-                            last_spi_peak_angles = [float(ang_arr[int(peak_idx_per_bin[j])]) for j in range(len(bins))]
-                        last_spi_bins = list(bins)
+                            last_spi_peak_angles = [
+                                float(ang_arr[int(peak_idx_per_bin[j])]) for j in range(n_rows)
+                            ]
+                        last_spi_bins = list(row_bins)
                     else:
                         last_spi_bins = None
                         last_spi_peak_angles = None
 
                     prof.mark("heat_stability")
                     # Per-frame normalization; gamma > 1 makes strongest bins stand out more
-                    power_rel = power / (power.max() + 1e-12)
+                    pw = power[:n_rows]
+                    power_rel = pw / (pw.max() + 1e-12)
                     power_rel = np.power(power_rel, config.SPI_HEATMAP_POWER_GAMMA)
+                    spec_m = heatmap_spec_buf[:n_rows, :n_ang]
+                    bf = heatmap_band_freqs_buf[:n_rows]
                     heatmap_kw = dict(
-                        spec_matrix=spec_matrix,
+                        spec_matrix=spec_m,
                         power_rel=power_rel,
                         out_width=content_width,
                         out_height=content_height,
@@ -1601,7 +1708,7 @@ def main() -> None:
                         x_offset_px=getattr(config, "HEATMAP_X_OFFSET_PX", 0),
                         angle_min_deg=getattr(config, "HEATMAP_ANGLE_MIN_DEG", -90.0),
                         angle_max_deg=getattr(config, "HEATMAP_ANGLE_MAX_DEG", 90.0),
-                        band_freqs_hz=band_freqs,
+                        band_freqs_hz=bf,
                         f_min_hz=f_min,
                         f_max_hz=f_max,
                         projection_mode=getattr(config, "HEATMAP_PROJECTION_MODE", "linear"),
@@ -1611,8 +1718,8 @@ def main() -> None:
                         camera_vfov_deg=getattr(config, "HEATMAP_CAMERA_VFOV_DEG", 0.0),
                     )
                     if use_dual_angle and angle_x_deg is not None and angle_y_deg is not None:
-                        heatmap_kw["angle_x_deg"] = angle_x_deg
-                        heatmap_kw["angle_y_deg"] = angle_y_deg
+                        heatmap_kw["angle_x_deg"] = heatmap_angle_x_buf[:n_rows]
+                        heatmap_kw["angle_y_deg"] = heatmap_angle_y_buf[:n_rows]
                     heatmap_kw_no_out = {k: v for k, v in heatmap_kw.items() if k not in ("heat_out", "assumed_distance_m")}
                     current_blob_state = spectra_to_blob_state(**heatmap_kw_no_out)
                     _reuse = (

@@ -168,6 +168,53 @@ def music_spectrum_2d(
     return spec
 
 
+def _parabolic_offset_1d(arr: np.ndarray, idx: int, size: int) -> float:
+    y0 = float(arr[idx - 1]) if idx > 0 else float(arr[idx])
+    y1 = float(arr[idx])
+    y2 = float(arr[idx + 1]) if idx < size - 1 else float(arr[idx])
+    if idx > 0 and idx < size - 1:
+        denom = y0 - 2.0 * y1 + y2
+        if abs(denom) >= 1e-12:
+            d = 0.5 * (y0 - y2) / denom
+            d = np.clip(d, -0.5, 0.5)
+            return float(idx) + d
+    return float(idx)
+
+
+def music_2d_peak_angles_at(
+    spec_2d: np.ndarray,
+    angles_x: np.ndarray,
+    angles_y: np.ndarray,
+    ix: int,
+    iy: int,
+) -> tuple[float, float]:
+    """
+    Refine angles at a given peak cell (ix, iy) using the same parabolic interpolation
+    as music_2d_peak_angles.
+    """
+    spec_2d = np.asarray(spec_2d)
+    angles_x = np.asarray(angles_x)
+    angles_y = np.asarray(angles_y)
+    Nx, Ny = spec_2d.shape[0], spec_2d.shape[1]
+    if Nx == 0 or Ny == 0:
+        return 0.0, 0.0
+    ix = int(np.clip(ix, 0, Nx - 1))
+    iy = int(np.clip(iy, 0, Ny - 1))
+
+    row = spec_2d[:, iy]
+    ix_frac = _parabolic_offset_1d(row, ix, Nx)
+    ix_frac = np.clip(ix_frac, 0.0, float(Nx - 1))
+    col = spec_2d[ix, :]
+    iy_frac = _parabolic_offset_1d(col, iy, Ny)
+    iy_frac = np.clip(iy_frac, 0.0, float(Ny - 1))
+
+    span_x = float(angles_x[-1]) - float(angles_x[0]) if Nx > 1 else 0.0
+    span_y = float(angles_y[-1]) - float(angles_y[0]) if Ny > 1 else 0.0
+    angle_x_deg = float(angles_x[0]) + span_x * ix_frac / max(1, Nx - 1)
+    angle_y_deg = float(angles_y[0]) + span_y * iy_frac / max(1, Ny - 1)
+    return angle_x_deg, angle_y_deg
+
+
 def music_2d_peak_angles(
     spec_2d: np.ndarray,
     angles_x: np.ndarray,
@@ -178,42 +225,54 @@ def music_2d_peak_angles(
     Returns (angle_x_deg, angle_y_deg) in degrees.
     """
     spec_2d = np.asarray(spec_2d)
-    angles_x = np.asarray(angles_x)
-    angles_y = np.asarray(angles_y)
     Nx, Ny = spec_2d.shape[0], spec_2d.shape[1]
     if Nx == 0 or Ny == 0:
         return 0.0, 0.0
 
     ix = int(np.argmax(spec_2d) // Ny)
     iy = int(np.argmax(spec_2d) % Ny)
+    return music_2d_peak_angles_at(spec_2d, angles_x, angles_y, ix, iy)
 
-    def parabolic_offset(arr: np.ndarray, idx: int, size: int) -> float:
-        y0 = float(arr[idx - 1]) if idx > 0 else float(arr[idx])
-        y1 = float(arr[idx])
-        y2 = float(arr[idx + 1]) if idx < size - 1 else float(arr[idx])
-        if idx > 0 and idx < size - 1:
-            denom = y0 - 2.0 * y1 + y2
-            if abs(denom) >= 1e-12:
-                d = 0.5 * (y0 - y2) / denom
-                d = np.clip(d, -0.5, 0.5)
-                return float(idx) + d
-        return float(idx)
 
-    # Refine in x (row at iy)
-    row = spec_2d[:, iy]
-    ix_frac = parabolic_offset(row, ix, Nx)
-    ix_frac = np.clip(ix_frac, 0.0, float(Nx - 1))
-    # Refine in y (column at ix)
-    col = spec_2d[ix, :]
-    iy_frac = parabolic_offset(col, iy, Ny)
-    iy_frac = np.clip(iy_frac, 0.0, float(Ny - 1))
+def music_2d_second_peak_angles(
+    spec_2d: np.ndarray,
+    angles_x: np.ndarray,
+    angles_y: np.ndarray,
+    *,
+    mask_radius_cells: int = 4,
+    min_rel: float = 0.22,
+) -> tuple[float, float, bool, int]:
+    """
+    After masking a square neighborhood around the global maximum, find a second peak.
+    Returns (angle_x_deg, angle_y_deg, ok, iy_slice) where iy_slice is the column index
+    for spec_2d[:, iy_slice] to match the primary pipeline's 1D slice convention.
+    """
+    spec_2d = np.asarray(spec_2d, dtype=np.float32)
+    angles_x = np.asarray(angles_x)
+    angles_y = np.asarray(angles_y)
+    Nx, Ny = spec_2d.shape[0], spec_2d.shape[1]
+    if Nx == 0 or Ny == 0:
+        return 0.0, 0.0, False, 0
 
-    # Map fractional index to angle (same convention as 1D: index 0 -> first angle, N-1 -> last)
-    span_x = float(angles_x[-1]) - float(angles_x[0]) if Nx > 1 else 0.0
-    span_y = float(angles_y[-1]) - float(angles_y[0]) if Ny > 1 else 0.0
-    angle_x_deg = float(angles_x[0]) + span_x * ix_frac / max(1, Nx - 1)
-    angle_y_deg = float(angles_y[0]) + span_y * iy_frac / max(1, Ny - 1)
-    return angle_x_deg, angle_y_deg
+    gmax = float(np.max(spec_2d))
+    if gmax < 1e-18:
+        return 0.0, 0.0, False, 0
+
+    ix1 = int(np.argmax(spec_2d) // Ny)
+    iy1 = int(np.argmax(spec_2d) % Ny)
+    r = max(1, int(mask_radius_cells))
+    flat = spec_2d.copy()
+    x0, x1 = max(0, ix1 - r), min(Nx, ix1 + r + 1)
+    y0, y1 = max(0, iy1 - r), min(Ny, iy1 + r + 1)
+    flat[x0:x1, y0:y1] = 0.0
+    s2 = float(np.max(flat))
+    if s2 < float(min_rel) * gmax:
+        return 0.0, 0.0, False, 0
+
+    ix2 = int(np.argmax(flat) // Ny)
+    iy2 = int(np.argmax(flat) % Ny)
+    ax, ay = music_2d_peak_angles_at(spec_2d, angles_x, angles_y, ix2, iy2)
+    return ax, ay, True, iy2
 
 
 def music_spectrum_2d_refined(
